@@ -8,8 +8,8 @@ from types import ModuleType
 import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy import DateTime, create_engine
+from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 
 
@@ -29,9 +29,25 @@ class TestBase(DeclarativeBase):
 _TestSessionLocal = sessionmaker(bind=_test_engine, autoflush=False, autocommit=False)
 
 
+# Create TimestampMixin for test models
+class TimestampMixin:
+    """Mixin that adds created_at / updated_at columns to any model."""
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
 # Create a mock db module
 mock_db_module = ModuleType('app.db')
 mock_db_module.Base = TestBase
+mock_db_module.TimestampMixin = TimestampMixin
 mock_db_module.SessionLocal = _TestSessionLocal
 mock_db_module.get_engine = lambda: _test_engine
 
@@ -41,6 +57,8 @@ mock_config_module = ModuleType('app.config')
 
 class MockSettings:
     database_url = "sqlite+pysqlite:///:memory:"
+    redis_url = "redis://localhost:6379/0"
+    secret_key = "test-secret-key"
     db_pool_size = 5
     db_max_overflow = 10
     db_pool_timeout = 30
@@ -52,10 +70,12 @@ class MockSettings:
     brand_name = "Starter Template"
     brand_tagline = "FastAPI starter"
     brand_logo_url = None
+    cors_origins = ""
 
 
 mock_config_module.settings = MockSettings()
 mock_config_module.Settings = MockSettings
+mock_config_module.validate_settings = lambda s: []
 
 # Insert mocks before any app imports
 sys.modules['app.config'] = mock_config_module

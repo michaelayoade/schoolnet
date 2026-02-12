@@ -7,6 +7,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="htmx-config" content='{"defaultSwapStyle":"innerHTML","globalViewTransitions":true}' />
+    {% set csrf_value = csrf_token if csrf_token is defined else (request.state.csrf_token if request is defined and request.state is defined else "") %}
+    <meta name="csrf-token" content="{{ csrf_value | default('', true) }}" />
     <title>{% block title %}{{ title | default("Starter Template") }}{% endblock %}</title>
 
     <!-- Custom Fonts: Outfit (display) + Plus Jakarta Sans (body) -->
@@ -280,6 +282,55 @@
     </div>
     {% endblock %}
 
+    <!-- CSRF Auto-Injection: injects token into all POST forms, HTMX requests, and fetch() calls -->
+    <script>
+        (function() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            const token = meta ? meta.getAttribute('content') : '';
+            if (!token) return;
+
+            function ensureToken(form) {
+                const method = (form.getAttribute('method') || 'get').toLowerCase();
+                if (method !== 'post') return;
+                if (form.querySelector('input[name="csrf_token"]')) return;
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = token;
+                form.appendChild(input);
+            }
+
+            function scanForms(root) {
+                const scope = root || document;
+                scope.querySelectorAll('form').forEach(ensureToken);
+            }
+
+            scanForms();
+
+            // Inject CSRF header into all HTMX requests
+            document.body.addEventListener('htmx:configRequest', function(event) {
+                event.detail.headers['X-CSRF-Token'] = token;
+            });
+
+            // Re-scan forms after HTMX swaps in new content
+            document.body.addEventListener('htmx:afterSwap', function(event) {
+                scanForms(event.target);
+            });
+
+            // Monkey-patch fetch() to include CSRF header
+            const originalFetch = window.fetch;
+            window.fetch = function(resource, options) {
+                const opts = options || {};
+                const headers = new Headers(opts.headers || {});
+                if (!headers.has('X-CSRF-Token')) {
+                    headers.set('X-CSRF-Token', token);
+                }
+                opts.headers = headers;
+                return originalFetch(resource, opts);
+            };
+        })();
+    </script>
+
     <!-- Toast Notification Container -->
     <div id="toast-container"
          x-data="toastStore()"
@@ -313,7 +364,7 @@
         </template>
     </div>
 
-    <!-- Global Alpine.js Components -->
+    <!-- Global Scripts -->
     <script>
         // Toast notification store
         function toastStore() {
@@ -341,6 +392,47 @@
             }
         }
 
+        // Global helper: window.showToast('message', 'success')
+        window.showToast = function(message, type, duration) {
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: { message, type: type || 'info', duration: duration || 4000 }
+            }));
+        };
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Query-Parameter Toast Consumer
+        // Shows toast messages from URL params (?success=, ?error=, etc.)
+        // then cleans the URL to prevent re-display on refresh.
+        // ═══════════════════════════════════════════════════════════════════
+        (function consumeQueryMessages() {
+            const params = new URLSearchParams(window.location.search);
+            const keys = ["error", "success", "warning", "info", "created", "updated", "deleted"];
+            let changed = false;
+
+            keys.forEach(function(key) {
+                if (!params.has(key)) return;
+                const value = params.get(key);
+                if (value) {
+                    const type =
+                        key === "error" ? "error" :
+                        key === "warning" ? "warning" :
+                        key === "info" ? "info" :
+                        "success";
+                    window.dispatchEvent(new CustomEvent("show-toast", {
+                        detail: { message: value, type: type }
+                    }));
+                }
+                params.delete(key);
+                changed = true;
+            });
+
+            if (changed) {
+                const newQuery = params.toString();
+                const newUrl = window.location.pathname + (newQuery ? "?" + newQuery : "") + window.location.hash;
+                window.history.replaceState({}, "", newUrl);
+            }
+        })();
+
         // HTMX event listeners for toasts
         document.body.addEventListener('htmx:afterRequest', function(evt) {
             const trigger = evt.detail.xhr.getResponseHeader('HX-Trigger');
@@ -361,6 +453,119 @@
                 document.documentElement.classList.add('dark');
             }
         }
+
+        window.__authEnabled = {% if user is defined and user and user.is_authenticated %}true{% else %}false{% endif %};
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Automatic Token Refresh Manager
+        // Keeps users logged in by refreshing access tokens periodically
+        // ═══════════════════════════════════════════════════════════════════
+        (function() {
+            var REFRESH_INTERVAL_MS = 10 * 60 * 1000;   // Every 10 minutes
+            var MIN_REFRESH_INTERVAL_MS = 30000;          // Don't refresh more than once per 30s
+
+            var refreshTimeoutId = null;
+            var lastRefreshTime = 0;
+            var refreshDisabled = false;
+            var refreshInProgress = false;
+
+            async function refreshToken() {
+                if (!window.__authEnabled || refreshDisabled || refreshInProgress) return;
+                var currentPath = window.location.pathname;
+                if (currentPath === '/login' || currentPath === '/admin/login') return;
+                var now = Date.now();
+                if (now - lastRefreshTime < MIN_REFRESH_INTERVAL_MS) {
+                    scheduleNextRefresh();
+                    return;
+                }
+
+                refreshInProgress = true;
+                try {
+                    var response = await fetch('/auth/refresh', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({}),
+                    });
+
+                    if (response.ok) {
+                        await response.json();
+                        lastRefreshTime = Date.now();
+                        console.debug('[Auth] Token refreshed successfully');
+                    } else if (response.status === 401) {
+                        console.debug('[Auth] Session expired, redirecting to login');
+                        refreshDisabled = true;
+                        var redirectTarget = window.location.pathname + window.location.search;
+                        if (currentPath !== '/login' && currentPath !== '/') {
+                            window.location.href = '/login?next=' + encodeURIComponent(redirectTarget);
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    console.debug('[Auth] Token refresh failed:', e.message);
+                } finally {
+                    refreshInProgress = false;
+                }
+
+                scheduleNextRefresh();
+            }
+
+            function scheduleNextRefresh() {
+                if (!window.__authEnabled || refreshDisabled) return;
+                if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
+                refreshTimeoutId = setTimeout(refreshToken, REFRESH_INTERVAL_MS);
+            }
+
+            function onUserActivity() {
+                if (!window.__authEnabled || refreshDisabled) return;
+                if (Date.now() - lastRefreshTime < MIN_REFRESH_INTERVAL_MS) return;
+                scheduleNextRefresh();
+            }
+
+            ['click', 'keydown', 'scroll', 'touchstart'].forEach(function(event) {
+                document.addEventListener(event, onUserActivity, { passive: true });
+            });
+
+            if (window.__authEnabled) scheduleNextRefresh();
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible' && window.__authEnabled && !refreshDisabled) {
+                    var elapsed = Date.now() - lastRefreshTime;
+                    if (elapsed >= REFRESH_INTERVAL_MS) {
+                        refreshToken();
+                    } else {
+                        scheduleNextRefresh();
+                    }
+                }
+            });
+        })();
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Form Double-Submit Protection
+        // Disables submit buttons after first click to prevent duplicates
+        // ═══════════════════════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('submit', function(e) {
+                var form = e.target;
+                if (!form || form.tagName !== 'FORM') return;
+                var method = (form.method || 'GET').toUpperCase();
+                if (method !== 'POST') return;
+
+                var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+                if (btn && !btn.disabled) {
+                    btn.disabled = true;
+                    btn.dataset.originalText = btn.textContent;
+                    btn.textContent = 'Processing\u2026';
+                    // Re-enable after 8s in case of error (no redirect)
+                    setTimeout(function() {
+                        btn.disabled = false;
+                        if (btn.dataset.originalText) {
+                            btn.textContent = btn.dataset.originalText;
+                        }
+                    }, 8000);
+                }
+            });
+        });
     </script>
 
     {% block scripts %}{% endblock %}

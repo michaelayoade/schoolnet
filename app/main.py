@@ -1,11 +1,19 @@
+from __future__ import annotations
+
+import logging
+import os
 from contextlib import asynccontextmanager
+from threading import Lock
+from time import monotonic
+from typing import Any
 
 from fastapi import Depends, FastAPI, Request
-from time import monotonic
-from threading import Lock
-from starlette.responses import Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
+from starlette.responses import JSONResponse, Response
 
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
@@ -14,25 +22,35 @@ from app.api.persons import router as people_router
 from app.api.rbac import router as rbac_router
 from app.api.scheduler import router as scheduler_router
 from app.api.settings import router as settings_router
-from app.web_home import router as web_home_router
+from app.config import settings, validate_settings
 from app.db import SessionLocal
-from app.services import audit as audit_service
-from app.api.deps import require_role, require_user_auth
+from app.errors import register_error_handlers
+from app.logging import configure_logging
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.models.domain_settings import DomainSetting, SettingDomain
-from sqlalchemy.orm import Session
+from app.observability import ObservabilityMiddleware
+from app.services import audit as audit_service
 from app.services.settings_seed import (
     seed_audit_settings,
     seed_auth_settings,
     seed_scheduler_settings,
 )
-from app.logging import configure_logging
-from app.observability import ObservabilityMiddleware
 from app.telemetry import setup_otel
-from app.errors import register_error_handlers
+from app.web_home import router as web_home_router
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # type: ignore[arg-type]
+    # ── Startup ──────────────────────────────────────────
+    # Validate configuration
+    warnings = validate_settings(settings)
+    for w in warnings:
+        logger.warning("Config warning: %s", w)
+
+    # Seed default settings
     db = SessionLocal()
     try:
         seed_auth_settings(db)
@@ -40,23 +58,49 @@ async def lifespan(app: FastAPI):
         seed_scheduler_settings(db)
     finally:
         db.close()
+
+    logger.info("Application started (pid=%s)", os.getpid())
     yield
+
+    # ── Shutdown ─────────────────────────────────────────
+    logger.info("Application shutting down")
 
 
 app = FastAPI(title="Starter Template API", lifespan=lifespan)
 
-_AUDIT_SETTINGS_CACHE: dict | None = None
+_AUDIT_SETTINGS_CACHE: dict[str, Any] | None = None
 _AUDIT_SETTINGS_CACHE_AT: float | None = None
 _AUDIT_SETTINGS_CACHE_TTL_SECONDS = 30.0
 _AUDIT_SETTINGS_LOCK = Lock()
 configure_logging()
 setup_otel(app)
-app.add_middleware(ObservabilityMiddleware)
+
+# ── Middleware (order matters: last added = first executed) ──
 register_error_handlers(app)
+
+# CORS — must be added before other middleware
+cors_origins = [
+    o.strip()
+    for o in settings.cors_origins.split(",")
+    if o.strip()
+]
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Request-Id", "X-RateLimit-Remaining"],
+    )
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(ObservabilityMiddleware)
 
 
 @app.middleware("http")
-async def audit_middleware(request: Request, call_next):
+async def audit_middleware(request: Request, call_next: object) -> Response:
     response: Response
     path = request.url.path
     db = SessionLocal()
@@ -65,7 +109,7 @@ async def audit_middleware(request: Request, call_next):
     finally:
         db.close()
     if not audit_settings["enabled"]:
-        return await call_next(request)
+        return await call_next(request)  # type: ignore[call-arg]
     header_key = audit_settings.get("read_trigger_header") or ""
     header_value = request.headers.get(header_key, "") if header_key else ""
     track_read = request.method == "GET" and (
@@ -76,7 +120,7 @@ async def audit_middleware(request: Request, call_next):
     if _is_audit_path_skipped(path, audit_settings["skip_paths"]):
         should_log = False
     try:
-        response = await call_next(request)
+        response = await call_next(request)  # type: ignore[call-arg]
     except Exception:
         if should_log:
             db = SessionLocal()
@@ -96,7 +140,7 @@ async def audit_middleware(request: Request, call_next):
     return response
 
 
-def _load_audit_settings(db: Session):
+def _load_audit_settings(db: Session) -> dict[str, Any]:
     global _AUDIT_SETTINGS_CACHE, _AUDIT_SETTINGS_CACHE_AT
     now = monotonic()
     with _AUDIT_SETTINGS_LOCK:
@@ -106,19 +150,18 @@ def _load_audit_settings(db: Session):
             and now - _AUDIT_SETTINGS_CACHE_AT < _AUDIT_SETTINGS_CACHE_TTL_SECONDS
         ):
             return _AUDIT_SETTINGS_CACHE
-    defaults = {
+    defaults: dict[str, Any] = {
         "enabled": True,
         "methods": {"POST", "PUT", "PATCH", "DELETE"},
         "skip_paths": ["/static", "/web", "/health"],
         "read_trigger_header": "x-audit-read",
         "read_trigger_query": "audit",
     }
-    rows = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == SettingDomain.audit)
-        .filter(DomainSetting.is_active.is_(True))
-        .all()
+    stmt = select(DomainSetting).where(
+        DomainSetting.domain == SettingDomain.audit,
+        DomainSetting.is_active.is_(True),
     )
+    rows = list(db.scalars(stmt).all())
     values = {row.key: row for row in rows}
     if "enabled" in values:
         defaults["enabled"] = _to_bool(values["enabled"])
@@ -169,10 +212,13 @@ def _to_list(setting: DomainSetting, upper: bool) -> set[str] | list[str]:
 def _is_audit_path_skipped(path: str, skip_paths: list[str]) -> bool:
     return any(path.startswith(prefix) for prefix in skip_paths)
 
-def _include_api_router(router, dependencies=None):
-    app.include_router(router, dependencies=dependencies)
-    app.include_router(router, prefix="/api/v1", dependencies=dependencies)
 
+def _include_api_router(router: object, dependencies: list[Any] | None = None) -> None:
+    app.include_router(router, dependencies=dependencies)  # type: ignore[arg-type]
+    app.include_router(router, prefix="/api/v1", dependencies=dependencies)  # type: ignore[arg-type]
+
+
+from app.api.deps import require_role, require_user_auth  # noqa: E402
 
 _include_api_router(auth_router, dependencies=[Depends(require_role("admin"))])
 _include_api_router(auth_flow_router)
@@ -186,13 +232,51 @@ app.include_router(web_home_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+# ── Health Checks ────────────────────────────────────────
+
+
 @app.get("/health")
-def health_check():
+def health_check() -> dict[str, str]:
+    """Liveness probe — always returns ok if the process is running."""
     return {"status": "ok"}
 
 
+@app.get("/health/ready")
+def readiness_check() -> JSONResponse:
+    """Readiness probe — verifies database and Redis connectivity."""
+    checks: dict[str, str] = {}
+
+    # Check database
+    try:
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            checks["database"] = "ok"
+        finally:
+            db.close()
+    except Exception as e:
+        checks["database"] = f"error: {e}"
+
+    # Check Redis
+    try:
+        import redis as redis_lib
+
+        r = redis_lib.Redis.from_url(
+            settings.redis_url, decode_responses=True, socket_timeout=2
+        )
+        r.ping()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"error: {e}"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content={"status": "ok" if all_ok else "degraded", "checks": checks},
+    )
+
+
 @app.get("/metrics")
-def metrics():
+def metrics() -> Response:
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
-
