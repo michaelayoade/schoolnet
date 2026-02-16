@@ -1,0 +1,54 @@
+<aside class="fixed top-0 left-0 z-40 h-full w-64 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hidden lg:block overflow-y-auto">
+    <div class="px-4 py-5 border-b border-slate-200 dark:border-slate-700">
+        <a href="/admin" class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-sm">
+                {{ brand_mark if brand_mark is defined and brand_mark else 'A' }}
+            </div>
+            <span class="text-lg font-semibold text-slate-900 dark:text-white font-display">Admin</span>
+        </a>
+    </div>
+    <nav class="px-3 py-4 space-y-1">
+        {% set current_path = request.url.path %}
+        {% macro nav_item(label, href, icon_path) %}
+        <a href="{{ href }}"
+           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition
+                  {{ 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400' if current_path.startswith(href) else 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700/50' }}">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ icon_path }}" />
+            </svg>
+            {{ label }}
+        </a>
+        {% endmacro %}
+
+        {{ nav_item("Dashboard", "/admin", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6") }}
+        {{ nav_item("People", "/admin/people", "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z") }}
+        {{ nav_item("Roles", "/admin/roles", "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z") }}
+        {{ nav_item("Permissions", "/admin/permissions", "M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z") }}
+
+        <div class="pt-3 pb-1 px-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">System</p>
+        </div>
+        {{ nav_item("Settings", "/admin/settings", "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z") }}
+        {{ nav_item("Scheduler", "/admin/scheduler", "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z") }}
+        {{ nav_item("Audit Log", "/admin/audit", "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z") }}
+
+        <div class="pt-3 pb-1 px-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Billing</p>
+        </div>
+        {{ nav_item("Products", "/admin/billing/products", "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4") }}
+        {{ nav_item("Prices", "/admin/billing/prices", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z") }}
+        {{ nav_item("Customers", "/admin/billing/customers", "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z") }}
+        {{ nav_item("Subscriptions", "/admin/billing/subscriptions", "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15") }}
+        {{ nav_item("Invoices", "/admin/billing/invoices", "M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z") }}
+        {{ nav_item("Payment Methods", "/admin/billing/payment-methods", "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z") }}
+        {{ nav_item("Coupons", "/admin/billing/coupons", "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z") }}
+        {{ nav_item("Entitlements", "/admin/billing/entitlements", "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z") }}
+        {{ nav_item("Webhook Events", "/admin/billing/webhook-events", "M13 10V3L4 14h7v7l9-11h-7z") }}
+
+        <div class="pt-3 pb-1 px-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Content</p>
+        </div>
+        {{ nav_item("Notifications", "/admin/notifications", "M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0") }}
+        {{ nav_item("File Uploads", "/admin/file-uploads", "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5") }}
+    </nav>
+</aside>

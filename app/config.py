@@ -42,6 +42,23 @@ class Settings:
     )
     branding_url_prefix: str = os.getenv("BRANDING_URL_PREFIX", "/static/branding")
 
+    # Storage
+    storage_backend: str = os.getenv("STORAGE_BACKEND", "local")  # "local" or "s3"
+    storage_local_dir: str = os.getenv("STORAGE_LOCAL_DIR", "static/uploads")
+    storage_url_prefix: str = os.getenv("STORAGE_URL_PREFIX", "/static/uploads")
+    s3_bucket: str = os.getenv("S3_BUCKET", "")
+    s3_region: str = os.getenv("S3_REGION", "")
+    s3_access_key: str = os.getenv("S3_ACCESS_KEY", "")
+    s3_secret_key: str = os.getenv("S3_SECRET_KEY", "")
+    s3_endpoint_url: str = os.getenv("S3_ENDPOINT_URL", "")
+
+    # File uploads
+    upload_max_size_bytes: int = int(os.getenv("UPLOAD_MAX_SIZE_BYTES", str(10 * 1024 * 1024)))  # 10MB
+    upload_allowed_types: str = os.getenv(
+        "UPLOAD_ALLOWED_TYPES",
+        "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv",
+    )
+
     # CORS
     cors_origins: str = os.getenv("CORS_ORIGINS", "")  # Comma-separated origins
 

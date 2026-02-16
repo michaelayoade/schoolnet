@@ -35,6 +35,7 @@ from app.services import audit as audit_service
 from app.services.settings_seed import (
     seed_audit_settings,
     seed_auth_settings,
+    seed_billing_settings,
     seed_scheduler_settings,
 )
 from app.telemetry import setup_otel
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):  # type: ignore[arg-type]
         seed_auth_settings(db)
         seed_audit_settings(db)
         seed_scheduler_settings(db)
+        seed_billing_settings(db)
     finally:
         db.close()
 
@@ -220,7 +222,41 @@ def _include_api_router(router: object, dependencies: list[Any] | None = None) -
     app.include_router(router, prefix="/api/v1", dependencies=dependencies)  # type: ignore[arg-type]
 
 
+from app.api.billing import router as billing_router  # noqa: E402
 from app.api.deps import require_role, require_user_auth  # noqa: E402
+from app.api.file_uploads import router as file_uploads_router  # noqa: E402
+from app.api.notifications import router as notifications_router  # noqa: E402
+from app.api.ws import router as ws_router  # noqa: E402
+from app.web.audit import router as web_audit_router  # noqa: E402
+from app.web.auth import router as web_auth_router  # noqa: E402
+from app.web.billing.coupons import router as web_billing_coupons_router  # noqa: E402
+from app.web.billing.customers import (  # noqa: E402
+    router as web_billing_customers_router,
+)
+from app.web.billing.entitlements import (  # noqa: E402
+    router as web_billing_entitlements_router,
+)
+from app.web.billing.invoices import router as web_billing_invoices_router  # noqa: E402
+from app.web.billing.payment_methods import (  # noqa: E402
+    router as web_billing_payment_methods_router,
+)
+from app.web.billing.prices import router as web_billing_prices_router  # noqa: E402
+from app.web.billing.products import router as web_billing_products_router  # noqa: E402
+from app.web.billing.subscriptions import (  # noqa: E402
+    router as web_billing_subscriptions_router,
+)
+from app.web.billing.webhook_events import (  # noqa: E402
+    router as web_billing_webhook_events_router,
+)
+from app.web.dashboard import router as web_dashboard_router  # noqa: E402
+from app.web.deps import WebAuthRedirect  # noqa: E402
+from app.web.file_uploads import router as web_file_uploads_router  # noqa: E402
+from app.web.notifications import router as web_notifications_router  # noqa: E402
+from app.web.people import router as web_people_router  # noqa: E402
+from app.web.permissions import router as web_permissions_router  # noqa: E402
+from app.web.roles import router as web_roles_router  # noqa: E402
+from app.web.scheduler import router as web_scheduler_router  # noqa: E402
+from app.web.settings import router as web_settings_router  # noqa: E402
 
 _include_api_router(auth_router, dependencies=[Depends(require_role("admin"))])
 _include_api_router(auth_flow_router)
@@ -229,7 +265,39 @@ _include_api_router(people_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(audit_router)
 _include_api_router(settings_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(scheduler_router, dependencies=[Depends(require_user_auth)])
+_include_api_router(billing_router, dependencies=[Depends(require_user_auth)])
+_include_api_router(file_uploads_router, dependencies=[Depends(require_user_auth)])
+_include_api_router(notifications_router, dependencies=[Depends(require_user_auth)])
+app.include_router(ws_router)
+app.include_router(web_auth_router)
+app.include_router(web_dashboard_router)
+app.include_router(web_people_router)
+app.include_router(web_roles_router)
+app.include_router(web_permissions_router)
+app.include_router(web_settings_router)
+app.include_router(web_scheduler_router)
+app.include_router(web_audit_router)
+app.include_router(web_notifications_router)
+app.include_router(web_file_uploads_router)
+app.include_router(web_billing_products_router)
+app.include_router(web_billing_prices_router)
+app.include_router(web_billing_customers_router)
+app.include_router(web_billing_subscriptions_router)
+app.include_router(web_billing_invoices_router)
+app.include_router(web_billing_payment_methods_router)
+app.include_router(web_billing_coupons_router)
+app.include_router(web_billing_entitlements_router)
+app.include_router(web_billing_webhook_events_router)
 app.include_router(web_home_router)
+
+
+@app.exception_handler(WebAuthRedirect)
+async def web_auth_redirect_handler(request: Request, exc: WebAuthRedirect) -> Response:
+    """Redirect to login page when web auth fails."""
+    from starlette.responses import RedirectResponse
+
+    next_url = exc.next_url or request.url.path
+    return RedirectResponse(url=f"/admin/login?next={next_url}", status_code=302)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

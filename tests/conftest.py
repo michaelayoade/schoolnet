@@ -71,6 +71,16 @@ class MockSettings:
     brand_tagline = "FastAPI starter"
     brand_logo_url = None
     cors_origins = ""
+    storage_backend = "local"
+    storage_local_dir = "/tmp/test_uploads"
+    storage_url_prefix = "/static/uploads"
+    s3_bucket = ""
+    s3_region = ""
+    s3_access_key = ""
+    s3_secret_key = ""
+    s3_endpoint_url = ""
+    upload_max_size_bytes = 10 * 1024 * 1024
+    upload_allowed_types = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
 
 
 mock_config_module.settings = MockSettings()
@@ -94,6 +104,35 @@ from app.models.rbac import Role, Permission, RolePermission, PersonRole
 from app.models.audit import AuditEvent, AuditActorType
 from app.models.domain_settings import DomainSetting, SettingDomain
 from app.models.scheduler import ScheduledTask, ScheduleType
+from app.models.file_upload import FileUpload, FileUploadStatus
+from app.models.notification import Notification, NotificationType
+from app.models.billing import (
+    Product,
+    Price,
+    PriceType,
+    BillingScheme,
+    RecurringInterval,
+    Customer,
+    Subscription,
+    SubscriptionStatus,
+    SubscriptionItem,
+    Invoice,
+    InvoiceStatus,
+    InvoiceItem,
+    PaymentMethod,
+    PaymentMethodType,
+    PaymentIntent,
+    PaymentIntentStatus,
+    UsageRecord,
+    UsageAction,
+    Coupon,
+    CouponDuration,
+    Discount,
+    Entitlement,
+    EntitlementValueType,
+    WebhookEvent,
+    WebhookEventStatus,
+)
 
 # Create all tables
 TestBase.metadata.create_all(_test_engine)
@@ -369,3 +408,91 @@ def scheduled_task(db_session):
     db_session.commit()
     db_session.refresh(task)
     return task
+
+
+# ============ Billing Fixtures ============
+
+
+@pytest.fixture()
+def billing_product(db_session):
+    """Create a test billing product."""
+    product = Product(name=f"Product {uuid.uuid4().hex[:8]}", description="Test product")
+    db_session.add(product)
+    db_session.commit()
+    db_session.refresh(product)
+    return product
+
+
+@pytest.fixture()
+def billing_price(db_session, billing_product):
+    """Create a test billing price."""
+    price = Price(
+        product_id=billing_product.id,
+        currency="usd",
+        unit_amount=1999,
+        type=PriceType.recurring,
+        billing_scheme=BillingScheme.per_unit,
+        recurring_interval=RecurringInterval.month,
+        recurring_interval_count=1,
+        lookup_key=f"price_{uuid.uuid4().hex[:8]}",
+    )
+    db_session.add(price)
+    db_session.commit()
+    db_session.refresh(price)
+    return price
+
+
+@pytest.fixture()
+def billing_customer(db_session):
+    """Create a test billing customer."""
+    customer = Customer(
+        name="Test Customer",
+        email=f"customer-{uuid.uuid4().hex[:8]}@example.com",
+        currency="usd",
+    )
+    db_session.add(customer)
+    db_session.commit()
+    db_session.refresh(customer)
+    return customer
+
+
+@pytest.fixture()
+def billing_subscription(db_session, billing_customer):
+    """Create a test billing subscription."""
+    sub = Subscription(
+        customer_id=billing_customer.id,
+        status=SubscriptionStatus.active,
+    )
+    db_session.add(sub)
+    db_session.commit()
+    db_session.refresh(sub)
+    return sub
+
+
+@pytest.fixture()
+def billing_subscription_item(db_session, billing_subscription, billing_price):
+    """Create a test subscription item."""
+    si = SubscriptionItem(
+        subscription_id=billing_subscription.id,
+        price_id=billing_price.id,
+        quantity=1,
+    )
+    db_session.add(si)
+    db_session.commit()
+    db_session.refresh(si)
+    return si
+
+
+@pytest.fixture()
+def billing_coupon(db_session):
+    """Create a test coupon."""
+    coupon = Coupon(
+        name="Test Coupon",
+        code=f"SAVE{uuid.uuid4().hex[:6].upper()}",
+        percent_off=20,
+        duration=CouponDuration.once,
+    )
+    db_session.add(coupon)
+    db_session.commit()
+    db_session.refresh(coupon)
+    return coupon

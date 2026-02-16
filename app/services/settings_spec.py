@@ -202,12 +202,68 @@ SETTINGS_SPECS: list[SettingSpec] = [
         default=30,
         min_value=1,
     ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="default_currency",
+        env_var="BILLING_DEFAULT_CURRENCY",
+        value_type=SettingValueType.string,
+        default="usd",
+    ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="tax_rate_percent",
+        env_var="BILLING_TAX_RATE_PERCENT",
+        value_type=SettingValueType.integer,
+        default=0,
+        min_value=0,
+        max_value=100,
+    ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="invoice_prefix",
+        env_var="BILLING_INVOICE_PREFIX",
+        value_type=SettingValueType.string,
+        default="INV-",
+    ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="trial_period_days",
+        env_var="BILLING_TRIAL_PERIOD_DAYS",
+        value_type=SettingValueType.integer,
+        default=14,
+        min_value=0,
+    ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="dunning_max_retries",
+        env_var="BILLING_DUNNING_MAX_RETRIES",
+        value_type=SettingValueType.integer,
+        default=3,
+        min_value=0,
+    ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="grace_period_days",
+        env_var="BILLING_GRACE_PERIOD_DAYS",
+        value_type=SettingValueType.integer,
+        default=3,
+        min_value=0,
+    ),
+    SettingSpec(
+        domain=SettingDomain.billing,
+        key="webhook_tolerance_seconds",
+        env_var="BILLING_WEBHOOK_TOLERANCE_SECONDS",
+        value_type=SettingValueType.integer,
+        default=300,
+        min_value=1,
+    ),
 ]
 
 DOMAIN_SETTINGS_SERVICE = {
     SettingDomain.auth: settings_service.auth_settings,
     SettingDomain.audit: settings_service.audit_settings,
     SettingDomain.scheduler: settings_service.scheduler_settings,
+    SettingDomain.billing: settings_service.billing_settings,
 }
 
 

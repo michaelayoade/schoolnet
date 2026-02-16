@@ -10,11 +10,15 @@ from app.models.rbac import Permission, PersonRole, Role, RolePermission
 DEFAULT_PERMISSIONS = [
     ("audit:read", "Read audit events"),
     ("auth:manage", "Manage authentication"),
+    ("billing:read", "Read billing data"),
+    ("billing:manage", "Manage billing configuration"),
     ("people:read", "Read people profiles"),
     ("people:write", "Manage people profiles"),
     ("rbac:manage", "Manage roles and permissions"),
     ("scheduler:manage", "Manage scheduled tasks"),
     ("settings:manage", "Manage application settings"),
+    ("subscriptions:read", "Read subscriptions"),
+    ("subscriptions:manage", "Manage subscriptions"),
 ]
 
 DEFAULT_ROLES = [

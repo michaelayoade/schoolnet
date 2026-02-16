@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+    <!-- Sidebar -->
+    {% include "admin/components/sidebar.html" %}
+
+    <!-- Main content -->
+    <div class="flex-1 flex flex-col lg:ml-64">
+        <!-- Top bar -->
+        {% include "admin/components/topbar.html" %}
+
+        <!-- Page content -->
+        <main class="flex-1 p-6">
+            {% if success_message %}
+            <div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">
+                {{ success_message }}
+            </div>
+            {% endif %}
+            {% if error_message %}
+            <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+                {{ error_message }}
+            </div>
+            {% endif %}
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<!-- Mobile sidebar overlay -->
+<div x-data="{ sidebarOpen: false }"
+     x-on:toggle-sidebar.window="sidebarOpen = !sidebarOpen"
+     x-show="sidebarOpen"
+     x-cloak
+     class="lg:hidden fixed inset-0 z-50">
+    <div x-on:click="sidebarOpen = false" class="absolute inset-0 bg-black/50"></div>
+    <div class="relative w-64 h-full">
+        {% include "admin/components/sidebar.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function notificationBell() {
+    return {
+        open: false,
+        unreadCount: 0,
+        notifications: [],
+        ws: null,
+        reconnectTimer: null,
+
+        init() {
+            this.fetchNotifications();
+            this.connectWebSocket();
+            setInterval(() => this.fetchUnreadCount(), 60000);
+        },
+
+        toggle() {
+            this.open = !this.open;
+            if (this.open) this.fetchNotifications();
+        },
+
+        async fetchNotifications() {
+            try {
+                var token = this.getToken();
+                if (!token) return;
+                var resp = await fetch('/notifications/me?limit=10', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    this.notifications = data.items || [];
+                    this.fetchUnreadCount();
+                }
+            } catch (e) { console.debug('[Notifications] fetch failed:', e); }
+        },
+
+        async fetchUnreadCount() {
+            try {
+                var token = this.getToken();
+                if (!token) return;
+                var resp = await fetch('/notifications/me/unread-count', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    this.unreadCount = data.count;
+                }
+            } catch (e) {}
+        },
+
+        async markRead(n) {
+            if (n.is_read) return;
+            try {
+                var token = this.getToken();
+                if (!token) return;
+                await fetch('/notifications/me/' + n.id + '/read', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                n.is_read = true;
+                this.unreadCount = Math.max(0, this.unreadCount - 1);
+            } catch (e) {}
+        },
+
+        async markAllRead() {
+            try {
+                var token = this.getToken();
+                if (!token) return;
+                await fetch('/notifications/me/read-all', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                this.notifications.forEach(function(n) { n.is_read = true; });
+                this.unreadCount = 0;
+            } catch (e) {}
+        },
+
+        connectWebSocket() {
+            var self = this;
+            var token = this.getToken();
+            if (!token) return;
+            var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            var wsUrl = protocol + '//' + window.location.host + '/ws/notifications?token=' + token;
+            try {
+                this.ws = new WebSocket(wsUrl);
+                this.ws.onmessage = function(event) {
+                    try {
+                        var data = JSON.parse(event.data);
+                        if (data.type === 'notification') {
+                            self.unreadCount++;
+                            self.notifications.unshift(data.notification);
+                            if (self.notifications.length > 10) self.notifications.pop();
+                            window.showToast(data.notification.title, 'info');
+                        }
+                    } catch (e) {}
+                };
+                this.ws.onclose = function() { self.scheduleReconnect(); };
+                this.ws.onerror = function() { if (self.ws) self.ws.close(); };
+            } catch (e) {
+                this.scheduleReconnect();
+            }
+        },
+
+        scheduleReconnect() {
+            var self = this;
+            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = setTimeout(function() { self.connectWebSocket(); }, 5000);
+        },
+
+        getToken() {
+            var match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+            return match ? match[1] : '';
+        },
+
+        destroy() {
+            if (this.ws) { this.ws.close(); this.ws = null; }
+            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        }
+    };
+}
+</script>
+{% endblock %}

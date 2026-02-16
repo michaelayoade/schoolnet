@@ -10,3 +10,4 @@ class ListResponse(BaseModel, Generic[T]):
     count: int
     limit: int
     offset: int
+    total: int

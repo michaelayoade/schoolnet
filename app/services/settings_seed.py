@@ -3,7 +3,12 @@ import os
 from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingValueType
-from app.services.domain_settings import auth_settings, audit_settings, scheduler_settings
+from app.services.domain_settings import (
+    auth_settings,
+    audit_settings,
+    billing_settings,
+    scheduler_settings,
+)
 from app.services.secrets import is_openbao_ref
 
 
@@ -186,4 +191,49 @@ def seed_scheduler_settings(db: Session) -> None:
         key="beat_refresh_seconds",
         value_type=SettingValueType.integer,
         value_text=os.getenv("CELERY_BEAT_REFRESH_SECONDS", "30"),
+    )
+
+
+def seed_billing_settings(db: Session) -> None:
+    billing_settings.ensure_by_key(
+        db,
+        key="default_currency",
+        value_type=SettingValueType.string,
+        value_text=os.getenv("BILLING_DEFAULT_CURRENCY", "usd"),
+    )
+    billing_settings.ensure_by_key(
+        db,
+        key="tax_rate_percent",
+        value_type=SettingValueType.integer,
+        value_text=os.getenv("BILLING_TAX_RATE_PERCENT", "0"),
+    )
+    billing_settings.ensure_by_key(
+        db,
+        key="invoice_prefix",
+        value_type=SettingValueType.string,
+        value_text=os.getenv("BILLING_INVOICE_PREFIX", "INV-"),
+    )
+    billing_settings.ensure_by_key(
+        db,
+        key="trial_period_days",
+        value_type=SettingValueType.integer,
+        value_text=os.getenv("BILLING_TRIAL_PERIOD_DAYS", "14"),
+    )
+    billing_settings.ensure_by_key(
+        db,
+        key="dunning_max_retries",
+        value_type=SettingValueType.integer,
+        value_text=os.getenv("BILLING_DUNNING_MAX_RETRIES", "3"),
+    )
+    billing_settings.ensure_by_key(
+        db,
+        key="grace_period_days",
+        value_type=SettingValueType.integer,
+        value_text=os.getenv("BILLING_GRACE_PERIOD_DAYS", "3"),
+    )
+    billing_settings.ensure_by_key(
+        db,
+        key="webhook_tolerance_seconds",
+        value_type=SettingValueType.integer,
+        value_text=os.getenv("BILLING_WEBHOOK_TOLERANCE_SECONDS", "300"),
     )
