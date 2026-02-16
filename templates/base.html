@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% include "partials/_org_branding_head.html" %}
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -239,11 +240,7 @@
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 antialiased"
       hx-ext="loading-states">
-
-    {% set brand_name = brand.name | default("Starter Template") %}
-    {% set brand_tagline = brand.tagline | default("FastAPI starter", true) %}
-    {% set brand_logo_url = brand.logo_url | default("", true) %}
-    {% set brand_mark = brand.mark | default("ST") %}
+    {% include "partials/_brand_context.html" %}
 
     {% block body %}
     <div class="relative">

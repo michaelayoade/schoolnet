@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/macros.html" import pagination, sortable_th, status_badge %}
 
 {% block content %}
   {% set brand_name = brand.name | default("Starter Template") %}
@@ -44,34 +45,34 @@
               Updated
             </span>
           </div>
-          <div class="mt-4 divide-y divide-slate-100 dark:divide-slate-700">
-            {% for person in people %}
-              <div class="flex items-center justify-between py-3 text-sm">
-                <div>
-                  <p class="font-medium text-slate-900 dark:text-white">
-                    {{ person.first_name }} {{ person.last_name }}
-                  </p>
-                  <p class="text-slate-500 dark:text-slate-400">
-                    {{ person.email }}
-                  </p>
-                </div>
-                <span class="rounded-full bg-gradient-to-r from-green-100 to-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:from-green-900/30 dark:to-emerald-900/30 dark:text-emerald-400">
-                  Active
-                </span>
-              </div>
-            {% else %}
-              <div class="py-8 text-center">
-                <div class="mx-auto h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-3">
-                  <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-                  </svg>
-                </div>
-                <p class="text-sm text-slate-500 dark:text-slate-400">No people yet.</p>
-                <a href="/api/v1/people" class="mt-2 inline-block text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">
-                  Add your first person &rarr;
-                </a>
-              </div>
-            {% endfor %}
+          <div class="mt-4 overflow-hidden rounded-xl border border-slate-100 dark:border-slate-700">
+            <table class="min-w-full divide-y divide-slate-100 text-sm dark:divide-slate-700">
+              <thead class="bg-slate-50 dark:bg-slate-800/70">
+                <tr>
+                  {{ sortable_th("Last Name", "last_name", sort, dir, "/", {"page": page}) }}
+                  {{ sortable_th("Email", "email", sort, dir, "/", {"page": page}) }}
+                  {{ sortable_th("Created", "created_at", sort, dir, "/", {"page": page}) }}
+                  <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for person in people %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td class="px-4 py-2 text-slate-700 dark:text-slate-200">{{ person.last_name }}</td>
+                  <td class="px-4 py-2 text-slate-700 dark:text-slate-200">{{ person.email }}</td>
+                  <td class="px-4 py-2 text-slate-500 dark:text-slate-400">{{ person.created_at | format_datetime }}</td>
+                  <td class="px-4 py-2">{{ status_badge(person.status.value if person.status else "active") }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4" class="px-4 py-10 text-center text-slate-500 dark:text-slate-400">
+                    No people yet.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {{ pagination(page, total_pages, "/", {"sort": sort, "dir": dir}) }}
           </div>
         </div>
         <div class="grid gap-4">
@@ -118,11 +119,11 @@
             <div>
               <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display">Branding</h2>
               <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Control your product name, tagline, and logo with environment variables.
+                Build and apply your own color system, fonts, and logo without redeploys.
               </p>
             </div>
             <span class="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
-              ENV
+              THEME
             </span>
           </div>
           <div class="mt-5 flex items-center gap-4">
@@ -140,11 +141,14 @@
           </div>
           <div class="mt-5 rounded-xl border border-slate-100 bg-white/70 p-4 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
             <div class="flex flex-col gap-2 font-mono">
-              <div>BRAND_NAME={{ brand_name }}</div>
-              <div>BRAND_TAGLINE={{ brand_tagline }}</div>
-              <div>BRAND_LOGO_URL={{ brand_logo_url if brand_logo_url else "set a static URL" }}</div>
+              <div>Primary={{ branding.primary_color if branding is defined else "#06B6D4" }}</div>
+              <div>Accent={{ branding.accent_color if branding is defined else "#F97316" }}</div>
+              <div>Display Font={{ branding.font_family_display if branding is defined else "Outfit" }}</div>
             </div>
           </div>
+          <a href="/settings/branding" class="mt-4 inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
+            Open theme builder &rarr;
+          </a>
         </div>
 
         <div id="avatar" class="stagger-in rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800" data-avatar-uploader data-avatar-endpoint="/auth/me/avatar">

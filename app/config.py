@@ -32,6 +32,15 @@ class Settings:
     brand_name: str = os.getenv("BRAND_NAME", "Starter Template")
     brand_tagline: str = os.getenv("BRAND_TAGLINE", "FastAPI starter")
     brand_logo_url: str | None = os.getenv("BRAND_LOGO_URL") or None
+    branding_upload_dir: str = os.getenv("BRANDING_UPLOAD_DIR", "static/branding")
+    branding_max_size_bytes: int = int(
+        os.getenv("BRANDING_MAX_SIZE_BYTES", str(5 * 1024 * 1024))
+    )  # 5MB
+    branding_allowed_types: str = os.getenv(
+        "BRANDING_ALLOWED_TYPES",
+        "image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon",
+    )
+    branding_url_prefix: str = os.getenv("BRANDING_URL_PREFIX", "/static/branding")
 
     # CORS
     cors_origins: str = os.getenv("CORS_ORIGINS", "")  # Comma-separated origins
