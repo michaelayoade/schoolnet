@@ -15,7 +15,7 @@ from app.models.file_upload import FileUpload, FileUploadStatus
 from app.services.branding_context import load_branding_context
 from app.services.file_upload import FileUploadService
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def list_file_uploads(
     request: Request,
     page: int = 1,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List file uploads with pagination."""
     page = max(1, page)
@@ -91,7 +91,7 @@ def list_file_uploads(
 def upload_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the file upload form."""
     ctx = _base_context(
@@ -104,7 +104,7 @@ def upload_form(
 async def upload_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle file upload form submission."""
     form = await request.form()
@@ -159,7 +159,7 @@ async def delete_file_upload(
     request: Request,
     file_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle file upload deletion (soft delete)."""
     form = await request.form()

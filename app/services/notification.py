@@ -1,9 +1,9 @@
-"""Notification service — create, list, mark read, unread count."""
+"""Notification service — create, list, mark read, unread count, triggers."""
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -82,7 +82,7 @@ class NotificationService:
         if not notification or notification.recipient_id != recipient_id:
             return None
         notification.is_read = True
-        notification.read_at = datetime.now(timezone.utc)
+        notification.read_at = datetime.now(UTC)
         self.db.flush()
         return notification
 
@@ -95,10 +95,114 @@ class NotificationService:
                 Notification.is_active.is_(True),
                 Notification.is_read.is_(False),
             )
-            .values(is_read=True, read_at=datetime.now(timezone.utc))
+            .values(is_read=True, read_at=datetime.now(UTC))
         )
         result = self.db.execute(stmt)
         self.db.flush()
         count = result.rowcount  # type: ignore[union-attr]
         logger.info("Marked %d notifications as read for %s", count, recipient_id)
         return count
+
+    # ── Trigger helpers ──────────────────────────────────────
+
+    def notify_application_reviewed(
+        self,
+        parent_id: UUID,
+        application_number: str,
+        decision: str,
+        school_name: str,
+    ) -> Notification:
+        """Notify parent when their application is accepted/rejected."""
+        title = (
+            f"Application {application_number} accepted"
+            if decision == "accepted"
+            else f"Application {application_number} rejected"
+        )
+        ntype = (
+            NotificationType.success
+            if decision == "accepted"
+            else NotificationType.warning
+        )
+        return self.create(
+            NotificationCreate(
+                recipient_id=parent_id,
+                title=title,
+                message=f"Your application to {school_name} has been {decision}.",
+                type=ntype.value,
+                entity_type="application",
+                entity_id=application_number,
+                action_url="/parent/applications",
+            )
+        )
+
+    def notify_application_submitted(
+        self,
+        school_owner_id: UUID,
+        application_number: str,
+        parent_name: str,
+        school_name: str,
+    ) -> Notification:
+        """Notify school admin when a new application is submitted."""
+        return self.create(
+            NotificationCreate(
+                recipient_id=school_owner_id,
+                title=f"New application: {application_number}",
+                message=f"{parent_name} submitted an application to {school_name}.",
+                type=NotificationType.info.value,
+                entity_type="application",
+                entity_id=application_number,
+                action_url="/school/applications",
+            )
+        )
+
+    def notify_school_approved(
+        self,
+        owner_id: UUID,
+        school_name: str,
+    ) -> Notification:
+        """Notify school owner when their school is approved."""
+        return self.create(
+            NotificationCreate(
+                recipient_id=owner_id,
+                title=f"{school_name} has been approved",
+                message="Your school is now active and visible to parents.",
+                type=NotificationType.success.value,
+                entity_type="school",
+                action_url="/school",
+            )
+        )
+
+    def notify_school_suspended(
+        self,
+        owner_id: UUID,
+        school_name: str,
+    ) -> Notification:
+        """Notify school owner when their school is suspended."""
+        return self.create(
+            NotificationCreate(
+                recipient_id=owner_id,
+                title=f"{school_name} has been suspended",
+                message="Your school has been suspended. Please contact support.",
+                type=NotificationType.error.value,
+                entity_type="school",
+                action_url="/school",
+            )
+        )
+
+    def notify_payment_received(
+        self,
+        school_owner_id: UUID,
+        parent_name: str,
+        school_name: str,
+        amount: str,
+    ) -> Notification:
+        """Notify school owner of received payment."""
+        return self.create(
+            NotificationCreate(
+                recipient_id=school_owner_id,
+                title=f"Payment received: {amount}",
+                message=f"{parent_name} paid for an application to {school_name}.",
+                type=NotificationType.success.value,
+                entity_type="payment",
+            )
+        )

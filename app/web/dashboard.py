@@ -18,7 +18,7 @@ from app.models.rbac import Role
 from app.models.scheduler import ScheduledTask
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/admin", tags=["web-admin"])
 def dashboard(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     branding = load_branding_context(db)
     person = auth["person"]

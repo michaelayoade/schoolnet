@@ -14,7 +14,7 @@ from app.schemas.billing import ProductCreate, ProductUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def list_products(
     page: int = 1,
     is_active: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List products with pagination and optional is_active filter."""
     page = max(1, page)
@@ -88,7 +88,7 @@ def list_products(
 def create_product_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create product form."""
     ctx = _base_context(
@@ -101,7 +101,7 @@ def create_product_form(
 async def create_product_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle product creation form submission."""
     form = await request.form()
@@ -135,7 +135,7 @@ def product_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show product detail view."""
     item = billing_service.products.get(db, str(item_id))
@@ -164,7 +164,7 @@ def edit_product_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit product form."""
     item = billing_service.products.get(db, str(item_id))
@@ -180,7 +180,7 @@ async def edit_product_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle product edit form submission."""
     form = await request.form()
@@ -215,7 +215,7 @@ async def delete_product(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle product deletion."""
     form = await request.form()

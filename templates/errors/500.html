@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Something Went Wrong{% endblock %}
+
+{% block content %}
+<div class="flex min-h-[60vh] items-center justify-center px-6">
+    <div class="text-center">
+        <p class="text-6xl font-bold text-primary-500 dark:text-primary-400 font-display">500</p>
+        <h1 class="mt-4 text-2xl font-semibold text-slate-900 dark:text-white font-display">Something Went Wrong</h1>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">
+            An unexpected error occurred. Please try again later.
+        </p>
+        <a href="/"
+           class="mt-6 inline-block rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 btn-hover">
+            Go to Home
+        </a>
+    </div>
+</div>
+{% endblock %}

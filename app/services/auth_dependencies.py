@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from typing import cast
 
 from app.db import SessionLocal
 from app.models.auth import ApiKey, SessionStatus
@@ -13,12 +14,12 @@ from app.services.auth_flow import decode_access_token, hash_session_token
 from app.services.common import coerce_uuid
 
 
-def _make_aware(dt: datetime) -> datetime:
-    """Ensure datetime is timezone-aware (timezone.utc). SQLite doesn't preserve tz info."""
+def _make_aware(dt: datetime | None) -> datetime | None:
+    """Ensure datetime is timezone-aware (UTC). SQLite doesn't preserve tz info."""
     if dt is None:
         return None
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -70,11 +71,12 @@ def require_audit_auth(
     authorization: str | None = Header(default=None),
     x_session_token: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
-    request: Request = None,
+    # FastAPI injects `Request` here, but tests call this directly with None.
+    request: Request = cast(Request, None),
     db: Session = Depends(_get_db),
 ):
     token = _extract_bearer_token(authorization) or x_session_token
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if token:
         if _is_jwt(token):
             payload = decode_access_token(db, token)
@@ -87,7 +89,8 @@ def require_audit_auth(
                     raise HTTPException(status_code=401, detail="Invalid session")
                 if session.status != SessionStatus.active or session.revoked_at:
                     raise HTTPException(status_code=401, detail="Invalid session")
-                if _make_aware(session.expires_at) <= now:
+                expires_at = _make_aware(session.expires_at)
+                if expires_at is not None and expires_at <= now:
                     raise HTTPException(status_code=401, detail="Session expired")
             actor_id = str(payload.get("sub"))
             if request is not None:
@@ -121,7 +124,7 @@ def require_audit_auth(
 
 def require_user_auth(
     authorization: str | None = Header(default=None),
-    request: Request = None,
+    request: Request = cast(Request, None),
     db: Session = Depends(_get_db),
 ):
     token = _extract_bearer_token(authorization)
@@ -133,7 +136,7 @@ def require_user_auth(
     if not person_id or not session_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     person_uuid = coerce_uuid(person_id)
     session_uuid = coerce_uuid(session_id)
     stmt = select(AuthSession).where(

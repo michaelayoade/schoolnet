@@ -1,3 +1,4 @@
+{% from "macros/ui_macros.html" import status_badge %}
 {% extends "admin/base.html" %}
 {% block title %}Schools Management - Admin{% endblock %}
 {% block admin_content %}
@@ -41,10 +42,7 @@
                 <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{{ school.school_type | replace('_', ' ') | title }}</td>
                 <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{{ school.city if school.city else '-' }}{% if school.state %}, {{ school.state }}{% endif %}</td>
                 <td class="px-4 py-3">
-                    {% set status_colors = {'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'active': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'suspended': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'} %}
-                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ status_colors.get(school.status.value, 'bg-slate-100 text-slate-700') }}">
-                        {{ school.status.value | replace('_', ' ') | title }}
-                    </span>
+                    {{ status_badge(school.status) }}
                 </td>
                 <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ school.created_at.strftime('%d %b %Y') }}</td>
                 <td class="px-4 py-3 text-right">

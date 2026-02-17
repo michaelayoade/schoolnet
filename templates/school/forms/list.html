@@ -1,3 +1,4 @@
+{% from "macros/ui_macros.html" import status_badge %}
 {% extends "school/base.html" %}
 {% block title %}Admission Forms - School Admin{% endblock %}
 {% block school_content %}
@@ -22,10 +23,7 @@
                 {% endif %}
             </div>
             <div class="flex items-center gap-2">
-                {% set status_colors = {'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300', 'active': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'closed': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', 'archived': 'bg-slate-100 text-slate-500'} %}
-                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ status_colors.get(form.status.value, 'bg-slate-100 text-slate-700') }}">
-                    {{ form.status.value | title }}
-                </span>
+                {{ status_badge(form.status) }}
                 <a href="/school/forms/{{ form.id }}/edit" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Edit</a>
                 {% if form.status.value == 'draft' %}
                 <form method="POST" action="/school/forms/{{ form.id }}/activate" class="inline">

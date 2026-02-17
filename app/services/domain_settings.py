@@ -1,3 +1,5 @@
+import builtins
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -123,7 +125,8 @@ class DomainSettings(ListResponseMixin):
         key: str,
         value_type: SettingValueType,
         value_text: str | None = None,
-        value_json: dict | bool | int | None = None,
+        # Stored as JSON in the DB.
+        value_json: dict | builtins.list | bool | int | str | None = None,
         is_secret: bool = False,
     ):
         if not self.domain:

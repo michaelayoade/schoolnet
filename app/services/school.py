@@ -216,12 +216,34 @@ class SchoolService:
         school.verified_by = approved_by
         self.db.flush()
         logger.info("Approved school: %s by %s", school.id, approved_by)
+
+        try:
+            from app.services.notification import NotificationService
+
+            NotificationService(self.db).notify_school_approved(
+                school.owner_id,
+                school.name,
+            )
+        except Exception as e:
+            logger.warning("Failed to send approval notification: %s", e)
+
         return school
 
     def suspend(self, school: School) -> School:
         school.status = SchoolStatus.suspended
         self.db.flush()
         logger.info("Suspended school: %s", school.id)
+
+        try:
+            from app.services.notification import NotificationService
+
+            NotificationService(self.db).notify_school_suspended(
+                school.owner_id,
+                school.name,
+            )
+        except Exception as e:
+            logger.warning("Failed to send suspension notification: %s", e)
+
         return school
 
     def get_average_rating(self, school_id: UUID) -> float | None:

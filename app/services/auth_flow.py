@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pyotp
@@ -11,7 +12,6 @@ from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -32,6 +32,8 @@ from app.schemas.auth_flow import LoginResponse, LogoutResponse, TokenResponse
 from app.services.common import coerce_uuid
 from app.services.response import ListResponseMixin
 from app.services.secrets import resolve_secret
+
+logger = logging.getLogger(__name__)
 
 PASSWORD_CONTEXT = CryptContext(
     schemes=["pbkdf2_sha256", "bcrypt"],
@@ -58,14 +60,14 @@ def _env_int(name: str) -> int | None:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 
@@ -80,13 +82,13 @@ def _truncate_user_agent(value: str | None, max_len: int = 512) -> str | None:
 def _setting_value(db: Session | None, key: str) -> str | None:
     if db is None:
         return None
-    stmt = (
-        select(DomainSetting)
-        .where(DomainSetting.domain == SettingDomain.auth)
-        .where(DomainSetting.key == key)
-        .where(DomainSetting.is_active.is_(True))
+    setting = (
+        db.query(DomainSetting)
+        .filter(DomainSetting.domain == SettingDomain.auth)
+        .filter(DomainSetting.key == key)
+        .filter(DomainSetting.is_active.is_(True))
+        .first()
     )
-    setting = db.scalars(stmt).first()
     if not setting:
         return None
     if setting.value_text:
@@ -151,12 +153,12 @@ def _refresh_cookie_name(db: Session | None) -> str:
 
 
 def _refresh_cookie_secure(db: Session | None) -> bool:
-    env_value = os.getenv("REFRESH_COOKIE_SECURE")
+    env_value = _env_value("REFRESH_COOKIE_SECURE")
     if env_value is not None:
-        return env_value.strip().lower() in {"1", "true", "yes", "on"}
+        return env_value.lower() in {"1", "true", "yes", "on"}
     value = _setting_value(db, "refresh_cookie_secure")
     if value is not None:
-        return str(value).strip().lower() in {"1", "true", "yes", "on"}
+        return str(value).lower() in {"1", "true", "yes", "on"}
     return False
 
 
@@ -269,21 +271,57 @@ def _issue_password_reset_token(db: Session | None, person_id: str, email: str) 
     return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
-def _decode_password_reset_token(db: Session | None, token: str) -> dict:
+def _decode_password_reset_token(db: Session | None, token: str) -> dict[str, Any]:
     return _decode_jwt(db, token, "password_reset")
 
 
-def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict:
+def issue_email_verification_token(
+    db: Session | None, person_id: str, email: str
+) -> str:
+    """Issue a JWT token for email verification (24h expiry)."""
+    now = _now()
+    payload = {
+        "sub": person_id,
+        "email": email,
+        "typ": "email_verify",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=24)).timestamp()),
+    }
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
+
+
+def verify_email_token(db: Session, token: str) -> Person:
+    """Verify an email verification token and mark the person as verified."""
+    payload = _decode_jwt(db, token, "email_verify")
+    person_id = payload.get("sub")
+    email = payload.get("email")
+    if not person_id or not email:
+        raise HTTPException(status_code=401, detail="Invalid verification token")
+
+    person = db.get(Person, coerce_uuid(person_id))
+    if not person or person.email != email:
+        raise HTTPException(status_code=401, detail="Invalid verification token")
+
+    person.email_verified = True
+    db.flush()
+    logger.info("Email verified for person %s", person_id)
+    return person
+
+
+def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict[str, Any]:
     try:
-        payload = jwt.decode(token, _jwt_secret(db), algorithms=[_jwt_algorithm(db)])
+        payload = cast(
+            dict[str, Any],
+            jwt.decode(token, _jwt_secret(db), algorithms=[_jwt_algorithm(db)]),
+        )
     except JWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
     if payload.get("typ") != expected_type:
         raise HTTPException(status_code=401, detail="Invalid token type")
-    return cast(dict[Any, Any], payload)
+    return payload
 
 
-def decode_access_token(db: Session | None, token: str) -> dict:
+def decode_access_token(db: Session | None, token: str) -> dict[str, Any]:
     return _decode_jwt(db, token, "access")
 
 
@@ -298,38 +336,38 @@ def _load_rbac_claims(db: Session, person_id: str):
     if db is None:
         return [], []
     person_uuid = coerce_uuid(person_id)
-    role_stmt = (
-        select(Role)
+    roles = (
+        db.query(Role)
         .join(PersonRole, PersonRole.role_id == Role.id)
-        .where(PersonRole.person_id == person_uuid)
-        .where(Role.is_active.is_(True))
+        .filter(PersonRole.person_id == person_uuid)
+        .filter(Role.is_active.is_(True))
+        .all()
     )
-    roles = db.scalars(role_stmt).all()
-    permission_stmt = (
-        select(Permission)
+    permissions = (
+        db.query(Permission)
         .join(RolePermission, RolePermission.permission_id == Permission.id)
         .join(Role, RolePermission.role_id == Role.id)
         .join(PersonRole, PersonRole.role_id == Role.id)
-        .where(PersonRole.person_id == person_uuid)
-        .where(Role.is_active.is_(True))
-        .where(Permission.is_active.is_(True))
+        .filter(PersonRole.person_id == person_uuid)
+        .filter(Role.is_active.is_(True))
+        .filter(Permission.is_active.is_(True))
+        .all()
     )
-    permissions = db.scalars(permission_stmt).all()
     role_names = [role.name for role in roles]
     permission_keys = list({perm.key for perm in permissions})
     return role_names, permission_keys
 
 
 def _primary_totp_method(db: Session, person_id: str) -> MFAMethod | None:
-    stmt = (
-        select(MFAMethod)
-        .where(MFAMethod.person_id == coerce_uuid(person_id))
-        .where(MFAMethod.method_type == MFAMethodType.totp)
-        .where(MFAMethod.is_active.is_(True))
-        .where(MFAMethod.enabled.is_(True))
-        .where(MFAMethod.is_primary.is_(True))
+    return (
+        db.query(MFAMethod)
+        .filter(MFAMethod.person_id == coerce_uuid(person_id))
+        .filter(MFAMethod.method_type == MFAMethodType.totp)
+        .filter(MFAMethod.is_active.is_(True))
+        .filter(MFAMethod.enabled.is_(True))
+        .filter(MFAMethod.is_primary.is_(True))
+        .first()
     )
-    return db.scalars(stmt).first()
 
 
 def _encrypt_secret(db: Session | None, secret: str) -> str:
@@ -350,7 +388,7 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str | None) -> bool:
     if not password_hash:
         return False
-    return bool(PASSWORD_CONTEXT.verify(password, password_hash))
+    return cast(bool, PASSWORD_CONTEXT.verify(password, password_hash))
 
 
 def revoke_sessions_for_person(
@@ -359,16 +397,16 @@ def revoke_sessions_for_person(
     exclude_session_id: str | None = None,
 ) -> int:
     person_uuid = coerce_uuid(person_id)
-    stmt = (
-        select(AuthSession)
-        .where(AuthSession.person_id == person_uuid)
-        .where(AuthSession.status == SessionStatus.active)
-        .where(AuthSession.revoked_at.is_(None))
+    query = (
+        db.query(AuthSession)
+        .filter(AuthSession.person_id == person_uuid)
+        .filter(AuthSession.status == SessionStatus.active)
+        .filter(AuthSession.revoked_at.is_(None))
     )
     if exclude_session_id:
-        stmt = stmt.where(AuthSession.id != coerce_uuid(exclude_session_id))
+        query = query.filter(AuthSession.id != coerce_uuid(exclude_session_id))
 
-    sessions = db.scalars(stmt).all()
+    sessions = query.all()
     if not sessions:
         return 0
 
@@ -428,7 +466,7 @@ class AuthFlow(ListResponseMixin):
         username: str,
         password: str,
         request: Request,
-        provider: str | None,
+        provider: AuthProvider | str | None,
     ):
         result = AuthFlow.login(db, username, password, request, provider)
         if result.get("refresh_token"):
@@ -443,7 +481,7 @@ class AuthFlow(ListResponseMixin):
         username: str,
         password: str,
         request: Request,
-        provider: str | None,
+        provider: AuthProvider | str | None,
     ):
         if isinstance(provider, AuthProvider):
             provider_value = provider.value
@@ -455,13 +493,13 @@ class AuthFlow(ListResponseMixin):
             raise HTTPException(
                 status_code=400, detail="Invalid auth provider"
             ) from exc
-        stmt = (
-            select(UserCredential)
-            .where(UserCredential.username == username)
-            .where(UserCredential.provider == resolved_provider)
-            .where(UserCredential.is_active.is_(True))
+        credential = (
+            db.query(UserCredential)
+            .filter(UserCredential.username == username)
+            .filter(UserCredential.provider == resolved_provider)
+            .filter(UserCredential.is_active.is_(True))
+            .first()
         )
-        credential = db.scalars(stmt).first()
         if not credential:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -473,7 +511,7 @@ class AuthFlow(ListResponseMixin):
             credential.failed_login_attempts += 1
             if credential.failed_login_attempts >= 5:
                 credential.locked_until = now + timedelta(minutes=15)
-            db.flush()
+            db.commit()
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         if credential.must_change_password:
@@ -488,7 +526,7 @@ class AuthFlow(ListResponseMixin):
         credential.failed_login_attempts = 0
         credential.locked_until = None
         credential.last_login_at = now
-        db.flush()
+        db.commit()
 
         if _primary_totp_method(db, str(credential.person_id)):
             return {
@@ -502,12 +540,12 @@ class AuthFlow(ListResponseMixin):
     def mfa_setup(db: Session, person_id: str, label: str | None):
         person = _person_or_404(db, person_id)
         username = person.email
-        stmt = (
-            select(UserCredential)
-            .where(UserCredential.person_id == person.id)
-            .where(UserCredential.provider == AuthProvider.local)
+        credential = (
+            db.query(UserCredential)
+            .filter(UserCredential.person_id == person.id)
+            .filter(UserCredential.provider == AuthProvider.local)
+            .first()
         )
-        credential = db.scalars(stmt).first()
         if credential and credential.username:
             username = credential.username
 
@@ -522,7 +560,7 @@ class AuthFlow(ListResponseMixin):
             is_primary=False,
         )
         db.add(method)
-        db.flush()
+        db.commit()
         db.refresh(method)
 
         totp = pyotp.TOTP(secret)
@@ -551,21 +589,18 @@ class AuthFlow(ListResponseMixin):
         if not totp.verify(code, valid_window=0):
             raise HTTPException(status_code=401, detail="Invalid MFA code")
 
-        stmt = (
-            update(MFAMethod)
-            .where(MFAMethod.person_id == method.person_id)
-            .where(MFAMethod.id != method.id)
-            .where(MFAMethod.is_primary.is_(True))
-            .values(is_primary=False)
-        )
-        db.execute(stmt)
+        db.query(MFAMethod).filter(
+            MFAMethod.person_id == method.person_id,
+            MFAMethod.id != method.id,
+            MFAMethod.is_primary.is_(True),
+        ).update({"is_primary": False})
 
         method.enabled = True
         method.is_primary = True
         method.is_active = True
         method.verified_at = _now()
         try:
-            db.flush()
+            db.commit()
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -592,7 +627,7 @@ class AuthFlow(ListResponseMixin):
             raise HTTPException(status_code=401, detail="Invalid MFA code")
 
         method.last_used_at = _now()
-        db.flush()
+        db.commit()
         return AuthFlow._issue_tokens(db, person_id, request)
 
     @staticmethod
@@ -605,25 +640,25 @@ class AuthFlow(ListResponseMixin):
     @staticmethod
     def refresh(db: Session, refresh_token: str, request: Request):
         token_hash = _hash_token(refresh_token)
-        session_stmt = (
-            select(AuthSession)
-            .where(AuthSession.token_hash == token_hash)
-            .where(AuthSession.status == SessionStatus.active)
-            .where(AuthSession.revoked_at.is_(None))
+        session = (
+            db.query(AuthSession)
+            .filter(AuthSession.token_hash == token_hash)
+            .filter(AuthSession.status == SessionStatus.active)
+            .filter(AuthSession.revoked_at.is_(None))
+            .first()
         )
-        session = db.scalars(session_stmt).first()
         if not session:
-            reused_stmt = (
-                select(AuthSession)
-                .where(AuthSession.previous_token_hash == token_hash)
-                .where(AuthSession.status == SessionStatus.active)
-                .where(AuthSession.revoked_at.is_(None))
+            reused = (
+                db.query(AuthSession)
+                .filter(AuthSession.previous_token_hash == token_hash)
+                .filter(AuthSession.status == SessionStatus.active)
+                .filter(AuthSession.revoked_at.is_(None))
+                .first()
             )
-            reused = db.scalars(reused_stmt).first()
             if reused:
                 reused.status = SessionStatus.revoked
                 reused.revoked_at = _now()
-                db.flush()
+                db.commit()
                 raise HTTPException(
                     status_code=401,
                     detail="Refresh token reuse detected",
@@ -632,7 +667,7 @@ class AuthFlow(ListResponseMixin):
         expires_at = _as_utc(session.expires_at)
         if expires_at and expires_at <= _now():
             session.status = SessionStatus.expired
-            db.flush()
+            db.commit()
             raise HTTPException(status_code=401, detail="Refresh token expired")
 
         new_refresh = secrets.token_urlsafe(48)
@@ -643,7 +678,7 @@ class AuthFlow(ListResponseMixin):
         if request.client:
             session.ip_address = request.client.host
         session.user_agent = _truncate_user_agent(request.headers.get("user-agent"))
-        db.flush()
+        db.commit()
 
         roles, permissions = _load_rbac_claims(db, str(session.person_id))
         access_token = _issue_access_token(
@@ -664,17 +699,17 @@ class AuthFlow(ListResponseMixin):
     @staticmethod
     def logout(db: Session, refresh_token: str):
         token_hash = _hash_token(refresh_token)
-        stmt = (
-            select(AuthSession)
-            .where(AuthSession.token_hash == token_hash)
-            .where(AuthSession.revoked_at.is_(None))
+        session = (
+            db.query(AuthSession)
+            .filter(AuthSession.token_hash == token_hash)
+            .filter(AuthSession.revoked_at.is_(None))
+            .first()
         )
-        session = db.scalars(stmt).first()
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         session.status = SessionStatus.revoked
         session.revoked_at = _now()
-        db.flush()
+        db.commit()
         return {"revoked_at": session.revoked_at}
 
     @staticmethod
@@ -723,7 +758,7 @@ class AuthFlow(ListResponseMixin):
             expires_at=expires_at,
         )
         db.add(session)
-        db.flush()
+        db.commit()
         db.refresh(session)
         roles, permissions = _load_rbac_claims(db, str(person_uuid))
         access_token = _issue_access_token(
@@ -741,17 +776,16 @@ def request_password_reset(db: Session, email: str) -> dict | None:
     Returns dict with token and person info if successful, None if email not found.
     Does not raise an error if email doesn't exist (security best practice).
     """
-    stmt = select(Person).where(Person.email == email)
-    person = db.scalars(stmt).first()
+    person = db.query(Person).filter(Person.email == email).first()
     if not person:
         return None
 
-    credential_stmt = (
-        select(UserCredential)
-        .where(UserCredential.person_id == person.id)
-        .where(UserCredential.is_active.is_(True))
+    credential = (
+        db.query(UserCredential)
+        .filter(UserCredential.person_id == person.id)
+        .filter(UserCredential.is_active.is_(True))
+        .first()
     )
-    credential = db.scalars(credential_stmt).first()
     if not credential:
         return None
 
@@ -779,18 +813,15 @@ def reset_password(db: Session, token: str, new_password: str) -> datetime:
     if not person or person.email != email:
         raise HTTPException(status_code=401, detail="Invalid reset token")
 
-    stmt = (
-        select(UserCredential)
-        .where(UserCredential.person_id == person.id)
-        .where(UserCredential.is_active.is_(True))
+    credential = (
+        db.query(UserCredential)
+        .filter(UserCredential.person_id == person.id)
+        .filter(UserCredential.is_active.is_(True))
+        .first()
     )
-    credential = db.scalars(stmt).first()
     if not credential:
         raise HTTPException(status_code=404, detail="No credentials found")
 
-    from app.services.registration import _validate_password_strength
-
-    _validate_password_strength(new_password)
     now = _now()
     credential.password_hash = hash_password(new_password)
     credential.password_updated_at = now
@@ -798,6 +829,6 @@ def reset_password(db: Session, token: str, new_password: str) -> datetime:
     credential.failed_login_attempts = 0
     credential.locked_until = None
     revoke_sessions_for_person(db, str(person.id))
-    db.flush()
+    db.commit()
 
     return now

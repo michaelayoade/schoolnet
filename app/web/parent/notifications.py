@@ -50,7 +50,7 @@ def notification_bell(
     if count > 0:
         badge = (
             '<span class="absolute top-0.5 right-0.5 flex h-4 w-4'
-            ' items-center justify-center rounded-full bg-red-500'
+            " items-center justify-center rounded-full bg-red-500"
             ' text-[10px] font-bold text-white">'
             f"{count}</span>"
         )

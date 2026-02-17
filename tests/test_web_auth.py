@@ -92,11 +92,11 @@ class TestWebAuth:
         assert "/admin/login" in response.headers.get("location", "")
 
     def test_admin_dashboard_with_auth_cookie(
-        self, client, person, auth_session, auth_token
+        self, client, admin_token
     ):
         response = client.get(
             "/admin",
-            cookies={"access_token": auth_token},
+            cookies={"access_token": admin_token},
             follow_redirects=False,
         )
         # Should succeed or redirect to /admin/ (trailing slash normalization)

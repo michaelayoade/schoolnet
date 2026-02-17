@@ -2,7 +2,8 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
+from starlette.datastructures import UploadFile
 
 from app.config import settings
 
@@ -54,11 +55,11 @@ def delete_avatar(avatar_url: str | None) -> None:
             os.remove(file_path)
 
 
-def _get_extension(content_type: str) -> str:
+def _get_extension(content_type: str | None) -> str:
     extensions = {
         "image/jpeg": ".jpg",
         "image/png": ".png",
         "image/gif": ".gif",
         "image/webp": ".webp",
     }
-    return extensions.get(content_type, ".jpg")
+    return extensions.get(content_type or "", ".jpg")

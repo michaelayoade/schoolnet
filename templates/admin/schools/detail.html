@@ -1,3 +1,4 @@
+{% from "macros/ui_macros.html" import status_badge %}
 {% extends "admin/base.html" %}
 {% block title %}{{ school.name }} - Admin{% endblock %}
 {% block admin_content %}
@@ -13,10 +14,7 @@
             <div class="flex gap-2 mt-3">
                 <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400">{{ school.school_type | replace('_', ' ') | title }}</span>
                 <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">{{ school.category | replace('_', ' ') | title }}</span>
-                {% set status_colors = {'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'active': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'suspended': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'} %}
-                <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium {{ status_colors.get(school.status.value, 'bg-slate-100 text-slate-700') }}">
-                    {{ school.status.value | replace('_', ' ') | title }}
-                </span>
+                {{ status_badge(school.status) }}
             </div>
         </div>
         <div class="flex gap-2">

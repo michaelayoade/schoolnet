@@ -14,7 +14,8 @@ from app.schemas.billing import CustomerCreate, CustomerUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.form_utils import as_int
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def list_customers(
     email: str | None = None,
     is_active: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List customers with pagination and optional email search."""
     page = max(1, page)
@@ -92,7 +93,7 @@ def list_customers(
 def create_customer_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create customer form."""
     ctx = _base_context(
@@ -105,7 +106,7 @@ def create_customer_form(
 async def create_customer_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle customer creation form submission."""
     form = await request.form()
@@ -117,7 +118,7 @@ async def create_customer_submit(
             name=str(data.get("name", "")),
             email=str(data.get("email", "")),
             currency=str(data.get("currency", "usd")),
-            balance=int(data["balance"]) if data.get("balance") else 0,
+            balance=as_int(data.get("balance")) or 0,
             tax_id=str(data["tax_id"]) if data.get("tax_id") else None,
             external_id=str(data["external_id"]) if data.get("external_id") else None,
             is_active=data.get("is_active") == "on",
@@ -143,7 +144,7 @@ def customer_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show customer detail view with subscriptions and payment methods."""
     item = billing_service.customers.get(db, str(item_id))
@@ -185,7 +186,7 @@ def edit_customer_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit customer form."""
     item = billing_service.customers.get(db, str(item_id))
@@ -201,7 +202,7 @@ async def edit_customer_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle customer edit form submission."""
     form = await request.form()
@@ -213,7 +214,7 @@ async def edit_customer_submit(
             name=str(data["name"]) if data.get("name") else None,
             email=str(data["email"]) if data.get("email") else None,
             currency=str(data["currency"]) if data.get("currency") else None,
-            balance=int(data["balance"]) if data.get("balance") else None,
+            balance=as_int(data.get("balance")) if data.get("balance") else None,
             tax_id=str(data["tax_id"]) if data.get("tax_id") else None,
             external_id=str(data["external_id"]) if data.get("external_id") else None,
             is_active="is_active" in data,
@@ -240,7 +241,7 @@ async def delete_customer(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle customer deletion."""
     form = await request.form()

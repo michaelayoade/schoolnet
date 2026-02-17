@@ -14,7 +14,7 @@ from app.schemas.billing import SubscriptionUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def list_subscriptions(
     customer_id: str | None = None,
     status: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List subscriptions with pagination and optional filters."""
     page = max(1, page)
@@ -115,7 +115,7 @@ def subscription_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show subscription detail view with items and invoices."""
     item = billing_service.subscriptions.get(db, str(item_id))
@@ -163,7 +163,7 @@ def edit_subscription_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit subscription form."""
     item = billing_service.subscriptions.get(db, str(item_id))
@@ -182,7 +182,7 @@ async def edit_subscription_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle subscription edit form submission."""
     form = await request.form()
@@ -225,7 +225,7 @@ async def delete_subscription(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle subscription deletion."""
     form = await request.form()

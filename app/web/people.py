@@ -16,7 +16,7 @@ from app.schemas.person import PersonCreate, PersonUpdate
 from app.services.branding_context import load_branding_context
 from app.services.person import people
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def list_people(
     page: int = 1,
     email: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List people with pagination and optional email search."""
     page = max(1, page)
@@ -88,7 +88,7 @@ def list_people(
 def create_person_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create person form."""
     ctx = _base_context(
@@ -101,7 +101,7 @@ def create_person_form(
 async def create_person_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle person creation form submission."""
     form = await request.form()
@@ -141,7 +141,7 @@ def person_detail(
     request: Request,
     person_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show person detail view."""
     person = people.get(db, str(person_id))
@@ -161,7 +161,7 @@ def edit_person_form(
     request: Request,
     person_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit person form."""
     person = people.get(db, str(person_id))
@@ -177,7 +177,7 @@ async def edit_person_submit(
     request: Request,
     person_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle person edit form submission."""
     form = await request.form()
@@ -218,7 +218,7 @@ async def delete_person(
     request: Request,
     person_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle person deletion."""
     form = await request.form()

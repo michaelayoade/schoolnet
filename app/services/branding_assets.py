@@ -5,7 +5,8 @@ import re
 import uuid
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
+from starlette.datastructures import UploadFile
 
 from app.config import settings
 
@@ -53,9 +54,9 @@ def _extension(content_type: str | None) -> str:
 def _validate_declared_type(file: UploadFile) -> None:
     allowed = {_normalize_mime(item) for item in _allowed_types()}
     if _normalize_mime(file.content_type) not in allowed:
-        allowed = ", ".join(sorted(_allowed_types()))
+        allowed_str = ", ".join(sorted(_allowed_types()))
         raise HTTPException(
-            status_code=400, detail=f"Invalid file type. Allowed: {allowed}"
+            status_code=400, detail=f"Invalid file type. Allowed: {allowed_str}"
         )
 
 

@@ -9,13 +9,15 @@ from starlette.responses import JSONResponse, RedirectResponse, Response
 from app.api.deps import get_db
 from app.services.auth_flow import (
     AuthFlow,
-    _refresh_cookie_secure,
     decode_access_token,
+    issue_email_verification_token,
     request_password_reset,
     reset_password,
+    revoke_sessions_for_person,
+    verify_email_token,
 )
 from app.services.common import require_uuid
-from app.services.email import send_password_reset_email
+from app.services.email import send_password_reset_email, send_verification_email
 from app.services.registration import RegistrationService
 from app.services.school import SchoolService
 from app.templates import templates
@@ -121,9 +123,11 @@ def school_profile(
             roles = payload.get("roles", [])
             if person_id and "parent" in roles:
                 from app.services.rating import RatingService
+
                 rating_svc = RatingService(db)
                 can_rate = rating_svc.can_rate(
-                    require_uuid(school.id), require_uuid(person_id),
+                    require_uuid(school.id),
+                    require_uuid(person_id),
                 )
         except Exception:
             pass
@@ -177,11 +181,13 @@ def school_rate_submit(
         db.commit()
     except ValueError as e:
         return RedirectResponse(
-            url=f"/schools/{slug}?error={e}", status_code=303,
+            url=f"/schools/{slug}?error={e}",
+            status_code=303,
         )
 
     return RedirectResponse(
-        url=f"/schools/{slug}?success=Rating+submitted", status_code=303,
+        url=f"/schools/{slug}?success=Rating+submitted",
+        status_code=303,
     )
 
 
@@ -228,8 +234,21 @@ def register_parent_submit(
         )
 
     db.commit()
+
+    # Send verification email
+    try:
+        from app.models.person import Person
+
+        person = db.query(Person).filter(Person.email == email).first()
+        if person:
+            token = issue_email_verification_token(db, str(person.id), email)
+            send_verification_email(db, email, token, first_name)
+    except Exception as e:
+        logger.warning("Failed to send verification email: %s", e)
+
     return RedirectResponse(
-        url="/login?success=Registration+successful.+Please+log+in.", status_code=303
+        url="/login?success=Registration+successful.+Please+check+your+email+to+verify+your+account.",
+        status_code=303,
     )
 
 
@@ -305,12 +324,89 @@ def login_submit(
             {"request": request, "error_message": "Invalid email or password"},
         )
 
-    if result.get("mfa_required"):
+    # Check email verification
+    from app.models.person import Person
+
+    person = db.query(Person).filter(Person.email == email).first()
+    if person and not person.email_verified:
+        # Send new verification email
+        try:
+            token = issue_email_verification_token(db, str(person.id), email)
+            send_verification_email(db, email, token, person.first_name)
+        except Exception:
+            pass
         return templates.TemplateResponse(
             "public/auth/login.html",
             {
                 "request": request,
-                "error_message": "MFA is not supported in web login yet",
+                "error_message": "Please verify your email first. A new verification link has been sent.",
+            },
+        )
+
+    if result.get("mfa_required"):
+        return templates.TemplateResponse(
+            "public/auth/mfa_verify.html",
+            {"request": request, "mfa_token": result.get("mfa_token", "")},
+        )
+
+    access_token = result.get("access_token", "")
+    refresh_token = result.get("refresh_token", "")
+
+    # Determine redirect based on roles in the JWT
+    redirect_url = "/parent"
+    try:
+        payload = decode_access_token(db, access_token)
+        roles = payload.get("roles", [])
+        if "platform_admin" in roles or "admin" in roles:
+            redirect_url = "/admin/schools"
+        elif "school_admin" in roles:
+            redirect_url = "/school"
+    except Exception:
+        logger.debug("Could not decode access token for redirect")
+
+    response = RedirectResponse(url=redirect_url, status_code=303)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=900,
+    )
+    if refresh_token:
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            samesite="lax",
+            max_age=30 * 24 * 3600,
+        )
+    response.set_cookie(
+        key="logged_in",
+        value="1",
+        httponly=False,
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+    )
+    return response
+
+
+@router.post("/mfa-verify")
+def mfa_verify_submit(
+    request: Request,
+    mfa_token: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+) -> Response:
+    try:
+        result = AuthFlow.mfa_verify(db, mfa_token, code, request)
+    except Exception as e:
+        logger.warning("MFA verification failed: %s", e)
+        return templates.TemplateResponse(
+            "public/auth/mfa_verify.html",
+            {
+                "request": request,
+                "mfa_token": mfa_token,
+                "error_message": "Invalid or expired code. Please try again.",
             },
         )
 
@@ -334,7 +430,6 @@ def login_submit(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=_refresh_cookie_secure(db),
         samesite="lax",
         max_age=900,
     )
@@ -343,7 +438,6 @@ def login_submit(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=_refresh_cookie_secure(db),
             samesite="lax",
             max_age=30 * 24 * 3600,
         )
@@ -358,7 +452,17 @@ def login_submit(
 
 
 @router.get("/logout")
-def logout(request: Request) -> Response:
+def logout(request: Request, db: Session = Depends(get_db)) -> Response:
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        try:
+            payload = decode_access_token(db, access_token)
+            person_id = payload.get("sub")
+            if person_id:
+                revoke_sessions_for_person(db, person_id)
+                db.commit()
+        except Exception:
+            pass  # Still delete cookies even if revocation fails
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
@@ -371,12 +475,16 @@ def web_refresh(request: Request, db: Session = Depends(get_db)) -> Response:
     """Refresh access token using the refresh_token cookie."""
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
-        return JSONResponse(status_code=401, content={"detail": "Missing refresh token"})
+        return JSONResponse(
+            status_code=401, content={"detail": "Missing refresh token"}
+        )
 
     try:
         result = AuthFlow.refresh(db, refresh_token, request)
     except Exception:
-        return JSONResponse(status_code=401, content={"detail": "Invalid refresh token"})
+        return JSONResponse(
+            status_code=401, content={"detail": "Invalid refresh token"}
+        )
 
     new_access = result.get("access_token", "")
     new_refresh = result.get("refresh_token", "")
@@ -426,7 +534,10 @@ def forgot_password_submit(
     result = request_password_reset(db, email)
     if result:
         send_password_reset_email(
-            db, result["email"], result["token"], result.get("person_name"),
+            db,
+            result["email"],
+            result["token"],
+            result.get("person_name"),
         )
     # Always show success to avoid email enumeration
     return templates.TemplateResponse(
@@ -440,7 +551,8 @@ def forgot_password_submit(
 
 @router.get("/reset-password")
 def reset_password_page(
-    request: Request, token: str = Query(""),
+    request: Request,
+    token: str = Query(""),
 ) -> Response:
     return templates.TemplateResponse(
         "public/auth/reset_password.html",
@@ -459,16 +571,57 @@ def reset_password_submit(
     if new_password != confirm_password:
         return templates.TemplateResponse(
             "public/auth/reset_password.html",
-            {"request": request, "token": token, "error_message": "Passwords do not match"},
+            {
+                "request": request,
+                "token": token,
+                "error_message": "Passwords do not match",
+            },
         )
     try:
         reset_password(db, token, new_password)
     except Exception:
         return templates.TemplateResponse(
             "public/auth/reset_password.html",
-            {"request": request, "token": token, "error_message": "Invalid or expired reset link"},
+            {
+                "request": request,
+                "token": token,
+                "error_message": "Invalid or expired reset link",
+            },
         )
     return RedirectResponse(
         url="/login?success=Password+reset+successfully.+Please+log+in.",
         status_code=303,
+    )
+
+
+# ── Email verification ──────────────────────────────────
+
+
+@router.get("/verify-email")
+def verify_email_page(
+    request: Request,
+    token: str = Query(""),
+    db: Session = Depends(get_db),
+) -> Response:
+    if not token:
+        return templates.TemplateResponse(
+            "public/auth/verify_email.html", {"request": request}
+        )
+    try:
+        verify_email_token(db, token)
+        db.commit()
+    except Exception:
+        return templates.TemplateResponse(
+            "public/auth/verify_email.html",
+            {
+                "request": request,
+                "error_message": "Invalid or expired verification link.",
+            },
+        )
+    return templates.TemplateResponse(
+        "public/auth/verify_email.html",
+        {
+            "request": request,
+            "success_message": "Your email has been verified. You can now sign in.",
+        },
     )

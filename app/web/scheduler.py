@@ -16,7 +16,7 @@ from app.schemas.scheduler import ScheduledTaskCreate, ScheduledTaskUpdate
 from app.services.branding_context import load_branding_context
 from app.services.scheduler import scheduled_tasks
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def list_scheduled_tasks(
     request: Request,
     page: int = 1,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List scheduled tasks with pagination."""
     page = max(1, page)
@@ -85,7 +85,7 @@ def list_scheduled_tasks(
 def create_task_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create scheduled task form."""
     ctx = _base_context(
@@ -102,7 +102,7 @@ def create_task_form(
 async def create_task_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle scheduled task creation form submission."""
     form = await request.form()
@@ -154,7 +154,7 @@ def edit_task_form(
     request: Request,
     task_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit scheduled task form."""
     task = scheduled_tasks.get(db, str(task_id))
@@ -174,7 +174,7 @@ async def edit_task_submit(
     request: Request,
     task_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle scheduled task edit form submission."""
     form = await request.form()
@@ -216,7 +216,7 @@ async def delete_task(
     request: Request,
     task_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle scheduled task deletion."""
     form = await request.form()

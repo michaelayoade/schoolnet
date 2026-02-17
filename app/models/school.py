@@ -5,10 +5,12 @@ from datetime import date, datetime, timezone
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -204,6 +206,8 @@ class Application(Base):
     __tablename__ = "applications"
     __table_args__ = (
         UniqueConstraint("application_number", name="uq_applications_number"),
+        Index("ix_applications_form_status", "admission_form_id", "status"),
+        Index("ix_applications_parent_status", "parent_id", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -231,7 +235,8 @@ class Application(Base):
     ward_passport_url: Mapped[str | None] = mapped_column(String(512))
 
     form_responses: Mapped[dict | None] = mapped_column(JSON)
-    document_urls: Mapped[dict | None] = mapped_column(JSON)
+    # Stored as JSON; map of document key to URL.
+    document_urls: Mapped[dict[str, str] | None] = mapped_column(JSON)
 
     status: Mapped[ApplicationStatus] = mapped_column(
         Enum(ApplicationStatus), default=ApplicationStatus.draft
@@ -268,6 +273,8 @@ class Rating(Base):
     __tablename__ = "ratings"
     __table_args__ = (
         UniqueConstraint("school_id", "parent_id", name="uq_ratings_school_parent"),
+        CheckConstraint("score >= 1 AND score <= 5", name="ck_ratings_score_range"),
+        Index("ix_ratings_school_active", "school_id", "is_active"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

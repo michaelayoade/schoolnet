@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Verify Email{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
+    <div class="w-full max-w-md">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-4">Email Verification</h1>
+
+            {% if success_message %}
+            <div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">
+                {{ success_message }}
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mt-4">
+                <a href="/login" class="text-primary-600 dark:text-primary-400 hover:underline">Sign in to your account</a>
+            </p>
+            {% elif error_message %}
+            <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+                {{ error_message }}
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mt-4">
+                <a href="/login" class="text-primary-600 dark:text-primary-400 hover:underline">Back to login</a>
+            </p>
+            {% else %}
+            <p class="text-sm text-slate-600 dark:text-slate-400">
+                Check your email for a verification link. If you didn't receive one, you can request a new link after logging in.
+            </p>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mt-4">
+                <a href="/login" class="text-primary-600 dark:text-primary-400 hover:underline">Back to login</a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

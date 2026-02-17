@@ -94,10 +94,11 @@ class TestValidateSettings:
 class TestHealthCheck:
     """Test the health endpoint response format."""
 
-    def test_liveness_always_ok(self) -> None:
+    @pytest.mark.asyncio
+    async def test_liveness_always_ok(self) -> None:
         """Liveness probe should always return ok."""
         from fastapi import FastAPI
-        from fastapi.testclient import TestClient
+        import httpx
 
         app = FastAPI()
 
@@ -105,7 +106,10 @@ class TestHealthCheck:
         def health():
             return {"status": "ok"}
 
-        client = TestClient(app)
-        resp = client.get("/health")
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=True),
+            base_url="http://test",
+        ) as client:
+            resp = await client.get("/health")
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}

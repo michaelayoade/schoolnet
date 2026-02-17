@@ -13,7 +13,7 @@ from app.api.deps import get_db
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def list_payment_methods(
     customer_id: str | None = None,
     type: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List payment methods with pagination and optional filters."""
     page = max(1, page)
@@ -106,7 +106,7 @@ def payment_method_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show payment method detail view (read-only)."""
     item = billing_service.payment_methods.get(db, str(item_id))
@@ -130,7 +130,7 @@ async def delete_payment_method(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle payment method deletion (soft-delete)."""
     form = await request.form()

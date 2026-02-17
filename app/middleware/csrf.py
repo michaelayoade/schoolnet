@@ -10,7 +10,7 @@ from __future__ import annotations
 import secrets
 from hmac import compare_digest
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
@@ -61,11 +61,17 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         header_token = request.headers.get("X-CSRF-Token", "")
         if header_token:
             return header_token
+        # Cache the raw body before parsing the form so that
+        # BaseHTTPMiddleware's _CachedRequest.wrapped_receive replays it
+        # to downstream handlers (Starlette streams the body only once).
+        await request.body()
         form = await request.form()
         token = form.get("csrf_token")
         return str(token) if token else ""
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         csrf_token, should_set_cookie = self._ensure_token(request)
         request.state.csrf_token = csrf_token
 
@@ -81,7 +87,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
-        response: Response = await call_next(request)  # type: ignore[call-arg]
+        response: Response = await call_next(request)
         if should_set_cookie:
             response.set_cookie(
                 key=self.cookie_name,

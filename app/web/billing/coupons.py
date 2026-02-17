@@ -15,7 +15,8 @@ from app.schemas.billing import CouponCreate, CouponUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.form_utils import as_int
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def list_coupons(
     page: int = 1,
     valid: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List coupons with pagination and optional valid filter."""
     page = max(1, page)
@@ -92,7 +93,7 @@ def list_coupons(
 def create_coupon_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create coupon form."""
     ctx = _base_context(
@@ -106,7 +107,7 @@ def create_coupon_form(
 async def create_coupon_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle coupon creation form submission."""
     form = await request.form()
@@ -121,14 +122,18 @@ async def create_coupon_submit(
         payload = CouponCreate(
             name=str(data.get("name", "")),
             code=str(data.get("code", "")),
-            percent_off=int(data["percent_off"]) if data.get("percent_off") else None,
-            amount_off=int(data["amount_off"]) if data.get("amount_off") else None,
+            percent_off=as_int(data.get("percent_off"))
+            if data.get("percent_off")
+            else None,
+            amount_off=as_int(data.get("amount_off"))
+            if data.get("amount_off")
+            else None,
             currency=str(data["currency"]) if data.get("currency") else None,
             duration=str(data.get("duration", "once")),  # type: ignore[arg-type]
-            duration_in_months=int(data["duration_in_months"])
+            duration_in_months=as_int(data.get("duration_in_months"))
             if data.get("duration_in_months")
             else None,
-            max_redemptions=int(data["max_redemptions"])
+            max_redemptions=as_int(data.get("max_redemptions"))
             if data.get("max_redemptions")
             else None,
             valid=data.get("valid") == "on",
@@ -156,7 +161,7 @@ def coupon_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show coupon detail view."""
     item = billing_service.coupons.get(db, str(item_id))
@@ -172,7 +177,7 @@ def edit_coupon_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit coupon form."""
     item = billing_service.coupons.get(db, str(item_id))
@@ -189,7 +194,7 @@ async def edit_coupon_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle coupon edit form submission."""
     form = await request.form()
@@ -203,14 +208,18 @@ async def edit_coupon_submit(
 
         payload = CouponUpdate(
             name=str(data["name"]) if data.get("name") else None,
-            percent_off=int(data["percent_off"]) if data.get("percent_off") else None,
-            amount_off=int(data["amount_off"]) if data.get("amount_off") else None,
+            percent_off=as_int(data.get("percent_off"))
+            if data.get("percent_off")
+            else None,
+            amount_off=as_int(data.get("amount_off"))
+            if data.get("amount_off")
+            else None,
             currency=str(data["currency"]) if data.get("currency") else None,
             duration=str(data["duration"]) if data.get("duration") else None,  # type: ignore[arg-type]
-            duration_in_months=int(data["duration_in_months"])
+            duration_in_months=as_int(data.get("duration_in_months"))
             if data.get("duration_in_months")
             else None,
-            max_redemptions=int(data["max_redemptions"])
+            max_redemptions=as_int(data.get("max_redemptions"))
             if data.get("max_redemptions")
             else None,
             valid="valid" in data,
@@ -239,7 +248,7 @@ async def delete_coupon(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle coupon deletion (soft-delete by setting valid=False)."""
     form = await request.form()

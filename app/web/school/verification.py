@@ -66,17 +66,20 @@ async def verification_upload(
         )
     except ValueError as e:
         return RedirectResponse(
-            url=f"/school/verification?error={e}", status_code=303,
+            url=f"/school/verification?error={e}",
+            status_code=303,
         )
 
     # Store reference in school metadata
     meta = dict(school.metadata_ or {})
     docs = list(meta.get("verification_documents", []))
-    docs.append({
-        "file_id": str(record.id),
-        "filename": document.filename,
-        "url": record.url,
-    })
+    docs.append(
+        {
+            "file_id": str(record.id),
+            "filename": document.filename,
+            "url": record.url,
+        }
+    )
     meta["verification_documents"] = docs
     school.metadata_ = meta
     db.commit()

@@ -106,3 +106,24 @@ def send_password_reset_email(
     )
     body_text = f"Hi {name}, use this link to reset your password: {reset_link}"
     return send_email(db, to_email, subject, body_html, body_text)
+
+
+def send_verification_email(
+    db: Session | None,
+    to_email: str,
+    verification_token: str,
+    person_name: str | None = None,
+) -> bool:
+    """Send an email verification link."""
+    name = person_name or "there"
+    app_url = _env_value("APP_URL") or "http://localhost:8000"
+    verify_link = f"{app_url.rstrip('/')}/verify-email?token={verification_token}"
+    subject = "Verify your email address"
+    body_html = (
+        f"<p>Hi {name},</p>"
+        "<p>Please verify your email address by clicking the link below:</p>"
+        f'<p><a href="{verify_link}">Verify email</a></p>'
+        "<p>This link expires in 24 hours.</p>"
+    )
+    body_text = f"Hi {name}, verify your email: {verify_link}"
+    return send_email(db, to_email, subject, body_html, body_text)

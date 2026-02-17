@@ -1,3 +1,4 @@
+{% from "macros/ui_macros.html" import status_badge %}
 {% extends "school/base.html" %}
 {% block title %}Dashboard - School Admin{% endblock %}
 {% block school_content %}
@@ -6,10 +7,7 @@
 {% if school %}
 <div class="mb-6">
     <h2 class="text-lg text-slate-600 dark:text-slate-300">{{ school.name }}</h2>
-    {% set status_colors = {'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'active': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'suspended': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'} %}
-    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 {{ status_colors.get(school.status.value, 'bg-slate-100 text-slate-700') }}">
-        {{ school.status.value | replace('_', ' ') | title }}
-    </span>
+    {{ status_badge(school.status) }}
 </div>
 
 {% if stats %}

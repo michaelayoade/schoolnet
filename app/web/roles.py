@@ -17,7 +17,7 @@ from app.services.branding_context import load_branding_context
 from app.services.common import coerce_uuid
 from app.services.rbac import role_permissions, roles
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def list_roles(
     request: Request,
     page: int = 1,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List roles with pagination."""
     page = max(1, page)
@@ -84,7 +84,7 @@ def list_roles(
 def create_role_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create role form with permission checkboxes."""
     all_permissions = list(
@@ -105,7 +105,7 @@ def create_role_form(
 async def create_role_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle role creation with permission assignments."""
     form = await request.form()
@@ -162,7 +162,7 @@ def edit_role_form(
     request: Request,
     role_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit role form with permission checkboxes."""
     role = roles.get(db, str(role_id))
@@ -192,7 +192,7 @@ async def edit_role_submit(
     request: Request,
     role_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle role edit with permission reassignment."""
     form = await request.form()
@@ -266,7 +266,7 @@ async def delete_role(
     request: Request,
     role_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle role deletion (soft delete via is_active=False)."""
     form = await request.form()

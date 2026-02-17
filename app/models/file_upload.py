@@ -2,7 +2,18 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,11 +28,17 @@ class FileUploadStatus(enum.Enum):
 
 class FileUpload(Base):
     __tablename__ = "file_uploads"
+    __table_args__ = (
+        CheckConstraint("file_size > 0", name="ck_file_uploads_file_size_positive"),
+        Index("ix_file_uploads_entity", "entity_type", "entity_id", "is_active"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("people.id")
+    )
     original_filename: Mapped[str] = mapped_column(String(512), nullable=False)
     content_type: Mapped[str] = mapped_column(String(120), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)

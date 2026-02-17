@@ -14,7 +14,8 @@ from app.schemas.billing import EntitlementCreate, EntitlementUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.form_utils import as_int
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def list_entitlements(
     page: int = 1,
     product_id: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List entitlements with pagination and optional product_id filter."""
     page = max(1, page)
@@ -100,7 +101,7 @@ def list_entitlements(
 def create_entitlement_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create entitlement form."""
     all_products, _ = billing_service.products.list(
@@ -123,7 +124,7 @@ def create_entitlement_form(
 async def create_entitlement_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle entitlement creation form submission."""
     form = await request.form()
@@ -136,7 +137,7 @@ async def create_entitlement_submit(
             feature_key=str(data.get("feature_key", "")),
             value_type=str(data.get("value_type", "boolean")),  # type: ignore[arg-type]
             value_text=str(data["value_text"]) if data.get("value_text") else None,
-            value_numeric=int(data["value_numeric"])
+            value_numeric=as_int(data.get("value_numeric"))
             if data.get("value_numeric")
             else None,
         )
@@ -175,7 +176,7 @@ def entitlement_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show entitlement detail view."""
     item = billing_service.entitlements.get(db, str(item_id))
@@ -199,7 +200,7 @@ def edit_entitlement_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit entitlement form."""
     item = billing_service.entitlements.get(db, str(item_id))
@@ -225,7 +226,7 @@ async def edit_entitlement_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle entitlement edit form submission."""
     form = await request.form()
@@ -237,7 +238,7 @@ async def edit_entitlement_submit(
             feature_key=str(data["feature_key"]) if data.get("feature_key") else None,
             value_type=str(data["value_type"]) if data.get("value_type") else None,  # type: ignore[arg-type]
             value_text=str(data["value_text"]) if data.get("value_text") else None,
-            value_numeric=int(data["value_numeric"])
+            value_numeric=as_int(data.get("value_numeric"))
             if data.get("value_numeric")
             else None,
         )
@@ -277,7 +278,7 @@ async def delete_entitlement(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle entitlement deletion."""
     form = await request.form()

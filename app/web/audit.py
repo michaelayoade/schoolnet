@@ -15,7 +15,7 @@ from app.models.audit import AuditActorType, AuditEvent
 from app.services.audit import audit_events
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ def list_audit_events(
     entity_type: str | None = None,
     actor_type: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List audit events with pagination and filtering."""
     page = max(1, page)
@@ -107,7 +107,7 @@ def audit_event_detail(
     request: Request,
     event_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show audit event detail view."""
     event = audit_events.get(db, str(event_id))

@@ -1,0 +1,155 @@
+{% extends "parent/base.html" %}
+{% block title %}Invoice {{ invoice.number if invoice.number else invoice.id | string | truncate(8, True, '') }} - Parent Portal{% endblock %}
+{% block parent_content %}
+
+<!-- Back link -->
+<div class="mb-6">
+    <a href="/parent/payments" class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Payments
+    </a>
+</div>
+
+<!-- Invoice header -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">
+                Invoice {{ invoice.number if invoice.number else invoice.id | string | truncate(8, True, '') }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Issued {{ invoice.created_at.strftime('%d %B %Y') }}
+            </p>
+            {% if invoice.due_date %}
+            <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                Due {{ invoice.due_date.strftime('%d %B %Y') }}
+            </p>
+            {% endif %}
+        </div>
+        <div>
+            {% set status_colors = {
+                'paid': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                'open': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                'void': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                'uncollectible': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+            } %}
+            <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium {{ status_colors.get(invoice.status.value, 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300') }}">
+                {{ invoice.status.value | replace('_', ' ') | title }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Line items -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Line Items</h2>
+    </div>
+    {% if invoice_items %}
+    <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+        <thead class="bg-slate-50 dark:bg-slate-700/50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Description</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Qty</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Unit Price</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            {% for item in invoice_items %}
+            <tr>
+                <td class="px-6 py-4 text-sm text-slate-900 dark:text-white">{{ item.description if item.description else 'Item' }}</td>
+                <td class="px-6 py-4 text-sm text-slate-900 dark:text-white text-right">{{ item.quantity }}</td>
+                <td class="px-6 py-4 text-sm text-slate-900 dark:text-white text-right">&#8358;{{ "{:,.0f}".format(item.unit_amount / 100) }}</td>
+                <td class="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white text-right">&#8358;{{ "{:,.0f}".format(item.amount / 100) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        No line items on this invoice.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Totals -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Summary</h2>
+    <dl class="space-y-3">
+        <div class="flex justify-between">
+            <dt class="text-sm text-slate-500 dark:text-slate-400">Subtotal</dt>
+            <dd class="text-sm font-medium text-slate-900 dark:text-white">&#8358;{{ "{:,.0f}".format(invoice.subtotal / 100) }}</dd>
+        </div>
+        {% if invoice.tax > 0 %}
+        <div class="flex justify-between">
+            <dt class="text-sm text-slate-500 dark:text-slate-400">Tax</dt>
+            <dd class="text-sm font-medium text-slate-900 dark:text-white">&#8358;{{ "{:,.0f}".format(invoice.tax / 100) }}</dd>
+        </div>
+        {% endif %}
+        <div class="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-3">
+            <dt class="text-base font-semibold text-slate-900 dark:text-white">Total</dt>
+            <dd class="text-base font-semibold text-slate-900 dark:text-white">&#8358;{{ "{:,.0f}".format(invoice.total / 100) }}</dd>
+        </div>
+        <div class="flex justify-between">
+            <dt class="text-sm text-slate-500 dark:text-slate-400">Amount Due</dt>
+            <dd class="text-sm font-medium text-slate-900 dark:text-white">&#8358;{{ "{:,.0f}".format(invoice.amount_due / 100) }}</dd>
+        </div>
+        <div class="flex justify-between">
+            <dt class="text-sm text-slate-500 dark:text-slate-400">Amount Paid</dt>
+            <dd class="text-sm font-medium text-green-600 dark:text-green-400">&#8358;{{ "{:,.0f}".format(invoice.amount_paid / 100) }}</dd>
+        </div>
+        {% if invoice.paid_at %}
+        <div class="flex justify-between">
+            <dt class="text-sm text-slate-500 dark:text-slate-400">Paid On</dt>
+            <dd class="text-sm font-medium text-slate-900 dark:text-white">{{ invoice.paid_at.strftime('%d %B %Y') }}</dd>
+        </div>
+        {% endif %}
+    </dl>
+</div>
+
+<!-- Payment transactions -->
+{% if payment_intents %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Payment Transactions</h2>
+    </div>
+    <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+        <thead class="bg-slate-50 dark:bg-slate-700/50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Status</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Reference</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            {% for pi in payment_intents %}
+            <tr>
+                <td class="px-6 py-4 text-sm text-slate-900 dark:text-white">{{ pi.created_at.strftime('%d %b %Y %H:%M') }}</td>
+                <td class="px-6 py-4">
+                    {% set pi_colors = {
+                        'succeeded': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                        'processing': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+                        'canceled': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                        'requires_payment_method': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                        'requires_confirmation': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                        'requires_action': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    } %}
+                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ pi_colors.get(pi.status.value, 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300') }}">
+                        {{ pi.status.value | replace('_', ' ') | title }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white text-right">&#8358;{{ "{:,.0f}".format(pi.amount / 100) }}</td>
+                <td class="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{{ pi.external_id if pi.external_id else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}

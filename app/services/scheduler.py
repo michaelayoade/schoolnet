@@ -95,5 +95,17 @@ def refresh_schedule() -> dict:
 def enqueue_task(task_name: str, args: list | None, kwargs: dict | None) -> dict:
     from app.celery_app import celery_app
 
-    async_result = celery_app.send_task(task_name, args=args or [], kwargs=kwargs or {})
+    # API endpoints should never hang waiting for a broker/backend to become available.
+    # Disable retries and ignore results so failures surface quickly.
+    try:
+        async_result = celery_app.send_task(
+            task_name,
+            args=args or [],
+            kwargs=kwargs or {},
+            retry=False,
+            ignore_result=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to enqueue task") from exc
+
     return {"queued": True, "task_id": str(async_result.id)}

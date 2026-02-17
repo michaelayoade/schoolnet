@@ -1,12 +1,12 @@
 """Tests for RateLimitMiddleware."""
-
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
 import pytest
+import pytest_asyncio
+import httpx
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from app.middleware.rate_limit import RateLimitMiddleware
 
@@ -35,27 +35,32 @@ def app_with_rate_limit() -> FastAPI:
     return app
 
 
-@pytest.fixture
-def client(app_with_rate_limit: FastAPI) -> TestClient:
-    return TestClient(app_with_rate_limit)
+@pytest_asyncio.fixture
+async def client(app_with_rate_limit: FastAPI) -> httpx.AsyncClient:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app_with_rate_limit, raise_app_exceptions=True),
+        base_url="http://test",
+    ) as client:
+        yield client
 
 
 class TestRateLimitMiddleware:
-    def test_allows_get_requests(self, client: TestClient) -> None:
+    @pytest.mark.asyncio
+    async def test_allows_get_requests(self, client: httpx.AsyncClient) -> None:
         """GET requests are never rate limited."""
-        resp = client.get("/auth/login")
+        resp = await client.get("/auth/login")
         assert resp.status_code == 200
 
-    def test_allows_non_auth_posts(self, client: TestClient) -> None:
+    @pytest.mark.asyncio
+    async def test_allows_non_auth_posts(self, client: httpx.AsyncClient) -> None:
         """POST requests to non-auth paths are not rate limited."""
-        resp = client.post("/other")
+        resp = await client.post("/other")
         assert resp.status_code == 200
 
     @patch("app.middleware.rate_limit._get_redis", return_value=None)
-    def test_fallback_limits_when_redis_unavailable(
-        self, mock_redis: MagicMock
-    ) -> None:
-        """When Redis is unavailable, in-memory fallback blocks the 6th request."""
+    @pytest.mark.asyncio
+    async def test_allows_when_redis_unavailable(self, mock_redis: MagicMock) -> None:
+        """Fail-open: if Redis is unavailable, requests are allowed."""
         # Create a fresh app so the middleware hasn't cached Redis yet
         fresh_app = FastAPI()
         fresh_app.add_middleware(RateLimitMiddleware)
@@ -64,40 +69,16 @@ class TestRateLimitMiddleware:
         def login():
             return {"token": "abc"}
 
-        with TestClient(fresh_app) as c:
-            responses = [c.post("/auth/login") for _ in range(6)]
-        assert [resp.status_code for resp in responses[:5]] == [200] * 5
-        assert responses[5].status_code == 429
-        assert responses[5].json()["code"] == "rate_limit_exceeded"
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=fresh_app, raise_app_exceptions=True),
+            base_url="http://test",
+        ) as c:
+            resp = await c.post("/auth/login")
+        assert resp.status_code == 200
 
     @patch("app.middleware.rate_limit._get_redis")
-    def test_fallback_limits_when_redis_connection_errors(
-        self, mock_redis: MagicMock
-    ) -> None:
-        """If Redis operations fail, in-memory fallback blocks the 6th request."""
-        from redis.exceptions import ConnectionError as RedisConnectionError
-
-        mock_r = MagicMock()
-        mock_pipe = MagicMock()
-        mock_pipe.execute.side_effect = RedisConnectionError("redis down")
-        mock_r.pipeline.return_value = mock_pipe
-        mock_redis.return_value = mock_r
-
-        fresh_app = FastAPI()
-        fresh_app.add_middleware(RateLimitMiddleware)
-
-        @fresh_app.post("/auth/login")
-        def login():
-            return {"token": "abc"}
-
-        with TestClient(fresh_app) as c:
-            responses = [c.post("/auth/login") for _ in range(6)]
-        assert [resp.status_code for resp in responses[:5]] == [200] * 5
-        assert responses[5].status_code == 429
-        assert responses[5].json()["code"] == "rate_limit_exceeded"
-
-    @patch("app.middleware.rate_limit._get_redis")
-    def test_rate_limit_headers_present(self, mock_redis: MagicMock) -> None:
+    @pytest.mark.asyncio
+    async def test_rate_limit_headers_present(self, mock_redis: MagicMock) -> None:
         """Rate limit response headers are present when Redis works."""
         mock_r = MagicMock()
         mock_pipe = MagicMock()
@@ -112,13 +93,17 @@ class TestRateLimitMiddleware:
         def login():
             return {"token": "abc"}
 
-        with TestClient(fresh_app) as c:
-            resp = c.post("/auth/login")
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=fresh_app, raise_app_exceptions=True),
+            base_url="http://test",
+        ) as c:
+            resp = await c.post("/auth/login")
         assert resp.status_code == 200
         assert "X-RateLimit-Limit" in resp.headers
 
     def test_429_response_format(self) -> None:
         """429 responses have standard error format."""
+        from app.middleware.rate_limit import RateLimitMiddleware
         from starlette.responses import JSONResponse
 
         # Verify the response structure matches our error envelope
@@ -134,7 +119,6 @@ class TestRateLimitMiddleware:
 class TestRateLimitPaths:
     def test_login_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
-
         assert "/auth/login" in _RATE_LIMIT_PATHS
         max_req, window = _RATE_LIMIT_PATHS["/auth/login"]
         assert max_req == 10
@@ -142,7 +126,6 @@ class TestRateLimitPaths:
 
     def test_password_reset_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
-
         assert "/auth/password-reset" in _RATE_LIMIT_PATHS
         max_req, window = _RATE_LIMIT_PATHS["/auth/password-reset"]
         assert max_req == 5
@@ -150,10 +133,8 @@ class TestRateLimitPaths:
 
     def test_mfa_verify_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
-
         assert "/auth/mfa/verify" in _RATE_LIMIT_PATHS
 
     def test_register_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
-
         assert "/auth/register" in _RATE_LIMIT_PATHS

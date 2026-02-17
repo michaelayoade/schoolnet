@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
 
 from app.api.audit import router as audit_router
@@ -47,22 +48,34 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[arg-type]
     # ── Startup ──────────────────────────────────────────
+    logger.info("lifespan_start")
     # Validate configuration
     warnings = validate_settings(settings)
     for w in warnings:
         logger.warning("Config warning: %s", w)
 
-    # Seed default settings
-    db = SessionLocal()
-    try:
-        seed_auth_settings(db)
-        seed_audit_settings(db)
-        seed_scheduler_settings(db)
-        seed_billing_settings(db)
-    finally:
-        db.close()
+    # Seed default settings (can be disabled for tests)
+    seed_enabled = os.getenv("SEED_SETTINGS_ON_STARTUP", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    logger.info("lifespan_seed_check", extra={"seed_enabled": seed_enabled})
+    if seed_enabled:
+        db = SessionLocal()
+        try:
+            logger.info("lifespan_seed_begin")
+            seed_auth_settings(db)
+            seed_audit_settings(db)
+            seed_scheduler_settings(db)
+            seed_billing_settings(db)
+            logger.info("lifespan_seed_done")
+        finally:
+            db.close()
 
     logger.info("Application started (pid=%s)", os.getpid())
+    logger.info("lifespan_yield")
     yield
 
     # ── Shutdown ─────────────────────────────────────────
@@ -100,7 +113,9 @@ app.add_middleware(ObservabilityMiddleware)
 
 
 @app.middleware("http")
-async def audit_middleware(request: Request, call_next: object) -> Response:
+async def audit_middleware(
+    request: Request, call_next: RequestResponseEndpoint
+) -> Response:
     response: Response
     path = request.url.path
     # Try cache first — avoid opening a DB session on every request
@@ -112,7 +127,7 @@ async def audit_middleware(request: Request, call_next: object) -> Response:
         finally:
             db.close()
     if not audit_settings["enabled"]:
-        return await call_next(request)  # type: ignore[call-arg]
+        return await call_next(request)
     header_key = audit_settings.get("read_trigger_header") or ""
     header_value = request.headers.get(header_key, "") if header_key else ""
     track_read = request.method == "GET" and (
@@ -123,7 +138,7 @@ async def audit_middleware(request: Request, call_next: object) -> Response:
     if _is_audit_path_skipped(path, audit_settings["skip_paths"]):
         should_log = False
     try:
-        response = await call_next(request)  # type: ignore[call-arg]
+        response = await call_next(request)
     except Exception:
         if should_log:
             db = SessionLocal()
@@ -270,6 +285,7 @@ from app.web.parent.dashboard import router as web_parent_dashboard_router  # no
 from app.web.parent.notifications import (  # noqa: E402
     router as web_parent_notifications_router,
 )
+from app.web.parent.wards import router as web_parent_wards_router  # noqa: E402
 from app.web.people import router as web_people_router  # noqa: E402
 from app.web.permissions import router as web_permissions_router  # noqa: E402
 from app.web.public import router as web_public_router  # noqa: E402
@@ -329,6 +345,7 @@ app.include_router(web_billing_webhook_events_router)
 # SchoolNet web routes
 app.include_router(web_parent_dashboard_router)
 app.include_router(web_parent_applications_router)
+app.include_router(web_parent_wards_router)
 app.include_router(web_parent_notifications_router)
 app.include_router(web_school_dashboard_router)
 app.include_router(web_school_forms_router)

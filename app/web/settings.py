@@ -14,7 +14,7 @@ from app.api.deps import get_db
 from app.models.domain_settings import DomainSetting, SettingDomain
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def _base_context(
 def list_settings(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List all settings grouped by domain."""
     all_settings = list(
@@ -81,7 +81,7 @@ def edit_setting_form(
     request: Request,
     setting_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse | RedirectResponse:
     """Render the edit setting form."""
     setting = db.get(DomainSetting, setting_id)
@@ -103,7 +103,7 @@ async def edit_setting_submit(
     request: Request,
     setting_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle setting edit form submission."""
     form = await request.form()

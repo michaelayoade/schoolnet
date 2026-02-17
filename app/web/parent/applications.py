@@ -1,9 +1,12 @@
 """Parent portal — applications and purchases."""
 
 import logging
+from collections.abc import Mapping
+from typing import Any
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
@@ -12,11 +15,24 @@ from app.services.application import ApplicationService
 from app.services.common import require_uuid
 from app.services.file_upload import FileUploadService
 from app.services.school import SchoolService
+from app.services.ward import WardService
 from app.templates import templates
 from app.web.schoolnet_deps import require_parent_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/parent/applications", tags=["parent-applications"])
+
+
+def _get_form_str(form_data: Mapping[str, Any], key: str) -> str:
+    """Extract a string value from form data.
+
+    Starlette's FormData can contain both text values and UploadFile objects.
+    For text fields, treat non-string values as empty.
+    """
+    value = form_data.get(key)
+    if value is None or isinstance(value, UploadFile):
+        return ""
+    return str(value)
 
 
 @router.get("")
@@ -130,6 +146,21 @@ def fill_application_page(
     form = application.admission_form
     school = form.school if form else None
 
+    # Load parent's saved wards for the ward selector
+    parent_id = require_uuid(auth["person_id"])
+    ward_svc = WardService(db)
+    ward_list = ward_svc.list_for_parent(parent_id)
+    wards_data = [
+        {
+            "id": str(w.id),
+            "first_name": w.first_name,
+            "last_name": w.last_name,
+            "date_of_birth": w.date_of_birth.isoformat() if w.date_of_birth else "",
+            "gender": w.gender if w.gender else "",
+        }
+        for w in ward_list
+    ]
+
     return templates.TemplateResponse(
         "parent/applications/fill.html",
         {
@@ -139,6 +170,7 @@ def fill_application_page(
             "form": form,
             "school": school,
             "existing_responses": application.form_responses or {},
+            "wards": wards_data,
         },
     )
 
@@ -164,10 +196,35 @@ async def fill_application_submit(
     # Parse multipart form data for dynamic fields + file uploads
     form_data = await request.form()
 
-    ward_first_name = form_data.get("ward_first_name", "")
-    ward_last_name = form_data.get("ward_last_name", "")
-    ward_date_of_birth = form_data.get("ward_date_of_birth", "")
-    ward_gender = form_data.get("ward_gender", "")
+    # Check if an existing ward was selected
+    ward_id_str = form_data.get("ward_id", "")
+    if ward_id_str:
+        from app.services.common import coerce_uuid
+
+        ward_svc = WardService(db)
+        ward_uuid = coerce_uuid(str(ward_id_str))
+        ward = ward_svc.get_by_id(ward_uuid) if ward_uuid else None
+        if (
+            ward
+            and ward.parent_id == require_uuid(auth["person_id"])
+            and ward.is_active
+        ):
+            ward_first_name = ward.first_name
+            ward_last_name = ward.last_name
+            ward_date_of_birth = (
+                ward.date_of_birth.isoformat() if ward.date_of_birth else ""
+            )
+            ward_gender = ward.gender or ""
+        else:
+            ward_first_name = _get_form_str(form_data, "ward_first_name")
+            ward_last_name = _get_form_str(form_data, "ward_last_name")
+            ward_date_of_birth = _get_form_str(form_data, "ward_date_of_birth")
+            ward_gender = _get_form_str(form_data, "ward_gender")
+    else:
+        ward_first_name = _get_form_str(form_data, "ward_first_name")
+        ward_last_name = _get_form_str(form_data, "ward_last_name")
+        ward_date_of_birth = _get_form_str(form_data, "ward_date_of_birth")
+        ward_gender = _get_form_str(form_data, "ward_gender")
 
     from datetime import date
 
@@ -193,15 +250,20 @@ async def fill_application_submit(
     for key in form_data:
         if key.startswith("doc_"):
             doc_name = key[4:]  # strip "doc_" prefix
-            upload_file: UploadFile = form_data[key]  # type: ignore[assignment]
-            if upload_file and upload_file.filename:
+            value = form_data[key]
+            if isinstance(value, UploadFile) and value.filename:
+                upload_file = value
+                filename = upload_file.filename
+                if not filename:
+                    continue
                 try:
                     content = await upload_file.read()
                     if content:
                         record = upload_svc.upload(
                             content=content,
-                            filename=upload_file.filename,
-                            content_type=upload_file.content_type or "application/octet-stream",
+                            filename=filename,
+                            content_type=upload_file.content_type
+                            or "application/octet-stream",
                             uploaded_by=person_uuid,
                             category="application_document",
                             entity_type="application",

@@ -297,7 +297,7 @@ class ApplicationService:
         ward_date_of_birth: date,
         ward_gender: str,
         form_responses: dict | None = None,
-        document_urls: dict | None = None,
+        document_urls: dict[str, str] | None = None,
         ward_passport_url: str | None = None,
     ) -> Application:
         """Fill and submit an application (draft → submitted)."""
@@ -315,6 +315,27 @@ class ApplicationService:
 
         self.db.flush()
         logger.info("Application submitted: %s", application.id)
+
+        # Notify school admin of new submission
+        try:
+            from app.services.notification import NotificationService
+
+            notif_svc = NotificationService(self.db)
+            form = application.admission_form
+            if form and form.school and form.school.owner_id:
+                parent = self.db.get(Person, application.parent_id)
+                parent_name = (
+                    f"{parent.first_name} {parent.last_name}" if parent else "A parent"
+                )
+                notif_svc.notify_application_submitted(
+                    school_owner_id=form.school.owner_id,
+                    application_number=application.application_number,
+                    parent_name=parent_name,
+                    school_name=form.school.name,
+                )
+        except Exception as e:
+            logger.warning("Failed to send submission notification: %s", e)
+
         return application
 
     def review(
@@ -346,6 +367,23 @@ class ApplicationService:
 
         self.db.flush()
         logger.info("Application %s: %s by %s", application.id, decision, reviewer_id)
+
+        # Notify parent of decision
+        try:
+            from app.services.notification import NotificationService
+
+            notif_svc = NotificationService(self.db)
+            form = application.admission_form
+            school_name = form.school.name if form and form.school else "the school"
+            notif_svc.notify_application_reviewed(
+                parent_id=application.parent_id,
+                application_number=application.application_number,
+                decision=decision,
+                school_name=school_name,
+            )
+        except Exception as e:
+            logger.warning("Failed to send review notification: %s", e)
+
         return application
 
     def withdraw(self, application: Application) -> Application:

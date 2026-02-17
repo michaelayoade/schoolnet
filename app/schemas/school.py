@@ -150,7 +150,7 @@ class ApplicationBase(BaseModel):
     ward_date_of_birth: date | None = None
     ward_gender: str | None = None
     form_responses: dict | None = None
-    document_urls: list[str] | None = None
+    document_urls: dict[str, str] | None = None
 
 
 class ApplicationCreate(BaseModel):

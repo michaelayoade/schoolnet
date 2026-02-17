@@ -1,3 +1,4 @@
+{% from "macros/ui_macros.html" import status_badge %}
 {% extends "school/base.html" %}
 {% block title %}Application {{ application.application_number }} - School Admin{% endblock %}
 {% block school_content %}
@@ -13,10 +14,7 @@
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ form.title }} &bull; {{ form.academic_year }}</p>
             {% endif %}
         </div>
-        {% set status_colors = {'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300', 'submitted': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', 'under_review': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'accepted': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'rejected': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', 'withdrawn': 'bg-slate-100 text-slate-500'} %}
-        <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium {{ status_colors.get(application.status.value, 'bg-slate-100 text-slate-700') }}">
-            {{ application.status.value | replace('_', ' ') | title }}
-        </span>
+        {{ status_badge(application.status) }}
     </div>
 </div>
 
@@ -61,6 +59,80 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Form Responses -->
+{% if application.form_responses %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Form Responses</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        {% for key, value in application.form_responses.items() %}
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">{{ key | replace('_', ' ') | title }}</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ value if value else 'N/A' }}</dd>
+        </div>
+        {% endfor %}
+    </dl>
+</div>
+{% endif %}
+
+<!-- Uploaded Documents -->
+{% if application.document_urls %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Uploaded Documents</h2>
+    <ul class="space-y-2 text-sm">
+        {% if application.document_urls is mapping %}
+            {% for doc_name, doc_url in application.document_urls.items() %}
+            <li class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <a href="{{ doc_url }}" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 hover:underline">{{ doc_name | replace('_', ' ') | title }}</a>
+            </li>
+            {% endfor %}
+        {% else %}
+            {% for doc_url in application.document_urls %}
+            <li class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <a href="{{ doc_url }}" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 hover:underline">Document {{ loop.index }}</a>
+            </li>
+            {% endfor %}
+        {% endif %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Payment Status -->
+{% if application.invoice_id and application.invoice %}
+{% set inv = application.invoice %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Payment Status</h2>
+    {% set inv_status_colors = {'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300', 'open': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'paid': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'void': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', 'uncollectible': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'} %}
+    <dl class="space-y-3 text-sm">
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Status</dt>
+            <dd class="mt-0.5">
+                <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium {{ inv_status_colors.get(inv.status.value, 'bg-slate-100 text-slate-700') }}">
+                    {{ inv.status.value | replace('_', ' ') | title }}
+                </span>
+            </dd>
+        </div>
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Amount</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ inv.currency | upper }} {{ '{:,.2f}'.format(inv.total / 100) }}</dd>
+        </div>
+        {% if inv.amount_paid > 0 %}
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Amount Paid</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ inv.currency | upper }} {{ '{:,.2f}'.format(inv.amount_paid / 100) }}</dd>
+        </div>
+        {% endif %}
+        {% if inv.paid_at %}
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Paid At</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ inv.paid_at.strftime('%d %b %Y %H:%M') }}</dd>
+        </div>
+        {% endif %}
+    </dl>
+</div>
+{% endif %}
 
 <!-- Review Form -->
 {% if application.status.value in ('submitted', 'under_review') %}

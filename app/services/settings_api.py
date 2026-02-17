@@ -34,7 +34,14 @@ def _normalize_spec_setting(
         raise HTTPException(status_code=400, detail=f"Value must be one of: {allowed}")
     if spec.value_type == SettingValueType.integer:
         try:
-            parsed = int(coerced)
+            if isinstance(coerced, bool):
+                parsed = int(coerced)
+            elif isinstance(coerced, int):
+                parsed = coerced
+            elif isinstance(coerced, str):
+                parsed = int(coerced)
+            else:
+                raise TypeError("not an int-like value")
         except (TypeError, ValueError) as exc:
             raise HTTPException(
                 status_code=400, detail="Value must be an integer"

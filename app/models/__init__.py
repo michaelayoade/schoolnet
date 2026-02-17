@@ -57,3 +57,4 @@ from app.models.school import (  # noqa: F401
     SchoolStatus,
     SchoolType,
 )
+from app.models.ward import Ward  # noqa: F401

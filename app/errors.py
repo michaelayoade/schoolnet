@@ -7,22 +7,40 @@ Every error response includes a consistent envelope:
         "details": null | object,
         "request_id": "uuid"
     }
+
+For browser requests (Accept: text/html), error pages are rendered as HTML
+templates instead of JSON.
 """
 
 from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+
+from app.templates import templates
 
 logger = logging.getLogger(__name__)
+
+# Map of status codes to error template paths
+_ERROR_TEMPLATES: dict[int, str] = {
+    403: "errors/403.html",
+    404: "errors/404.html",
+    500: "errors/500.html",
+}
 
 
 def _get_request_id(request: Request) -> str:
     """Extract request_id set by ObservabilityMiddleware."""
     return getattr(request.state, "request_id", "unknown")
+
+
+def _wants_html(request: Request) -> bool:
+    """Return True if the client prefers HTML over JSON."""
+    accept = request.headers.get("accept", "")
+    return "text/html" in accept
 
 
 def _error_payload(code: str, message: str, details: object, request_id: str) -> dict:
@@ -34,11 +52,26 @@ def _error_payload(code: str, message: str, details: object, request_id: str) ->
     }
 
 
-def register_error_handlers(app: object) -> None:
+def _render_error_html(request: Request, status_code: int) -> HTMLResponse | None:
+    """Render an HTML error page if a template exists, else return None."""
+    template_name = _ERROR_TEMPLATES.get(status_code)
+    if template_name is None:
+        return None
+    return HTMLResponse(
+        content=templates.get_template(template_name).render({"request": request}),
+        status_code=status_code,
+    )
+
+
+def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)  # type: ignore[arg-type]
-    async def http_exception_handler(
-        request: Request, exc: HTTPException
-    ) -> JSONResponse:
+    async def http_exception_handler(request: Request, exc: HTTPException) -> Response:
+        # Serve HTML error page for browser requests
+        if _wants_html(request):
+            html_response = _render_error_html(request, exc.status_code)
+            if html_response is not None:
+                return html_response
+
         request_id = _get_request_id(request)
         detail = exc.detail
         code = f"http_{exc.status_code}"
@@ -80,9 +113,7 @@ def register_error_handlers(app: object) -> None:
         )
 
     @app.exception_handler(Exception)  # type: ignore[arg-type]
-    async def unhandled_exception_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> Response:
         request_id = _get_request_id(request)
         logger.exception(
             "Unhandled exception on %s %s",
@@ -90,6 +121,13 @@ def register_error_handlers(app: object) -> None:
             request.url.path,
             extra={"request_id": request_id},
         )
+
+        # Serve HTML error page for browser requests
+        if _wants_html(request):
+            html_response = _render_error_html(request, 500)
+            if html_response is not None:
+                return html_response
+
         return JSONResponse(
             status_code=500,
             content=_error_payload(

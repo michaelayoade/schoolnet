@@ -1,3 +1,4 @@
+{% from "macros/ui_macros.html" import flash_messages %}
 {% extends "base.html" %}
 {% block body %}
 <div class="flex min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -56,12 +57,7 @@
 
         <!-- Page content -->
         <main class="flex-1 p-6">
-            {% if success_message %}
-            <div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">{{ success_message }}</div>
-            {% endif %}
-            {% if error_message %}
-            <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{{ error_message }}</div>
-            {% endif %}
+            {{ flash_messages(success_message, error_message) }}
             {% block school_content %}{% endblock %}
         </main>
     </div>

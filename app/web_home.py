@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.api.deps import get_db
 from app.config import settings
@@ -80,13 +81,13 @@ def branding_settings(request: Request, db: Session = Depends(get_db)):
 @router.post("/settings/branding", tags=["web"], response_class=HTMLResponse)
 async def branding_settings_update(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    data = dict(form)
+    data: dict[str, object] = dict(form)
     branding_ctx = load_branding_context(db)
     branding = branding_ctx["branding"]
 
     logo_file = form.get("logo_file")
     logo_dark_file = form.get("logo_dark_file")
-    if getattr(logo_file, "filename", None):
+    if isinstance(logo_file, UploadFile) and getattr(logo_file, "filename", None):
         new_logo = await save_branding_asset(logo_file, "logo")
         old_logo = branding.get("logo_url")
         data["logo_url"] = new_logo
@@ -96,7 +97,9 @@ async def branding_settings_update(request: Request, db: Session = Depends(get_d
         delete_branding_asset(branding.get("logo_url"))
         data["logo_url"] = None
 
-    if getattr(logo_dark_file, "filename", None):
+    if isinstance(logo_dark_file, UploadFile) and getattr(
+        logo_dark_file, "filename", None
+    ):
         new_logo_dark = await save_branding_asset(logo_dark_file, "logo_dark")
         old_logo_dark = branding.get("logo_dark_url")
         data["logo_dark_url"] = new_logo_dark

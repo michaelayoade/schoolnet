@@ -1,5 +1,6 @@
 """School admin — admission form management."""
 
+import json
 import logging
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -16,6 +17,41 @@ from app.web.schoolnet_deps import require_school_admin_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/school/forms", tags=["school-forms"])
+
+
+def _parse_form_fields_json(raw: str) -> list[dict] | None:
+    """Parse form_fields JSON from form submission.
+
+    Returns a list of field dicts (possibly empty), or None if input is missing.
+    """
+    if not raw or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning("Invalid form_fields_json: %s", e)
+        return None
+    if not isinstance(parsed, list):
+        return None
+    # Filter out incomplete entries (must have a label)
+    return [f for f in parsed if isinstance(f, dict) and f.get("label")]
+
+
+def _parse_required_documents_json(raw: str) -> list[str] | None:
+    """Parse required_documents JSON from form submission.
+
+    Returns a list of document name strings (possibly empty), or None if input is missing.
+    """
+    if not raw or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning("Invalid required_documents_json: %s", e)
+        return None
+    if not isinstance(parsed, list):
+        return None
+    return [d for d in parsed if isinstance(d, str) and d.strip()]
 
 
 def _get_school_for_admin(db: Session, auth: dict) -> School | None:
@@ -80,6 +116,8 @@ def create_form_submit(
     price_amount: int = Form(...),
     description: str = Form(""),
     max_submissions: int | None = Form(default=None),
+    form_fields_json: str = Form(""),
+    required_documents_json: str = Form(""),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
@@ -91,6 +129,9 @@ def create_form_submit(
 
     from app.schemas.school import AdmissionFormCreate
 
+    form_fields = _parse_form_fields_json(form_fields_json)
+    required_documents = _parse_required_documents_json(required_documents_json)
+
     payload = AdmissionFormCreate(
         school_id=school.id,
         title=title,
@@ -98,6 +139,8 @@ def create_form_submit(
         price_amount=price_amount * 100,  # Convert naira to kobo
         description=description if description else None,
         max_submissions=max_submissions,
+        form_fields=form_fields,
+        required_documents=required_documents,
     )
     svc = AdmissionFormService(db)
     svc.create(payload)
@@ -135,6 +178,8 @@ def edit_form_submit(
     description: str = Form(""),
     max_submissions: int | None = Form(default=None),
     price_amount: int | None = Form(default=None),
+    form_fields_json: str = Form(""),
+    required_documents_json: str = Form(""),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
@@ -147,11 +192,16 @@ def edit_form_submit(
 
     from app.schemas.school import AdmissionFormUpdate
 
+    form_fields = _parse_form_fields_json(form_fields_json)
+    required_documents = _parse_required_documents_json(required_documents_json)
+
     payload = AdmissionFormUpdate(
         title=title,
         description=description if description else None,
         max_submissions=max_submissions,
         price_amount=price_amount * 100 if price_amount else None,
+        form_fields=form_fields,
+        required_documents=required_documents,
     )
     svc.update(form, payload)
     db.commit()

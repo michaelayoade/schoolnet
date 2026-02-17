@@ -15,7 +15,7 @@ from app.models.notification import Notification
 from app.services.branding_context import load_branding_context
 from app.services.notification import NotificationService
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def list_notifications(
     request: Request,
     page: int = 1,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List notifications for the current user with pagination."""
     page = max(1, page)
@@ -98,7 +98,7 @@ async def mark_notification_read(
     request: Request,
     notification_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Mark a notification as read."""
     form = await request.form()

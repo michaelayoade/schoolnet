@@ -14,7 +14,8 @@ from app.schemas.billing import InvoiceUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.form_utils import as_int
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def list_invoices(
     customer_id: str | None = None,
     status: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List invoices with pagination and optional filters."""
     page = max(1, page)
@@ -103,7 +104,7 @@ def invoice_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show invoice detail view with items and payment intents."""
     item = billing_service.invoices.get(db, str(item_id))
@@ -150,7 +151,7 @@ def edit_invoice_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit invoice form."""
     item = billing_service.invoices.get(db, str(item_id))
@@ -169,7 +170,7 @@ async def edit_invoice_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle invoice edit form submission."""
     form = await request.form()
@@ -181,11 +182,15 @@ async def edit_invoice_submit(
             number=str(data["number"]) if data.get("number") else None,
             status=str(data["status"]) if data.get("status") else None,  # type: ignore[arg-type]
             currency=str(data["currency"]) if data.get("currency") else None,
-            subtotal=int(data["subtotal"]) if data.get("subtotal") else None,
-            tax=int(data["tax"]) if data.get("tax") else None,
-            total=int(data["total"]) if data.get("total") else None,
-            amount_due=int(data["amount_due"]) if data.get("amount_due") else None,
-            amount_paid=int(data["amount_paid"]) if data.get("amount_paid") else None,
+            subtotal=as_int(data.get("subtotal")) if data.get("subtotal") else None,
+            tax=as_int(data.get("tax")) if data.get("tax") else None,
+            total=as_int(data.get("total")) if data.get("total") else None,
+            amount_due=as_int(data.get("amount_due"))
+            if data.get("amount_due")
+            else None,
+            amount_paid=as_int(data.get("amount_paid"))
+            if data.get("amount_paid")
+            else None,
             external_id=str(data["external_id"]) if data.get("external_id") else None,
             is_active="is_active" in data,
         )
@@ -214,7 +219,7 @@ async def delete_invoice(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle invoice deletion."""
     form = await request.form()

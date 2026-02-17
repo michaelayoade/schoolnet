@@ -2,14 +2,48 @@ import os
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 from types import ModuleType
 
 import pytest
-from fastapi.testclient import TestClient
+import asyncio
+import httpx
 from jose import jwt
 from sqlalchemy import DateTime, create_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
+
+# In this execution environment, AnyIO thread utilities hang. Starlette/FastAPI
+# runs sync endpoints via `run_in_threadpool()`, so patch it to execute inline.
+# This is acceptable for tests where handlers are fast and deterministic.
+import starlette.concurrency
+import fastapi.concurrency
+import starlette.routing
+import fastapi.routing
+import fastapi.dependencies.utils as fastapi_deps_utils
+import anyio.to_thread
+
+
+async def _run_in_threadpool(func, *args, **kwargs):
+    return func(*args, **kwargs)
+
+
+starlette.concurrency.run_in_threadpool = _run_in_threadpool  # type: ignore[assignment]
+fastapi.concurrency.run_in_threadpool = _run_in_threadpool  # type: ignore[assignment]
+starlette.routing.run_in_threadpool = _run_in_threadpool  # type: ignore[assignment]
+fastapi.routing.run_in_threadpool = _run_in_threadpool  # type: ignore[assignment]
+fastapi_deps_utils.run_in_threadpool = _run_in_threadpool  # type: ignore[assignment]
+
+
+async def _run_sync_inline(func, *args, **kwargs):
+    # anyio.to_thread.run_sync(..., limiter=...) is used by FastAPI to wrap sync
+    # context managers. We execute inline and ignore limiter.
+    kwargs.pop("limiter", None)
+    return func(*args, **kwargs)
+
+
+anyio.to_thread.run_sync = _run_sync_inline  # type: ignore[assignment]
+
 
 # Create a test engine BEFORE any app imports
 _test_engine = create_engine(
@@ -33,24 +67,24 @@ class TimestampMixin:
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),  # noqa: UP017
+        default=lambda: datetime.now(timezone.utc),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),  # noqa: UP017
-        onupdate=lambda: datetime.now(timezone.utc),  # noqa: UP017
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
 # Create a mock db module
-mock_db_module = ModuleType("app.db")
+mock_db_module = ModuleType('app.db')
 mock_db_module.Base = TestBase
 mock_db_module.TimestampMixin = TimestampMixin
 mock_db_module.SessionLocal = _TestSessionLocal
 mock_db_module.get_engine = lambda: _test_engine
 
 # Also mock app.config to prevent .env loading
-mock_config_module = ModuleType("app.config")
+mock_config_module = ModuleType('app.config')
 
 
 class MockSettings:
@@ -70,7 +104,7 @@ class MockSettings:
     brand_logo_url = None
     cors_origins = ""
     storage_backend = "local"
-    storage_local_dir = "/tmp/test_uploads"  # noqa: S108
+    storage_local_dir = "/tmp/test_uploads"
     storage_url_prefix = "/static/uploads"
     s3_bucket = ""
     s3_region = ""
@@ -78,9 +112,7 @@ class MockSettings:
     s3_secret_key = ""
     s3_endpoint_url = ""
     upload_max_size_bytes = 10 * 1024 * 1024
-    upload_allowed_types = (
-        "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
-    )
+    upload_allowed_types = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
     branding_upload_dir = "static/branding"
     branding_max_size_bytes = 5 * 1024 * 1024
     branding_allowed_types = "image/jpeg,image/png"
@@ -96,44 +128,63 @@ mock_config_module.Settings = MockSettings
 mock_config_module.validate_settings = lambda s: []
 
 # Insert mocks before any app imports
-sys.modules["app.config"] = mock_config_module
-sys.modules["app.db"] = mock_db_module
+sys.modules['app.config'] = mock_config_module
+sys.modules['app.db'] = mock_db_module
 
 # Set environment variables
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["JWT_ALGORITHM"] = "HS256"
 os.environ["TOTP_ENCRYPTION_KEY"] = "QLUJktsTSfZEbST4R-37XmQ0tCkiVCBXZN2Zt053w8g="
 os.environ["TOTP_ISSUER"] = "StarterTemplate"
+os.environ["SEED_SETTINGS_ON_STARTUP"] = "false"
 
 # Now import the models - they'll use our mocked db module
-from app.models.audit import AuditActorType, AuditEvent  # noqa: E402
-from app.models.auth import Session as AuthSession  # noqa: E402
-from app.models.auth import SessionStatus, UserCredential  # noqa: E402
-from app.models.billing import (  # noqa: E402
-    BillingScheme,
-    Coupon,
-    CouponDuration,
-    Customer,
+from app.models.person import Person
+from app.models.auth import UserCredential, Session as AuthSession, SessionStatus
+from app.models.rbac import Role, Permission, RolePermission, PersonRole
+from app.models.audit import AuditEvent, AuditActorType
+from app.models.domain_settings import DomainSetting, SettingDomain
+from app.models.scheduler import ScheduledTask, ScheduleType
+from app.models.file_upload import FileUpload, FileUploadStatus
+from app.models.notification import Notification, NotificationType
+from app.models.billing import (
+    Product,
     Price,
     PriceType,
-    Product,
+    BillingScheme,
     RecurringInterval,
+    Customer,
     Subscription,
-    SubscriptionItem,
     SubscriptionStatus,
+    SubscriptionItem,
+    Invoice,
+    InvoiceStatus,
+    InvoiceItem,
+    PaymentMethod,
+    PaymentMethodType,
+    PaymentIntent,
+    PaymentIntentStatus,
+    UsageRecord,
+    UsageAction,
+    Coupon,
+    CouponDuration,
+    Discount,
+    Entitlement,
+    EntitlementValueType,
+    WebhookEvent,
+    WebhookEventStatus,
 )
-from app.models.domain_settings import DomainSetting, SettingDomain  # noqa: E402
-from app.models.person import Person  # noqa: E402
-from app.models.rbac import Permission, PersonRole, Role  # noqa: E402
-from app.models.scheduler import ScheduledTask, ScheduleType  # noqa: E402
-from app.models.school import (  # noqa: E402
-    AdmissionForm,
-    AdmissionFormStatus,
+from app.models.school import (
     School,
-    SchoolCategory,
-    SchoolGender,
     SchoolStatus,
     SchoolType,
+    SchoolCategory,
+    SchoolGender,
+    AdmissionForm,
+    AdmissionFormStatus,
+    Application,
+    ApplicationStatus,
+    Rating,
 )
 
 # Create all tables
@@ -187,46 +238,98 @@ def auth_env():
     pass
 
 
-@pytest.fixture(autouse=True)
-def _reset_rate_limiter():
-    """Reset the in-memory rate limiter cache between tests."""
-    from app.middleware.rate_limit import _fallback_cache
-
-    _fallback_cache.clear()
-    yield
-    _fallback_cache.clear()
-
-
 # ============ FastAPI Test Client Fixtures ============
 
 
 @pytest.fixture()
 def client(db_session):
     """Create a test client with database dependency override."""
-    from app.api.deps import get_db as api_get_db
     from app.main import app
+    from app.api.deps import get_db as api_get_db
     from app.services.auth_dependencies import _get_db as auth_deps_get_db
+    from app.services.settings_seed import (
+        seed_audit_settings,
+        seed_auth_settings,
+        seed_billing_settings,
+        seed_scheduler_settings,
+    )
+
+    class SyncASGIClient:
+        def __init__(self, loop: asyncio.AbstractEventLoop, async_client: httpx.AsyncClient):
+            self._loop = loop
+            self._client = async_client
+
+        @property
+        def cookies(self):
+            return self._client.cookies
+
+        def request(self, method: str, url: str, **kwargs):
+            return self._loop.run_until_complete(
+                self._client.request(method, url, **kwargs)
+            )
+
+        def get(self, url: str, **kwargs):
+            return self.request("GET", url, **kwargs)
+
+        def post(self, url: str, **kwargs):
+            return self.request("POST", url, **kwargs)
+
+        def put(self, url: str, **kwargs):
+            return self.request("PUT", url, **kwargs)
+
+        def patch(self, url: str, **kwargs):
+            return self.request("PATCH", url, **kwargs)
+
+        def delete(self, url: str, **kwargs):
+            return self.request("DELETE", url, **kwargs)
 
     def override_get_db():
-        yield db_session
+        # Starlette's TestClient runs the app in a different thread; sharing a single
+        # SQLAlchemy Session object across threads can hang. Use a per-request session
+        # bound to the same StaticPool engine so data remains shared.
+        Session = sessionmaker(bind=db_session.get_bind(), autoflush=False, autocommit=False)
+        session = Session()
+        try:
+            yield session
+        finally:
+            session.close()
 
     # Override shared db dependencies
     app.dependency_overrides[api_get_db] = override_get_db
     app.dependency_overrides[auth_deps_get_db] = override_get_db
 
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
+    # Ensure default settings exist for routes that expect them.
+    seed_auth_settings(db_session)
+    seed_audit_settings(db_session)
+    seed_scheduler_settings(db_session)
+    seed_billing_settings(db_session)
+
+    # Avoid Starlette TestClient: `anyio.from_thread.start_blocking_portal()` hangs in
+    # this execution environment. Use httpx.AsyncClient + a dedicated event loop instead.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    lifespan_cm = app.router.lifespan_context(app)
+    loop.run_until_complete(lifespan_cm.__aenter__())
+    async_client = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="http://test",
+    )
+    try:
+        yield SyncASGIClient(loop, async_client)
+    finally:
+        loop.run_until_complete(async_client.aclose())
+        loop.run_until_complete(lifespan_cm.__aexit__(None, None, None))
+        loop.close()
+        asyncio.set_event_loop(None)
 
     app.dependency_overrides.clear()
 
 
-def _create_access_token(
-    person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None
-) -> str:
+def _create_access_token(person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None) -> str:
     """Create a JWT access token for testing."""
     secret = os.getenv("JWT_SECRET", "test-secret")
     algorithm = os.getenv("JWT_ALGORITHM", "HS256")
-    now = datetime.now(timezone.utc)  # noqa: UP017
+    now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=15)
     payload = {
         "sub": person_id,
@@ -249,7 +352,7 @@ def auth_session(db_session, person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),  # noqa: UP017,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -260,7 +363,8 @@ def auth_session(db_session, person):
 @pytest.fixture()
 def auth_token(person, auth_session):
     """Create a valid JWT token for authenticated requests."""
-    return _create_access_token(str(person.id), str(auth_session.id))
+    # Default authenticated user (non-admin, no special scopes).
+    return _create_access_token(str(person.id), str(auth_session.id), roles=["user"])
 
 
 @pytest.fixture()
@@ -311,7 +415,7 @@ def admin_session(db_session, admin_person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),  # noqa: UP017,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -430,9 +534,7 @@ def scheduled_task(db_session):
 @pytest.fixture()
 def billing_product(db_session):
     """Create a test billing product."""
-    product = Product(
-        name=f"Product {uuid.uuid4().hex[:8]}", description="Test product"
-    )
+    product = Product(name=f"Product {uuid.uuid4().hex[:8]}", description="Test product")
     db_session.add(product)
     db_session.commit()
     db_session.refresh(product)

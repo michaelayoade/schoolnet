@@ -14,7 +14,8 @@ from app.schemas.billing import PriceCreate, PriceUpdate
 from app.services import billing as billing_service
 from app.services.branding_context import load_branding_context
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.form_utils import as_int, as_str
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def list_prices(
     product_id: str | None = None,
     is_active: str | None = None,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List prices with pagination and optional filters."""
     page = max(1, page)
@@ -103,7 +104,7 @@ def list_prices(
 def create_price_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create price form."""
     all_products, _ = billing_service.products.list(
@@ -125,7 +126,7 @@ def create_price_form(
 async def create_price_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle price creation form submission."""
     form = await request.form()
@@ -136,19 +137,19 @@ async def create_price_submit(
         payload = PriceCreate(
             product_id=UUID(str(data.get("product_id", ""))),
             currency=str(data.get("currency", "usd")),
-            unit_amount=int(data.get("unit_amount", 0)),
+            unit_amount=as_int(data.get("unit_amount")) or 0,
             type=str(data.get("type", "one_time")),  # type: ignore[arg-type]
             billing_scheme=str(data.get("billing_scheme", "per_unit")),  # type: ignore[arg-type]
-            recurring_interval=str(data["recurring_interval"])
+            recurring_interval=as_str(data.get("recurring_interval"))
             if data.get("recurring_interval")
             else None,  # type: ignore[arg-type]
-            recurring_interval_count=int(data["recurring_interval_count"])
-            if data.get("recurring_interval_count")
-            else 1,
-            trial_period_days=int(data["trial_period_days"])
+            recurring_interval_count=as_int(data.get("recurring_interval_count")) or 1,
+            trial_period_days=as_int(data.get("trial_period_days"))
             if data.get("trial_period_days")
             else None,
-            lookup_key=str(data["lookup_key"]) if data.get("lookup_key") else None,
+            lookup_key=as_str(data.get("lookup_key"))
+            if data.get("lookup_key")
+            else None,
             is_active=data.get("is_active") == "on",
         )
         billing_service.prices.create(db, payload)
@@ -181,7 +182,7 @@ def price_detail(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show price detail view."""
     item = billing_service.prices.get(db, str(item_id))
@@ -205,7 +206,7 @@ def edit_price_form(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit price form."""
     item = billing_service.prices.get(db, str(item_id))
@@ -228,7 +229,7 @@ async def edit_price_submit(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle price edit form submission."""
     form = await request.form()
@@ -238,7 +239,9 @@ async def edit_price_submit(
     try:
         payload = PriceUpdate(
             currency=str(data["currency"]) if data.get("currency") else None,
-            unit_amount=int(data["unit_amount"]) if data.get("unit_amount") else None,
+            unit_amount=as_int(data.get("unit_amount"))
+            if data.get("unit_amount")
+            else None,
             type=str(data["type"]) if data.get("type") else None,  # type: ignore[arg-type]
             billing_scheme=str(data["billing_scheme"])
             if data.get("billing_scheme")
@@ -246,10 +249,10 @@ async def edit_price_submit(
             recurring_interval=str(data["recurring_interval"])
             if data.get("recurring_interval")
             else None,  # type: ignore[arg-type]
-            recurring_interval_count=int(data["recurring_interval_count"])
+            recurring_interval_count=as_int(data.get("recurring_interval_count"))
             if data.get("recurring_interval_count")
             else None,
-            trial_period_days=int(data["trial_period_days"])
+            trial_period_days=as_int(data.get("trial_period_days"))
             if data.get("trial_period_days")
             else None,
             lookup_key=str(data["lookup_key"]) if data.get("lookup_key") else None,
@@ -286,7 +289,7 @@ async def delete_price(
     request: Request,
     item_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle price deletion."""
     form = await request.form()

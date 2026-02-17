@@ -36,6 +36,7 @@ def _make_person_with_role(db_session, role_name):
     person = Person(
         first_name="Test", last_name="User",
         email=f"{role_name}-{uuid.uuid4().hex[:8]}@example.com",
+        email_verified=True,
     )
     db_session.add(person)
     db_session.flush()

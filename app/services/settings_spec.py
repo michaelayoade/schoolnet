@@ -299,23 +299,33 @@ def resolve_value(db, domain: SettingDomain, key: str) -> object | None:
     if spec.allowed and value is not None and value not in spec.allowed:
         value = spec.default
     if spec.value_type == SettingValueType.integer and value is not None:
+        default_int: int | None = (
+            spec.default if isinstance(spec.default, int) else None
+        )
         parsed: int | None
         try:
-            parsed = int(str(value))
+            if isinstance(value, bool):
+                parsed = int(value)
+            elif isinstance(value, int):
+                parsed = value
+            elif isinstance(value, str):
+                parsed = int(value)
+            else:
+                raise TypeError("not an int-like value")
         except (TypeError, ValueError):
-            parsed = spec.default if isinstance(spec.default, int) else None
+            parsed = default_int
         if (
             spec.min_value is not None
             and parsed is not None
             and parsed < spec.min_value
         ):
-            parsed = spec.default if isinstance(spec.default, int) else None
+            parsed = default_int
         if (
             spec.max_value is not None
             and parsed is not None
             and parsed > spec.max_value
         ):
-            parsed = spec.default if isinstance(spec.default, int) else None
+            parsed = default_int
         value = parsed
     return value
 
@@ -366,7 +376,14 @@ def normalize_for_db(
         bool_value = bool(value)
         return ("true" if bool_value else "false"), bool_value
     if spec.value_type == SettingValueType.integer:
-        return str(int(str(value))), None
+        if isinstance(value, bool):
+            return str(int(value)), None
+        if isinstance(value, int):
+            return str(value), None
+        if isinstance(value, str):
+            return str(int(value)), None
+        # Callers should validate types; if they didn't, fail loudly.
+        raise TypeError("integer setting value must be int or str")
     if spec.value_type == SettingValueType.string:
         return str(value), None
     return None, value

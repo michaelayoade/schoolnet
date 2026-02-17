@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
+import httpx
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
@@ -21,50 +22,63 @@ def app_with_headers() -> FastAPI:
     return app
 
 
-@pytest.fixture
-def client(app_with_headers: FastAPI) -> TestClient:
-    return TestClient(app_with_headers)
+@pytest_asyncio.fixture
+async def client(app_with_headers: FastAPI) -> httpx.AsyncClient:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app_with_headers, raise_app_exceptions=True),
+        base_url="http://test",
+    ) as client:
+        yield client
 
 
 class TestSecurityHeaders:
-    def test_x_content_type_options(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_x_content_type_options(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         assert resp.headers["X-Content-Type-Options"] == "nosniff"
 
-    def test_x_frame_options(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_x_frame_options(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         assert resp.headers["X-Frame-Options"] == "DENY"
 
-    def test_x_xss_protection(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_x_xss_protection(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         assert resp.headers["X-XSS-Protection"] == "1; mode=block"
 
-    def test_referrer_policy(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_referrer_policy(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         assert resp.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
 
-    def test_permissions_policy(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_permissions_policy(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         assert "camera=()" in resp.headers["Permissions-Policy"]
         assert "microphone=()" in resp.headers["Permissions-Policy"]
 
-    def test_content_security_policy(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_content_security_policy(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         csp = resp.headers["Content-Security-Policy"]
         assert "default-src 'self'" in csp
         assert "frame-ancestors 'none'" in csp
         assert "form-action 'self'" in csp
 
-    def test_no_hsts_without_https(self, client: TestClient) -> None:
-        resp = client.get("/test")
+    @pytest.mark.asyncio
+    async def test_no_hsts_without_https(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test")
         assert "Strict-Transport-Security" not in resp.headers
 
-    def test_hsts_with_https_proxy(self, client: TestClient) -> None:
-        resp = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+    @pytest.mark.asyncio
+    async def test_hsts_with_https_proxy(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/test", headers={"X-Forwarded-Proto": "https"})
         assert "Strict-Transport-Security" in resp.headers
         assert "max-age=31536000" in resp.headers["Strict-Transport-Security"]
 
-    def test_does_not_overwrite_existing_headers(self) -> None:
+    @pytest.mark.asyncio
+    async def test_does_not_overwrite_existing_headers(self) -> None:
         """If a route sets a custom CSP, the middleware should not overwrite it."""
         app = FastAPI()
         app.add_middleware(SecurityHeadersMiddleware)
@@ -77,6 +91,9 @@ class TestSecurityHeaders:
             resp.headers["Content-Security-Policy"] = "default-src 'none'"
             return resp
 
-        client = TestClient(app)
-        resp = client.get("/custom-csp")
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=True),
+            base_url="http://test",
+        ) as client:
+            resp = await client.get("/custom-csp")
         assert resp.headers["Content-Security-Policy"] == "default-src 'none'"

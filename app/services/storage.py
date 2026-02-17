@@ -11,6 +11,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any, Protocol, cast
 
 from app.config import settings
 
@@ -100,9 +101,9 @@ class S3Storage(StorageBackend):
         self._access_key = access_key or settings.s3_access_key
         self._secret_key = secret_key or settings.s3_secret_key
         self._endpoint_url = endpoint_url or settings.s3_endpoint_url
-        self._client: object | None = None
+        self._client: _S3Client | None = None
 
-    def _get_client(self) -> object:
+    def _get_client(self) -> _S3Client:
         if self._client is None:
             import boto3  # type: ignore[import-untyped]
 
@@ -113,7 +114,7 @@ class S3Storage(StorageBackend):
             }
             if self._endpoint_url:
                 kwargs["endpoint_url"] = self._endpoint_url
-            self._client = boto3.client("s3", **kwargs)
+            self._client = cast(_S3Client, boto3.client("s3", **kwargs))
         return self._client
 
     def save(self, content: bytes, filename: str, content_type: str) -> str:
@@ -123,7 +124,7 @@ class S3Storage(StorageBackend):
             f"{unique}_{filename}" if len(filename) <= 80 else f"{unique}{ext}"
         )
         client = self._get_client()
-        client.put_object(  # type: ignore[union-attr]
+        client.put_object(
             Bucket=self.bucket,
             Key=storage_key,
             Body=content,
@@ -134,7 +135,7 @@ class S3Storage(StorageBackend):
 
     def delete(self, storage_key: str) -> None:
         client = self._get_client()
-        client.delete_object(Bucket=self.bucket, Key=storage_key)  # type: ignore[union-attr]
+        client.delete_object(Bucket=self.bucket, Key=storage_key)
         logger.info("Deleted file from S3: %s", storage_key)
 
     def get_url(self, storage_key: str) -> str:
@@ -145,7 +146,7 @@ class S3Storage(StorageBackend):
     def exists(self, storage_key: str) -> bool:
         client = self._get_client()
         try:
-            client.head_object(Bucket=self.bucket, Key=storage_key)  # type: ignore[union-attr]
+            client.head_object(Bucket=self.bucket, Key=storage_key)
             return True
         except Exception:
             return False
@@ -157,3 +158,10 @@ def get_storage_backend() -> StorageBackend:
     if backend == "s3":
         return S3Storage()
     return LocalStorage()
+
+
+class _S3Client(Protocol):
+    # Minimal subset of the boto3 S3 client we rely on.
+    def put_object(self, **kwargs: Any) -> Any: ...
+    def delete_object(self, **kwargs: Any) -> Any: ...
+    def head_object(self, **kwargs: Any) -> Any: ...

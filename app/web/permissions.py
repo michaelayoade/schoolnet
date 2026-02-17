@@ -16,7 +16,7 @@ from app.schemas.rbac import PermissionCreate, PermissionUpdate
 from app.services.branding_context import load_branding_context
 from app.services.rbac import permissions
 from app.templates import templates
-from app.web.deps import require_web_auth
+from app.web.schoolnet_deps import require_platform_admin_auth
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def list_permissions(
     request: Request,
     page: int = 1,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """List permissions with pagination."""
     page = max(1, page)
@@ -89,7 +89,7 @@ def list_permissions(
 def create_permission_form(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the create permission form."""
     ctx = _base_context(
@@ -102,7 +102,7 @@ def create_permission_form(
 async def create_permission_submit(
     request: Request,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle permission creation form submission."""
     form = await request.form()
@@ -140,7 +140,7 @@ def edit_permission_form(
     request: Request,
     permission_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit permission form."""
     permission = permissions.get(db, str(permission_id))
@@ -156,7 +156,7 @@ async def edit_permission_submit(
     request: Request,
     permission_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle permission edit form submission."""
     form = await request.form()
@@ -191,7 +191,7 @@ async def delete_permission(
     request: Request,
     permission_id: UUID,
     db: Session = Depends(get_db),
-    auth: dict = Depends(require_web_auth),
+    auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle permission deletion (soft delete via is_active=False)."""
     form = await request.form()

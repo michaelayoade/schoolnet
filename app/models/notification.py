@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, Index, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,15 +21,18 @@ class Notification(Base):
     __tablename__ = "notifications"
     __table_args__ = (
         Index("ix_notifications_recipient_read", "recipient_id", "is_read"),
+        Index("ix_notifications_recipient_created", "recipient_id", "created_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     recipient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("people.id"), nullable=False, index=True
     )
-    sender_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    sender_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("people.id"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     message: Mapped[str | None] = mapped_column(Text)
     type: Mapped[NotificationType] = mapped_column(
