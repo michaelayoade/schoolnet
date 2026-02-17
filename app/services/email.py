@@ -95,7 +95,7 @@ def send_password_reset_email(
 ) -> bool:
     name = person_name or "there"
     app_url = _env_value("APP_URL") or "http://localhost:8000"
-    reset_link = f"{app_url.rstrip('/')}/auth/reset-password?token={reset_token}"
+    reset_link = f"{app_url.rstrip('/')}/reset-password?token={reset_token}"
     subject = "Reset your password"
     safe_name = html.escape(name)
     safe_link = html.escape(reset_link)

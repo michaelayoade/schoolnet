@@ -1,0 +1,67 @@
+{% extends "school/base.html" %}
+{% block title %}Verification - School Admin{% endblock %}
+{% block school_content %}
+<div class="max-w-2xl">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">School Verification</h1>
+
+    <!-- Status -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-3">Verification Status</h2>
+        {% if school.verified_at %}
+        <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Verified
+            </span>
+            <span class="text-sm text-slate-500 dark:text-slate-400">on {{ school.verified_at.strftime('%d %b %Y') }}</span>
+        </div>
+        {% else %}
+        <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                Pending Verification
+            </span>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Upload your verification documents below. An admin will review them.</p>
+        {% endif %}
+    </div>
+
+    <!-- Upload Form -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-3">Upload Document</h2>
+        <form method="POST" action="/school/verification/upload" enctype="multipart/form-data">
+            {{ request.state.csrf_form | safe }}
+            <div class="mb-4">
+                <input type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png"
+                       class="block w-full text-sm text-slate-500 dark:text-slate-400
+                              file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                              file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700
+                              dark:file:bg-primary-900/20 dark:file:text-primary-400
+                              hover:file:bg-primary-100 dark:hover:file:bg-primary-900/30">
+            </div>
+            <button type="submit" class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition">Upload</button>
+        </form>
+    </div>
+
+    <!-- Uploaded Documents -->
+    {% if verification_documents %}
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-3">Uploaded Documents</h2>
+        <ul class="divide-y divide-slate-200 dark:divide-slate-700">
+            {% for doc in verification_documents %}
+            <li class="py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="text-sm text-slate-700 dark:text-slate-300">{{ doc.filename if doc.filename else 'Document' }}</span>
+                </div>
+                {% if doc.url %}
+                <a href="{{ doc.url }}" target="_blank" class="text-xs text-primary-600 dark:text-primary-400 hover:underline">View</a>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

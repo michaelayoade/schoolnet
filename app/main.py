@@ -267,6 +267,9 @@ from app.web.parent.applications import (  # noqa: E402
     router as web_parent_applications_router,
 )
 from app.web.parent.dashboard import router as web_parent_dashboard_router  # noqa: E402
+from app.web.parent.notifications import (  # noqa: E402
+    router as web_parent_notifications_router,
+)
 from app.web.people import router as web_people_router  # noqa: E402
 from app.web.permissions import router as web_permissions_router  # noqa: E402
 from app.web.public import router as web_public_router  # noqa: E402
@@ -277,6 +280,9 @@ from app.web.school.applications import (  # noqa: E402
 )
 from app.web.school.dashboard import router as web_school_dashboard_router  # noqa: E402
 from app.web.school.forms import router as web_school_forms_router  # noqa: E402
+from app.web.school.verification import (  # noqa: E402
+    router as web_school_verification_router,
+)
 from app.web.settings import router as web_settings_router  # noqa: E402
 
 _include_api_router(auth_router, dependencies=[Depends(require_role("admin"))])
@@ -289,6 +295,9 @@ _include_api_router(scheduler_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(billing_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(file_uploads_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(notifications_router, dependencies=[Depends(require_user_auth)])
+
+# SchoolNet web routes (registered before API to avoid slug/UUID conflict)
+app.include_router(web_public_router)
 
 # SchoolNet API routes
 _include_api_router(schools_router)
@@ -318,12 +327,13 @@ app.include_router(web_billing_entitlements_router)
 app.include_router(web_billing_webhook_events_router)
 
 # SchoolNet web routes
-app.include_router(web_public_router)
 app.include_router(web_parent_dashboard_router)
 app.include_router(web_parent_applications_router)
+app.include_router(web_parent_notifications_router)
 app.include_router(web_school_dashboard_router)
 app.include_router(web_school_forms_router)
 app.include_router(web_school_applications_router)
+app.include_router(web_school_verification_router)
 app.include_router(web_admin_schools_router)
 
 app.include_router(web_home_router)

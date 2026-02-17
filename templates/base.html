@@ -451,7 +451,7 @@
             }
         }
 
-        window.__authEnabled = {% if user is defined and user and user.is_authenticated %}true{% else %}false{% endif %};
+        window.__authEnabled = document.cookie.split(';').some(function(c) { return c.trim().startsWith('logged_in='); });
 
         // ═══════════════════════════════════════════════════════════════════
         // Automatic Token Refresh Manager
@@ -478,7 +478,7 @@
 
                 refreshInProgress = true;
                 try {
-                    var response = await fetch('/auth/refresh', {
+                    var response = await fetch('/auth/web-refresh', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',

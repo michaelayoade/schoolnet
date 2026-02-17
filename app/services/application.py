@@ -297,7 +297,7 @@ class ApplicationService:
         ward_date_of_birth: date,
         ward_gender: str,
         form_responses: dict | None = None,
-        document_urls: list[str] | None = None,
+        document_urls: dict | None = None,
         ward_passport_url: str | None = None,
     ) -> Application:
         """Fill and submit an application (draft → submitted)."""

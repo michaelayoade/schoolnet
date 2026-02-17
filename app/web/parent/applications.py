@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
@@ -10,6 +10,7 @@ from app.api.deps import get_db
 from app.services.admission_form import AdmissionFormService
 from app.services.application import ApplicationService
 from app.services.common import require_uuid
+from app.services.file_upload import FileUploadService
 from app.services.school import SchoolService
 from app.templates import templates
 from app.web.schoolnet_deps import require_parent_auth
@@ -137,18 +138,15 @@ def fill_application_page(
             "application": application,
             "form": form,
             "school": school,
+            "existing_responses": application.form_responses or {},
         },
     )
 
 
 @router.post("/fill/{app_id}")
-def fill_application_submit(
+async def fill_application_submit(
     request: Request,
     app_id: str,
-    ward_first_name: str = Form(...),
-    ward_last_name: str = Form(...),
-    ward_date_of_birth: str = Form(...),
-    ward_gender: str = Form(...),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
 ) -> Response:
@@ -163,23 +161,68 @@ def fill_application_submit(
             url="/parent/applications?error=Not+your+application", status_code=303
         )
 
+    # Parse multipart form data for dynamic fields + file uploads
+    form_data = await request.form()
+
+    ward_first_name = form_data.get("ward_first_name", "")
+    ward_last_name = form_data.get("ward_last_name", "")
+    ward_date_of_birth = form_data.get("ward_date_of_birth", "")
+    ward_gender = form_data.get("ward_gender", "")
+
     from datetime import date
 
     try:
-        dob = date.fromisoformat(ward_date_of_birth)
+        dob = date.fromisoformat(str(ward_date_of_birth))
     except (ValueError, TypeError):
         return RedirectResponse(
             url=f"/parent/applications/fill/{app_id}?error=Invalid+date+of+birth",
             status_code=303,
         )
 
+    # Collect dynamic form field responses (field_* keys)
+    form_responses: dict[str, str] = {}
+    for key in form_data:
+        if key.startswith("field_"):
+            field_name = key[6:]  # strip "field_" prefix
+            form_responses[field_name] = str(form_data[key])
+
+    # Process document uploads (doc_* keys)
+    document_urls: dict[str, str] = dict(application.document_urls or {})
+    upload_svc = FileUploadService(db)
+    person_uuid = require_uuid(auth["person_id"])
+    for key in form_data:
+        if key.startswith("doc_"):
+            doc_name = key[4:]  # strip "doc_" prefix
+            upload_file: UploadFile = form_data[key]  # type: ignore[assignment]
+            if upload_file and upload_file.filename:
+                try:
+                    content = await upload_file.read()
+                    if content:
+                        record = upload_svc.upload(
+                            content=content,
+                            filename=upload_file.filename,
+                            content_type=upload_file.content_type or "application/octet-stream",
+                            uploaded_by=person_uuid,
+                            category="application_document",
+                            entity_type="application",
+                            entity_id=str(application.id),
+                        )
+                        document_urls[doc_name] = record.url or ""
+                except ValueError as e:
+                    return RedirectResponse(
+                        url=f"/parent/applications/fill/{app_id}?error={e}",
+                        status_code=303,
+                    )
+
     try:
         svc.submit(
             application,
-            ward_first_name=ward_first_name,
-            ward_last_name=ward_last_name,
+            ward_first_name=str(ward_first_name),
+            ward_last_name=str(ward_last_name),
             ward_date_of_birth=dob,
-            ward_gender=ward_gender,
+            ward_gender=str(ward_gender),
+            form_responses=form_responses if form_responses else None,
+            document_urls=document_urls if document_urls else None,
         )
         db.commit()
     except ValueError as e:

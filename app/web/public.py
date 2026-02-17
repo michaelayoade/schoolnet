@@ -4,11 +4,18 @@ import logging
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from sqlalchemy.orm import Session
-from starlette.responses import RedirectResponse, Response
+from starlette.responses import JSONResponse, RedirectResponse, Response
 
 from app.api.deps import get_db
-from app.services.auth_flow import AuthFlow, _refresh_cookie_secure
+from app.services.auth_flow import (
+    AuthFlow,
+    _refresh_cookie_secure,
+    decode_access_token,
+    request_password_reset,
+    reset_password,
+)
 from app.services.common import require_uuid
+from app.services.email import send_password_reset_email
 from app.services.registration import RegistrationService
 from app.services.school import SchoolService
 from app.templates import templates
@@ -104,6 +111,23 @@ def school_profile(
     form_svc = AdmissionFormService(db)
     forms = form_svc.list_active_for_school(school.id)
 
+    # Check if logged-in parent can rate
+    can_rate = False
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        try:
+            payload = decode_access_token(db, access_token)
+            person_id = payload.get("sub")
+            roles = payload.get("roles", [])
+            if person_id and "parent" in roles:
+                from app.services.rating import RatingService
+                rating_svc = RatingService(db)
+                can_rate = rating_svc.can_rate(
+                    require_uuid(school.id), require_uuid(person_id),
+                )
+        except Exception:
+            pass
+
     return templates.TemplateResponse(
         "public/schools/profile.html",
         {
@@ -112,7 +136,52 @@ def school_profile(
             "avg_rating": avg_rating,
             "ratings": ratings,
             "admission_forms": forms,
+            "can_rate": can_rate,
         },
+    )
+
+
+@router.post("/schools/{slug}/rate")
+def school_rate_submit(
+    request: Request,
+    slug: str,
+    score: int = Form(...),
+    comment: str = Form(""),
+    db: Session = Depends(get_db),
+) -> Response:
+    from app.services.rating import RatingService
+
+    # Verify logged-in parent
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        return RedirectResponse(url="/login", status_code=303)
+    try:
+        payload = decode_access_token(db, access_token)
+        person_id = payload.get("sub")
+    except Exception:
+        return RedirectResponse(url="/login", status_code=303)
+
+    svc = SchoolService(db)
+    school = svc.get_by_slug(slug)
+    if not school:
+        return RedirectResponse(url="/schools?error=School+not+found", status_code=303)
+
+    rating_svc = RatingService(db)
+    try:
+        rating_svc.create(
+            school_id=school.id,
+            parent_id=require_uuid(person_id),
+            score=score,
+            comment=comment if comment else None,
+        )
+        db.commit()
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/schools/{slug}?error={e}", status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/schools/{slug}?success=Rating+submitted", status_code=303,
     )
 
 
@@ -248,16 +317,17 @@ def login_submit(
     access_token = result.get("access_token", "")
     refresh_token = result.get("refresh_token", "")
 
-    # Determine redirect based on role
-    person_id = result.get("person_id")
+    # Determine redirect based on roles in the JWT
     redirect_url = "/parent"
-    if person_id:
-        reg = RegistrationService(db)
-        role_names = reg.get_person_role_names(require_uuid(person_id))
-        if "platform_admin" in role_names or "admin" in role_names:
+    try:
+        payload = decode_access_token(db, access_token)
+        roles = payload.get("roles", [])
+        if "platform_admin" in roles or "admin" in roles:
             redirect_url = "/admin/schools"
-        elif "school_admin" in role_names:
+        elif "school_admin" in roles:
             redirect_url = "/school"
+    except Exception:
+        logger.debug("Could not decode access token for redirect")
 
     response = RedirectResponse(url=redirect_url, status_code=303)
     response.set_cookie(
@@ -277,6 +347,13 @@ def login_submit(
             samesite="lax",
             max_age=30 * 24 * 3600,
         )
+    response.set_cookie(
+        key="logged_in",
+        value="1",
+        httponly=False,
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+    )
     return response
 
 
@@ -285,4 +362,113 @@ def logout(request: Request) -> Response:
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
+    response.delete_cookie("logged_in")
     return response
+
+
+@router.post("/auth/web-refresh")
+def web_refresh(request: Request, db: Session = Depends(get_db)) -> Response:
+    """Refresh access token using the refresh_token cookie."""
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        return JSONResponse(status_code=401, content={"detail": "Missing refresh token"})
+
+    try:
+        result = AuthFlow.refresh(db, refresh_token, request)
+    except Exception:
+        return JSONResponse(status_code=401, content={"detail": "Invalid refresh token"})
+
+    new_access = result.get("access_token", "")
+    new_refresh = result.get("refresh_token", "")
+
+    response = JSONResponse(status_code=200, content={"ok": True})
+    response.set_cookie(
+        key="access_token",
+        value=new_access,
+        httponly=True,
+        samesite="lax",
+        max_age=900,
+    )
+    if new_refresh:
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh,
+            httponly=True,
+            samesite="lax",
+            max_age=30 * 24 * 3600,
+        )
+    response.set_cookie(
+        key="logged_in",
+        value="1",
+        httponly=False,
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+    )
+    return response
+
+
+# ── Password Reset ─────────────────────────────────────
+
+
+@router.get("/forgot-password")
+def forgot_password_page(request: Request) -> Response:
+    return templates.TemplateResponse(
+        "public/auth/forgot_password.html", {"request": request}
+    )
+
+
+@router.post("/forgot-password")
+def forgot_password_submit(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+) -> Response:
+    result = request_password_reset(db, email)
+    if result:
+        send_password_reset_email(
+            db, result["email"], result["token"], result.get("person_name"),
+        )
+    # Always show success to avoid email enumeration
+    return templates.TemplateResponse(
+        "public/auth/forgot_password.html",
+        {
+            "request": request,
+            "success_message": "If an account with that email exists, a reset link has been sent.",
+        },
+    )
+
+
+@router.get("/reset-password")
+def reset_password_page(
+    request: Request, token: str = Query(""),
+) -> Response:
+    return templates.TemplateResponse(
+        "public/auth/reset_password.html",
+        {"request": request, "token": token},
+    )
+
+
+@router.post("/reset-password")
+def reset_password_submit(
+    request: Request,
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+) -> Response:
+    if new_password != confirm_password:
+        return templates.TemplateResponse(
+            "public/auth/reset_password.html",
+            {"request": request, "token": token, "error_message": "Passwords do not match"},
+        )
+    try:
+        reset_password(db, token, new_password)
+    except Exception:
+        return templates.TemplateResponse(
+            "public/auth/reset_password.html",
+            {"request": request, "token": token, "error_message": "Invalid or expired reset link"},
+        )
+    return RedirectResponse(
+        url="/login?success=Password+reset+successfully.+Please+log+in.",
+        status_code=303,
+    )

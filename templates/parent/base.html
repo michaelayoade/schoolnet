@@ -48,6 +48,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
             <div class="flex items-center gap-4 ml-auto">
+                <div hx-get="/parent/notifications/bell" hx-trigger="load" hx-swap="innerHTML"></div>
                 {% if auth and auth.person %}
                 <span class="text-sm text-slate-600 dark:text-slate-300">{{ auth.person.first_name if auth.person.first_name else auth.person.email }}</span>
                 {% endif %}

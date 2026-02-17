@@ -116,6 +116,16 @@ class SchoolService:
         )
         return list(self.db.scalars(stmt).all())
 
+    def get_school_for_owner(self, owner_id: UUID) -> School | None:
+        """Get the first school owned by this person."""
+        stmt = (
+            select(School)
+            .where(School.owner_id == owner_id, School.is_active.is_(True))
+            .order_by(School.created_at.asc())
+            .limit(1)
+        )
+        return self.db.scalar(stmt)
+
     def search(
         self,
         *,

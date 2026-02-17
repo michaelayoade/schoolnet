@@ -11,7 +11,7 @@
     <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">{{ school.name }} &bull; {{ form.title if form else '' }}</p>
     {% endif %}
 
-    <form method="POST" action="/parent/applications/fill/{{ application.id }}" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+    <form method="POST" action="/parent/applications/fill/{{ application.id }}" enctype="multipart/form-data" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
         {{ request.state.csrf_form | safe }}
 
         <h3 class="font-semibold text-slate-900 dark:text-white text-sm">Ward Information</h3>
@@ -40,6 +40,63 @@
                 </select>
             </div>
         </div>
+
+        {% if form and form.form_fields %}
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <h3 class="font-semibold text-slate-900 dark:text-white text-sm mb-4">Additional Information</h3>
+            {% set responses = existing_responses if existing_responses else {} %}
+            {% for field in form.form_fields %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    {{ field.label }}{% if field.required %} <span class="text-red-500">*</span>{% endif %}
+                </label>
+                {% if field.type == 'select' %}
+                <select name="field_{{ field.name }}" {% if field.required %}required{% endif %}
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">Select...</option>
+                    {% for opt in field.options %}
+                    <option value="{{ opt }}" {{ 'selected' if responses.get(field.name) == opt else '' }}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+                {% elif field.type == 'textarea' %}
+                <textarea name="field_{{ field.name }}" {% if field.required %}required{% endif %} rows="3"
+                          class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">{{ responses.get(field.name, '') }}</textarea>
+                {% elif field.type == 'date' %}
+                <input type="date" name="field_{{ field.name }}" {% if field.required %}required{% endif %}
+                       value="{{ responses.get(field.name, '') }}"
+                       class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                {% else %}
+                <input type="text" name="field_{{ field.name }}" {% if field.required %}required{% endif %}
+                       value="{{ responses.get(field.name, '') }}"
+                       class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if form and form.required_documents %}
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <h3 class="font-semibold text-slate-900 dark:text-white text-sm mb-4">Required Documents</h3>
+            {% set doc_urls = application.document_urls if application.document_urls else {} %}
+            {% for doc_name in form.required_documents %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    {{ doc_name }} <span class="text-red-500">*</span>
+                </label>
+                {% if doc_urls.get(doc_name) %}
+                <p class="text-xs text-green-600 dark:text-green-400 mb-1">Already uploaded</p>
+                {% endif %}
+                <input type="file" name="doc_{{ doc_name }}" accept=".pdf,.jpg,.jpeg,.png"
+                       class="block w-full text-sm text-slate-500 dark:text-slate-400
+                              file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                              file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700
+                              dark:file:bg-primary-900/20 dark:file:text-primary-400
+                              hover:file:bg-primary-100 dark:hover:file:bg-primary-900/30">
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
             <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">Submit Application</button>
