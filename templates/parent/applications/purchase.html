@@ -1,0 +1,44 @@
+{% extends "parent/base.html" %}
+{% block title %}Purchase Form - Parent Portal{% endblock %}
+{% block parent_content %}
+<div class="mb-6">
+    <a href="/schools/{{ school.slug if school else '' }}" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to school</a>
+</div>
+
+<div class="max-w-lg mx-auto">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6 text-center">Confirm Purchase</h1>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        {% if school %}
+        <div class="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+            <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold">
+                {{ school.name[0] | upper }}
+            </div>
+            <div>
+                <p class="font-medium text-slate-900 dark:text-white">{{ school.name }}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">{{ form.academic_year }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <h3 class="font-medium text-slate-900 dark:text-white">{{ form.title }}</h3>
+        {% if form.description %}
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ form.description }}</p>
+        {% endif %}
+
+        <div class="mt-6 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-600 dark:text-slate-300">Admission Form</span>
+                <span class="font-semibold text-slate-900 dark:text-white">&#8358;{{ "{:,.0f}".format(price_amount / 100) if price_amount else 'N/A' }}</span>
+            </div>
+        </div>
+
+        <form method="POST" action="/parent/applications/purchase/{{ form.id }}" class="mt-6">
+            {{ request.state.csrf_form | safe }}
+            <button type="submit" class="w-full rounded-lg bg-primary-600 px-4 py-3 text-sm font-medium text-white hover:bg-primary-700 transition">
+                Pay &#8358;{{ "{:,.0f}".format(price_amount / 100) if price_amount else '0' }} with Paystack
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

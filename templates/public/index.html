@@ -1,0 +1,114 @@
+{% extends "public/base.html" %}
+{% block title %}SchoolNet - Find & Apply to Schools in Nigeria{% endblock %}
+{% block public_content %}
+<!-- Hero Section -->
+<section class="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 py-20 lg:py-28">
+    <div class="absolute inset-0 bg-noise"></div>
+    <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-white font-display leading-tight">
+            Find the Perfect School<br>for Your Child
+        </h1>
+        <p class="mt-6 text-lg text-primary-100 max-w-2xl mx-auto">
+            Discover, compare and apply to the best schools in Nigeria. Simplified admissions, verified schools, secure payments.
+        </p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/schools" class="rounded-full bg-white px-8 py-3 text-base font-semibold text-primary-700 shadow-lg hover:bg-primary-50 transition btn-hover">
+                Browse Schools
+            </a>
+            <a href="/register" class="rounded-full border-2 border-white/30 px-8 py-3 text-base font-semibold text-white hover:bg-white/10 transition">
+                Get Started
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Search Bar -->
+<section class="relative -mt-8 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 z-10">
+    <form action="/schools" method="GET" class="flex bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-2">
+        <input type="text" name="q" placeholder="Search schools by name, location..." class="flex-1 px-4 py-3 text-sm bg-transparent outline-none text-slate-900 dark:text-white placeholder-slate-400">
+        <button type="submit" class="rounded-xl bg-primary-600 px-6 py-3 text-sm font-medium text-white hover:bg-primary-700 transition">
+            Search
+        </button>
+    </form>
+</section>
+
+<!-- Featured Schools -->
+{% if featured_schools %}
+<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-8">Featured Schools</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for school in featured_schools %}
+        <a href="/schools/{{ school.slug }}" class="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden card-hover">
+            <div class="h-32 bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/30 dark:to-accent-900/30 flex items-center justify-center">
+                {% if school.logo_url %}
+                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-16 w-16 rounded-full object-cover">
+                {% else %}
+                <div class="h-16 w-16 rounded-full bg-primary-600 flex items-center justify-center text-white text-xl font-bold">
+                    {{ school.name[0] | upper }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="p-4">
+                <h3 class="font-semibold text-slate-900 dark:text-white">{{ school.name }}</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    {{ school.school_type | replace('_', ' ') | title }}
+                    {% if school.city %} &bull; {{ school.city }}{% endif %}
+                    {% if school.state %}, {{ school.state }}{% endif %}
+                </p>
+                {% if school.fee_range_min %}
+                <p class="text-sm text-primary-600 dark:text-primary-400 mt-2 font-medium">
+                    From &#8358;{{ "{:,.0f}".format(school.fee_range_min / 100) }}
+                </p>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <div class="text-center mt-8">
+        <a href="/schools" class="text-primary-600 dark:text-primary-400 font-medium hover:underline">View all schools &rarr;</a>
+    </div>
+</section>
+{% endif %}
+
+<!-- How It Works -->
+<section class="bg-white dark:bg-slate-800 py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-white font-display text-center mb-12">How It Works</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="text-center stagger-in">
+                <div class="mx-auto h-14 w-14 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <h3 class="font-semibold text-slate-900 dark:text-white">1. Discover Schools</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Search and compare schools by location, type, and fees.</p>
+            </div>
+            <div class="text-center stagger-in">
+                <div class="mx-auto h-14 w-14 rounded-2xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center text-accent-600 dark:text-accent-400 mb-4">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                </div>
+                <h3 class="font-semibold text-slate-900 dark:text-white">2. Purchase Form & Apply</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Buy admission forms online and complete applications digitally.</p>
+            </div>
+            <div class="text-center stagger-in">
+                <div class="mx-auto h-14 w-14 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 mb-4">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="font-semibold text-slate-900 dark:text-white">3. Track & Get Results</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Track your application status and receive decisions online.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+    <div class="rounded-2xl bg-gradient-to-r from-primary-600 to-primary-800 p-8 md:p-12 text-center">
+        <h2 class="text-2xl md:text-3xl font-bold text-white font-display">Ready to find the right school?</h2>
+        <p class="mt-4 text-primary-100">Join thousands of parents already using SchoolNet.</p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/register/parent" class="rounded-full bg-white px-8 py-3 text-base font-semibold text-primary-700 hover:bg-primary-50 transition">I'm a Parent</a>
+            <a href="/register/school" class="rounded-full border-2 border-white/30 px-8 py-3 text-base font-semibold text-white hover:bg-white/10 transition">I'm a School</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

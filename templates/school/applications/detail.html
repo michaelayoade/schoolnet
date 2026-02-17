@@ -1,0 +1,93 @@
+{% extends "school/base.html" %}
+{% block title %}Application {{ application.application_number }} - School Admin{% endblock %}
+{% block school_content %}
+<div class="mb-6">
+    <a href="/school/applications" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to applications</a>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <div class="flex items-start justify-between">
+        <div>
+            <h1 class="text-xl font-bold text-slate-900 dark:text-white font-display">{{ application.application_number }}</h1>
+            {% if form %}
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ form.title }} &bull; {{ form.academic_year }}</p>
+            {% endif %}
+        </div>
+        {% set status_colors = {'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300', 'submitted': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', 'under_review': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'accepted': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'rejected': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', 'withdrawn': 'bg-slate-100 text-slate-500'} %}
+        <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium {{ status_colors.get(application.status.value, 'bg-slate-100 text-slate-700') }}">
+            {{ application.status.value | replace('_', ' ') | title }}
+        </span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Ward Details -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Ward Details</h2>
+        <dl class="space-y-3 text-sm">
+            <div>
+                <dt class="text-slate-500 dark:text-slate-400">Name</dt>
+                <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ application.ward_first_name if application.ward_first_name else 'N/A' }} {{ application.ward_last_name if application.ward_last_name else '' }}</dd>
+            </div>
+            <div>
+                <dt class="text-slate-500 dark:text-slate-400">Date of Birth</dt>
+                <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ application.ward_date_of_birth if application.ward_date_of_birth else 'N/A' }}</dd>
+            </div>
+            <div>
+                <dt class="text-slate-500 dark:text-slate-400">Gender</dt>
+                <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ application.ward_gender | title if application.ward_gender else 'N/A' }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Parent Details -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Parent Details</h2>
+        {% if parent %}
+        <dl class="space-y-3 text-sm">
+            <div>
+                <dt class="text-slate-500 dark:text-slate-400">Name</dt>
+                <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ parent.first_name }} {{ parent.last_name }}</dd>
+            </div>
+            <div>
+                <dt class="text-slate-500 dark:text-slate-400">Email</dt>
+                <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ parent.email }}</dd>
+            </div>
+            <div>
+                <dt class="text-slate-500 dark:text-slate-400">Phone</dt>
+                <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ parent.phone if parent.phone else 'N/A' }}</dd>
+            </div>
+        </dl>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Review Form -->
+{% if application.status.value in ('submitted', 'under_review') %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Review Application</h2>
+    <form method="POST" action="/school/applications/{{ application.id }}/review" class="space-y-4">
+        {{ request.state.csrf_form | safe }}
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Decision</label>
+            <select name="decision" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <option value="">Select decision...</option>
+                <option value="accepted">Accept</option>
+                <option value="rejected">Reject</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes (optional)</label>
+            <textarea name="review_notes" rows="3" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="Reason for decision..."></textarea>
+        </div>
+        <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">Submit Review</button>
+    </form>
+</div>
+{% elif application.review_notes %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-2">Review Notes</h2>
+    <p class="text-sm text-slate-600 dark:text-slate-300">{{ application.review_notes }}</p>
+    <p class="text-xs text-slate-400 mt-2">Reviewed: {{ application.reviewed_at.strftime('%d %b %Y %H:%M') if application.reviewed_at else 'N/A' }}</p>
+</div>
+{% endif %}
+{% endblock %}

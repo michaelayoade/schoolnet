@@ -1,0 +1,85 @@
+{% extends "public/base.html" %}
+{% block title %}School Registration - SchoolNet{% endblock %}
+{% block public_content %}
+<div class="mx-auto max-w-lg px-4 sm:px-6 py-12">
+    <h1 class="text-2xl font-bold text-center text-slate-900 dark:text-white font-display mb-2">Register Your School</h1>
+    <p class="text-center text-slate-500 dark:text-slate-400 mb-8">List your school and manage admissions digitally</p>
+
+    {% if error_message %}
+    <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{{ error_message }}</div>
+    {% endif %}
+
+    <form method="POST" action="/register/school" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+        {{ request.state.csrf_form | safe }}
+        <h3 class="font-semibold text-slate-900 dark:text-white text-sm">Your Details</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
+                <input type="text" name="first_name" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+                <input type="text" name="last_name" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+            <input type="email" name="email" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone</label>
+            <input type="tel" name="phone" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="+234...">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+            <input type="password" name="password" required minlength="8" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        </div>
+
+        <hr class="border-slate-200 dark:border-slate-700">
+        <h3 class="font-semibold text-slate-900 dark:text-white text-sm">School Details</h3>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">School Name</label>
+            <input type="text" name="school_name" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">School Type</label>
+                <select name="school_type" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="nursery">Nursery</option>
+                    <option value="nursery_primary">Nursery & Primary</option>
+                    <option value="primary">Primary</option>
+                    <option value="secondary">Secondary</option>
+                    <option value="primary_secondary">Primary & Secondary</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                <select name="category" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="private">Private</option>
+                    <option value="public">Public</option>
+                    <option value="federal">Federal</option>
+                    <option value="missionary">Missionary</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">State</label>
+                <input type="text" name="state" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="e.g. Lagos">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City</label>
+                <input type="text" name="city" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="e.g. Ikeja">
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
+            <input type="text" name="address" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        </div>
+        <button type="submit" class="w-full rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-700 transition">Register School</button>
+    </form>
+    <p class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+        Already have an account? <a href="/login" class="text-primary-600 dark:text-primary-400 font-medium hover:underline">Log in</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "school/base.html" %}
+{% block title %}Create Admission Form - School Admin{% endblock %}
+{% block school_content %}
+<div class="mb-6">
+    <a href="/school/forms" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to forms</a>
+</div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Create Admission Form</h1>
+
+<form method="POST" action="/school/forms/create" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4 max-w-2xl">
+    {{ request.state.csrf_form | safe }}
+    <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Form Title</label>
+        <input type="text" name="title" required placeholder="e.g. JSS1 Admission Form 2026/2027" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Academic Year</label>
+        <input type="text" name="academic_year" required placeholder="e.g. 2026/2027" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Price (Naira)</label>
+        <input type="number" name="price_amount" required min="100" placeholder="e.g. 5000" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        <p class="text-xs text-slate-400 mt-1">Amount parents will pay for this form</p>
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description (optional)</label>
+        <textarea name="description" rows="3" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="Requirements, instructions, etc."></textarea>
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Submissions (optional)</label>
+        <input type="number" name="max_submissions" min="1" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="Leave empty for unlimited">
+    </div>
+    <div class="pt-2">
+        <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">Create Form</button>
+    </div>
+</form>
+{% endblock %}

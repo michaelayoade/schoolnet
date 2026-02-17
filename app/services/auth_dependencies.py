@@ -1,11 +1,13 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import Depends, Header, HTTPException, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models.auth import ApiKey, Session as AuthSession, SessionStatus
-from app.models.rbac import Permission, PersonRole, RolePermission, Role
+from app.models.auth import ApiKey, SessionStatus
+from app.models.auth import Session as AuthSession
+from app.models.rbac import Permission, PersonRole, Role, RolePermission
 from app.services.auth import hash_api_key
 from app.services.auth_flow import decode_access_token, hash_session_token
 from app.services.common import coerce_uuid
@@ -16,7 +18,7 @@ def _make_aware(dt: datetime) -> datetime:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -72,7 +74,7 @@ def require_audit_auth(
     db: Session = Depends(_get_db),
 ):
     token = _extract_bearer_token(authorization) or x_session_token
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if token:
         if _is_jwt(token):
             payload = decode_access_token(db, token)
@@ -91,27 +93,25 @@ def require_audit_auth(
             if request is not None:
                 request.state.actor_id = actor_id
             return {"actor_type": "user", "actor_id": actor_id}
-        session = (
-            db.query(AuthSession)
-            .filter(AuthSession.token_hash == hash_session_token(token))
-            .filter(AuthSession.status == SessionStatus.active)
-            .filter(AuthSession.revoked_at.is_(None))
-            .filter(AuthSession.expires_at > now)
-            .first()
+        stmt = select(AuthSession).where(
+            AuthSession.token_hash == hash_session_token(token),
+            AuthSession.status == SessionStatus.active,
+            AuthSession.revoked_at.is_(None),
+            AuthSession.expires_at > now,
         )
+        session = db.scalar(stmt)
         if session:
             if request is not None:
                 request.state.actor_id = str(session.person_id)
             return {"actor_type": "user", "actor_id": str(session.person_id)}
     if x_api_key:
-        api_key = (
-            db.query(ApiKey)
-            .filter(ApiKey.key_hash == hash_api_key(x_api_key))
-            .filter(ApiKey.is_active.is_(True))
-            .filter(ApiKey.revoked_at.is_(None))
-            .filter((ApiKey.expires_at.is_(None)) | (ApiKey.expires_at > now))
-            .first()
+        api_key_stmt = select(ApiKey).where(
+            ApiKey.key_hash == hash_api_key(x_api_key),
+            ApiKey.is_active.is_(True),
+            ApiKey.revoked_at.is_(None),
+            (ApiKey.expires_at.is_(None)) | (ApiKey.expires_at > now),
         )
+        api_key = db.scalar(api_key_stmt)
         if api_key:
             if request is not None:
                 request.state.actor_id = str(api_key.id)
@@ -133,18 +133,17 @@ def require_user_auth(
     if not person_id or not session_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     person_uuid = coerce_uuid(person_id)
     session_uuid = coerce_uuid(session_id)
-    session = (
-        db.query(AuthSession)
-        .filter(AuthSession.id == session_uuid)
-        .filter(AuthSession.person_id == person_uuid)
-        .filter(AuthSession.status == SessionStatus.active)
-        .filter(AuthSession.revoked_at.is_(None))
-        .filter(AuthSession.expires_at > now)
-        .first()
+    stmt = select(AuthSession).where(
+        AuthSession.id == session_uuid,
+        AuthSession.person_id == person_uuid,
+        AuthSession.status == SessionStatus.active,
+        AuthSession.revoked_at.is_(None),
+        AuthSession.expires_at > now,
     )
+    session = db.scalar(stmt)
     if not session:
         raise HTTPException(status_code=401, detail="Unauthorized")
     roles_value = payload.get("roles")
@@ -171,20 +170,15 @@ def require_role(role_name: str):
         roles = set(auth.get("roles") or [])
         if role_name in roles:
             return auth
-        role = (
-            db.query(Role)
-            .filter(Role.name == role_name)
-            .filter(Role.is_active.is_(True))
-            .first()
-        )
+        stmt = select(Role).where(Role.name == role_name, Role.is_active.is_(True))
+        role = db.scalar(stmt)
         if not role:
             raise HTTPException(status_code=403, detail="Role not found")
-        link = (
-            db.query(PersonRole)
-            .filter(PersonRole.person_id == person_id)
-            .filter(PersonRole.role_id == role.id)
-            .first()
+        link_stmt = select(PersonRole).where(
+            PersonRole.person_id == person_id,
+            PersonRole.role_id == role.id,
         )
+        link = db.scalar(link_stmt)
         if not link:
             raise HTTPException(status_code=403, detail="Forbidden")
         return auth
@@ -202,23 +196,23 @@ def require_permission(permission_key: str):
         scopes = set(auth.get("scopes") or [])
         if "admin" in roles or permission_key in scopes:
             return auth
-        permission = (
-            db.query(Permission)
-            .filter(Permission.key == permission_key)
-            .filter(Permission.is_active.is_(True))
-            .first()
+        stmt = select(Permission).where(
+            Permission.key == permission_key, Permission.is_active.is_(True)
         )
+        permission = db.scalar(stmt)
         if not permission:
             raise HTTPException(status_code=403, detail="Permission not found")
-        has_permission = (
-            db.query(RolePermission)
+        has_perm_stmt = (
+            select(RolePermission)
             .join(Role, RolePermission.role_id == Role.id)
             .join(PersonRole, PersonRole.role_id == Role.id)
-            .filter(PersonRole.person_id == person_id)
-            .filter(RolePermission.permission_id == permission.id)
-            .filter(Role.is_active.is_(True))
-            .first()
+            .where(
+                PersonRole.person_id == person_id,
+                RolePermission.permission_id == permission.id,
+                Role.is_active.is_(True),
+            )
         )
+        has_permission = db.scalar(has_perm_stmt)
         if not has_permission:
             raise HTTPException(status_code=403, detail="Forbidden")
         return auth

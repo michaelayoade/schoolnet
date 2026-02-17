@@ -1,0 +1,70 @@
+{% extends "parent/base.html" %}
+{% block title %}Application {{ application.application_number }} - Parent Portal{% endblock %}
+{% block parent_content %}
+<div class="mb-6">
+    <a href="/parent/applications" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to applications</a>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <div class="flex items-start justify-between">
+        <div>
+            <h1 class="text-xl font-bold text-slate-900 dark:text-white font-display">{{ application.application_number }}</h1>
+            {% if school %}
+            <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">{{ school.name }}</p>
+            {% endif %}
+            {% if form %}
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ form.title }} &bull; {{ form.academic_year }}</p>
+            {% endif %}
+        </div>
+        {% set status_colors = {'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300', 'submitted': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', 'under_review': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'accepted': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'rejected': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', 'withdrawn': 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'} %}
+        <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium {{ status_colors.get(application.status.value, 'bg-slate-100 text-slate-700') }}">
+            {{ application.status.value | replace('_', ' ') | title }}
+        </span>
+    </div>
+</div>
+
+<!-- Ward Details -->
+{% if application.ward_first_name %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Ward Details</h2>
+    <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Name</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ application.ward_first_name }} {{ application.ward_last_name }}</dd>
+        </div>
+        {% if application.ward_date_of_birth %}
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Date of Birth</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ application.ward_date_of_birth }}</dd>
+        </div>
+        {% endif %}
+        {% if application.ward_gender %}
+        <div>
+            <dt class="text-slate-500 dark:text-slate-400">Gender</dt>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ application.ward_gender | title }}</dd>
+        </div>
+        {% endif %}
+    </dl>
+</div>
+{% endif %}
+
+<!-- Review Notes -->
+{% if application.review_notes %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-2">Review Notes</h2>
+    <p class="text-sm text-slate-600 dark:text-slate-300">{{ application.review_notes }}</p>
+</div>
+{% endif %}
+
+<!-- Actions -->
+{% if application.status.value == 'draft' %}
+<div class="flex gap-3">
+    <a href="/parent/applications/fill/{{ application.id }}" class="rounded-lg bg-primary-600 px-5 py-2 text-sm font-medium text-white hover:bg-primary-700 transition">Fill Application</a>
+</div>
+{% elif application.status.value == 'submitted' %}
+<form method="POST" action="/parent/applications/{{ application.id }}/withdraw">
+    {{ request.state.csrf_form | safe }}
+    <button type="submit" class="rounded-lg bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700 transition" onclick="return confirm('Are you sure you want to withdraw this application?')">Withdraw Application</button>
+</form>
+{% endif %}
+{% endblock %}

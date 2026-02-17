@@ -1,0 +1,70 @@
+{% extends "parent/base.html" %}
+{% block title %}Dashboard - Parent Portal{% endblock %}
+{% block parent_content %}
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Dashboard</h1>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm text-slate-500 dark:text-slate-400">Total Applications</p>
+        <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1 counter-animate">{{ total_applications }}</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm text-slate-500 dark:text-slate-400">Drafts</p>
+        <p class="text-2xl font-bold text-slate-600 dark:text-slate-300 mt-1 counter-animate">{{ draft_count }}</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm text-slate-500 dark:text-slate-400">In Progress</p>
+        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1 counter-animate">{{ submitted_count }}</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm text-slate-500 dark:text-slate-400">Accepted</p>
+        <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1 counter-animate">{{ accepted_count }}</p>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <a href="/schools" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
+        <div class="h-10 w-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <div>
+            <p class="font-medium text-slate-900 dark:text-white">Find Schools</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Search and compare schools</p>
+        </div>
+    </a>
+    <a href="/parent/applications" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
+        <div class="h-10 w-10 rounded-xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center text-accent-600 dark:text-accent-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div>
+            <p class="font-medium text-slate-900 dark:text-white">My Applications</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">View and manage applications</p>
+        </div>
+    </a>
+</div>
+
+<!-- Recent Applications -->
+{% if recent_applications %}
+<h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Recent Applications</h2>
+<div class="space-y-3">
+    {% for app in recent_applications %}
+    <a href="/parent/applications/{{ app.id }}" class="block bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-900 dark:text-white">{{ app.application_number }}</p>
+                {% if app.ward_first_name %}
+                <p class="text-xs text-slate-500 dark:text-slate-400">{{ app.ward_first_name }} {{ app.ward_last_name }}</p>
+                {% endif %}
+            </div>
+            {% set status_colors = {'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300', 'submitted': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', 'under_review': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', 'accepted': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', 'rejected': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', 'withdrawn': 'bg-slate-100 text-slate-500'} %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ status_colors.get(app.status.value, 'bg-slate-100 text-slate-700') }}">
+                {{ app.status.value | replace('_', ' ') | title }}
+            </span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

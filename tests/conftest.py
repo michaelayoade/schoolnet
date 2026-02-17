@@ -81,6 +81,14 @@ class MockSettings:
     s3_endpoint_url = ""
     upload_max_size_bytes = 10 * 1024 * 1024
     upload_allowed_types = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    branding_upload_dir = "static/branding"
+    branding_max_size_bytes = 5 * 1024 * 1024
+    branding_allowed_types = "image/jpeg,image/png"
+    branding_url_prefix = "/static/branding"
+    paystack_secret_key = ""
+    paystack_public_key = ""
+    schoolnet_commission_rate = 1000
+    schoolnet_currency = "NGN"
 
 
 mock_config_module.settings = MockSettings()
@@ -132,6 +140,18 @@ from app.models.billing import (
     EntitlementValueType,
     WebhookEvent,
     WebhookEventStatus,
+)
+from app.models.school import (
+    School,
+    SchoolStatus,
+    SchoolType,
+    SchoolCategory,
+    SchoolGender,
+    AdmissionForm,
+    AdmissionFormStatus,
+    Application,
+    ApplicationStatus,
+    Rating,
 )
 
 # Create all tables
@@ -496,3 +516,91 @@ def billing_coupon(db_session):
     db_session.commit()
     db_session.refresh(coupon)
     return coupon
+
+
+# ============ SchoolNet Fixtures ============
+
+
+@pytest.fixture()
+def school_owner(db_session):
+    """Create a person who owns a school."""
+    p = Person(
+        first_name="School",
+        last_name="Owner",
+        email=_unique_email(),
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+    return p
+
+
+@pytest.fixture()
+def school(db_session, school_owner):
+    """Create a test school."""
+    s = School(
+        owner_id=school_owner.id,
+        name="Test Academy",
+        slug=f"test-academy-{uuid.uuid4().hex[:6]}",
+        school_type=SchoolType.primary,
+        category=SchoolCategory.private,
+        gender=SchoolGender.mixed,
+        state="Lagos",
+        city="Ikeja",
+        status=SchoolStatus.active,
+    )
+    db_session.add(s)
+    db_session.commit()
+    db_session.refresh(s)
+    return s
+
+
+@pytest.fixture()
+def parent_person(db_session):
+    """Create a parent person for testing."""
+    p = Person(
+        first_name="Parent",
+        last_name="User",
+        email=_unique_email(),
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+    return p
+
+
+@pytest.fixture()
+def admission_form_with_price(db_session, school):
+    """Create an admission form with associated product and price."""
+    product = Product(
+        name=f"{school.name} - Test Form",
+        description="Test admission form",
+        is_active=True,
+    )
+    db_session.add(product)
+    db_session.flush()
+
+    price = Price(
+        product_id=product.id,
+        currency="NGN",
+        unit_amount=500000,
+        type=PriceType.one_time,
+        is_active=True,
+    )
+    db_session.add(price)
+    db_session.flush()
+
+    form = AdmissionForm(
+        school_id=school.id,
+        product_id=product.id,
+        price_id=price.id,
+        title="2026 Admission",
+        academic_year="2025/2026",
+        status=AdmissionFormStatus.active,
+        max_submissions=100,
+        current_submissions=0,
+    )
+    db_session.add(form)
+    db_session.commit()
+    db_session.refresh(form)
+    return form

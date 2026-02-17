@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import html
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from fastapi.templating import Jinja2Templates
 
@@ -79,9 +79,9 @@ def _timeago(value: datetime | None) -> str:
     """Produce a human-readable 'time ago' string."""
     if value is None:
         return ""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
+        value = value.replace(tzinfo=UTC)
     diff = now - value
     seconds = int(diff.total_seconds())
 

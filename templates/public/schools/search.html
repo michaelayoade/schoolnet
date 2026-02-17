@@ -1,0 +1,112 @@
+{% extends "public/base.html" %}
+{% block title %}Find Schools - SchoolNet{% endblock %}
+{% block public_content %}
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Find Schools</h1>
+
+    <!-- Search & Filters -->
+    <form method="GET" action="/schools" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <input type="text" name="q" value="{{ q }}" placeholder="Search by name..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <select name="state" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">All States</option>
+                    {% for s in ["Lagos", "Abuja", "Rivers", "Ogun", "Oyo", "Kano", "Kaduna", "Enugu", "Delta", "Anambra", "Edo", "Imo", "Abia", "Kwara", "Osun", "Ekiti", "Ondo"] %}
+                    <option value="{{ s }}" {{ 'selected' if state == s else '' }}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <select name="school_type" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">All Types</option>
+                    <option value="nursery" {{ 'selected' if school_type == 'nursery' else '' }}>Nursery</option>
+                    <option value="nursery_primary" {{ 'selected' if school_type == 'nursery_primary' else '' }}>Nursery & Primary</option>
+                    <option value="primary" {{ 'selected' if school_type == 'primary' else '' }}>Primary</option>
+                    <option value="secondary" {{ 'selected' if school_type == 'secondary' else '' }}>Secondary</option>
+                    <option value="primary_secondary" {{ 'selected' if school_type == 'primary_secondary' else '' }}>Primary & Secondary</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <div>
+                <input type="text" name="city" value="{{ city }}" placeholder="City..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400">
+            </div>
+            <div>
+                <select name="category" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">All Categories</option>
+                    <option value="private" {{ 'selected' if category == 'private' else '' }}>Private</option>
+                    <option value="public" {{ 'selected' if category == 'public' else '' }}>Public</option>
+                    <option value="federal" {{ 'selected' if category == 'federal' else '' }}>Federal</option>
+                    <option value="missionary" {{ 'selected' if category == 'missionary' else '' }}>Missionary</option>
+                </select>
+            </div>
+            <div>
+                <select name="gender" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">All Genders</option>
+                    <option value="mixed" {{ 'selected' if gender == 'mixed' else '' }}>Mixed</option>
+                    <option value="boys_only" {{ 'selected' if gender == 'boys_only' else '' }}>Boys Only</option>
+                    <option value="girls_only" {{ 'selected' if gender == 'girls_only' else '' }}>Girls Only</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition">Search</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Results -->
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{{ total }} school{{ 's' if total != 1 else '' }} found</p>
+
+    {% if schools %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for school in schools %}
+        <a href="/schools/{{ school.slug }}" class="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden card-hover">
+            <div class="h-28 bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/30 dark:to-accent-900/30 flex items-center justify-center">
+                {% if school.logo_url %}
+                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-14 w-14 rounded-full object-cover">
+                {% else %}
+                <div class="h-14 w-14 rounded-full bg-primary-600 flex items-center justify-center text-white text-lg font-bold">
+                    {{ school.name[0] | upper }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="p-4">
+                <h3 class="font-semibold text-slate-900 dark:text-white text-sm">{{ school.name }}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {{ school.school_type | replace('_', ' ') | title }} &bull; {{ school.category | replace('_', ' ') | title }}
+                </p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    {% if school.city %}{{ school.city }}{% endif %}{% if school.state %}, {{ school.state }}{% endif %}
+                </p>
+                {% if school.fee_range_min %}
+                <p class="text-xs text-primary-600 dark:text-primary-400 mt-2 font-medium">
+                    From &#8358;{{ "{:,.0f}".format(school.fee_range_min / 100) }}
+                </p>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="flex justify-center mt-8 gap-2">
+        {% if page > 1 %}
+        <a href="/schools?q={{ q }}&state={{ state }}&city={{ city }}&school_type={{ school_type }}&category={{ category }}&gender={{ gender }}&page={{ page - 1 }}" class="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Previous</a>
+        {% endif %}
+        <span class="px-4 py-2 text-sm text-slate-600 dark:text-slate-300">Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="/schools?q={{ q }}&state={{ state }}&city={{ city }}&school_type={{ school_type }}&category={{ category }}&gender={{ gender }}&page={{ page + 1 }}" class="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="text-center py-12">
+        <p class="text-slate-500 dark:text-slate-400">No schools found matching your criteria.</p>
+        <a href="/schools" class="mt-4 inline-block text-primary-600 dark:text-primary-400 font-medium hover:underline">Clear filters</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

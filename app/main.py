@@ -107,11 +107,14 @@ app.add_middleware(ObservabilityMiddleware)
 async def audit_middleware(request: Request, call_next: object) -> Response:
     response: Response
     path = request.url.path
-    db = SessionLocal()
-    try:
-        audit_settings = _load_audit_settings(db)
-    finally:
-        db.close()
+    # Try cache first — avoid opening a DB session on every request
+    audit_settings = _load_audit_settings_cached()
+    if audit_settings is None:
+        db = SessionLocal()
+        try:
+            audit_settings = _load_audit_settings(db)
+        finally:
+            db.close()
     if not audit_settings["enabled"]:
         return await call_next(request)  # type: ignore[call-arg]
     header_key = audit_settings.get("read_trigger_header") or ""
@@ -144,8 +147,8 @@ async def audit_middleware(request: Request, call_next: object) -> Response:
     return response
 
 
-def _load_audit_settings(db: Session) -> dict[str, Any]:
-    global _AUDIT_SETTINGS_CACHE, _AUDIT_SETTINGS_CACHE_AT
+def _load_audit_settings_cached() -> dict[str, Any] | None:
+    """Return cached audit settings if still valid, else None."""
     now = monotonic()
     with _AUDIT_SETTINGS_LOCK:
         if (
@@ -154,6 +157,11 @@ def _load_audit_settings(db: Session) -> dict[str, Any]:
             and now - _AUDIT_SETTINGS_CACHE_AT < _AUDIT_SETTINGS_CACHE_TTL_SECONDS
         ):
             return _AUDIT_SETTINGS_CACHE
+    return None
+
+
+def _load_audit_settings(db: Session) -> dict[str, Any]:
+    global _AUDIT_SETTINGS_CACHE, _AUDIT_SETTINGS_CACHE_AT
     defaults: dict[str, Any] = {
         "enabled": True,
         "methods": {"POST", "PUT", "PATCH", "DELETE"},
@@ -177,6 +185,7 @@ def _load_audit_settings(db: Session) -> dict[str, Any]:
         defaults["read_trigger_header"] = _to_str(values["read_trigger_header"])
     if "read_trigger_query" in values:
         defaults["read_trigger_query"] = _to_str(values["read_trigger_query"])
+    now = monotonic()
     with _AUDIT_SETTINGS_LOCK:
         _AUDIT_SETTINGS_CACHE = defaults
         _AUDIT_SETTINGS_CACHE_AT = now
@@ -222,11 +231,17 @@ def _include_api_router(router: object, dependencies: list[Any] | None = None) -
     app.include_router(router, prefix="/api/v1", dependencies=dependencies)  # type: ignore[arg-type]
 
 
+# SchoolNet imports
+from app.api.admission_forms import router as admission_forms_router  # noqa: E402
+from app.api.applications import router as applications_router  # noqa: E402
 from app.api.billing import router as billing_router  # noqa: E402
 from app.api.deps import require_role, require_user_auth  # noqa: E402
 from app.api.file_uploads import router as file_uploads_router  # noqa: E402
 from app.api.notifications import router as notifications_router  # noqa: E402
+from app.api.payments import router as payments_router  # noqa: E402
+from app.api.schools import router as schools_router  # noqa: E402
 from app.api.ws import router as ws_router  # noqa: E402
+from app.web.admin_schools import router as web_admin_schools_router  # noqa: E402
 from app.web.audit import router as web_audit_router  # noqa: E402
 from app.web.auth import router as web_auth_router  # noqa: E402
 from app.web.billing.coupons import router as web_billing_coupons_router  # noqa: E402
@@ -252,10 +267,20 @@ from app.web.dashboard import router as web_dashboard_router  # noqa: E402
 from app.web.deps import WebAuthRedirect  # noqa: E402
 from app.web.file_uploads import router as web_file_uploads_router  # noqa: E402
 from app.web.notifications import router as web_notifications_router  # noqa: E402
+from app.web.parent.applications import (  # noqa: E402
+    router as web_parent_applications_router,
+)
+from app.web.parent.dashboard import router as web_parent_dashboard_router  # noqa: E402
 from app.web.people import router as web_people_router  # noqa: E402
 from app.web.permissions import router as web_permissions_router  # noqa: E402
+from app.web.public import router as web_public_router  # noqa: E402
 from app.web.roles import router as web_roles_router  # noqa: E402
 from app.web.scheduler import router as web_scheduler_router  # noqa: E402
+from app.web.school.applications import (  # noqa: E402
+    router as web_school_applications_router,
+)
+from app.web.school.dashboard import router as web_school_dashboard_router  # noqa: E402
+from app.web.school.forms import router as web_school_forms_router  # noqa: E402
 from app.web.settings import router as web_settings_router  # noqa: E402
 
 _include_api_router(auth_router, dependencies=[Depends(require_role("admin"))])
@@ -268,6 +293,13 @@ _include_api_router(scheduler_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(billing_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(file_uploads_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(notifications_router, dependencies=[Depends(require_user_auth)])
+
+# SchoolNet API routes
+_include_api_router(schools_router)
+_include_api_router(admission_forms_router)
+_include_api_router(applications_router)
+_include_api_router(payments_router)
+
 app.include_router(ws_router)
 app.include_router(web_auth_router)
 app.include_router(web_dashboard_router)
@@ -288,6 +320,16 @@ app.include_router(web_billing_payment_methods_router)
 app.include_router(web_billing_coupons_router)
 app.include_router(web_billing_entitlements_router)
 app.include_router(web_billing_webhook_events_router)
+
+# SchoolNet web routes
+app.include_router(web_public_router)
+app.include_router(web_parent_dashboard_router)
+app.include_router(web_parent_applications_router)
+app.include_router(web_school_dashboard_router)
+app.include_router(web_school_forms_router)
+app.include_router(web_school_applications_router)
+app.include_router(web_admin_schools_router)
+
 app.include_router(web_home_router)
 
 

@@ -21,6 +21,14 @@ def coerce_uuid(value: Any) -> uuid.UUID | None:
     return uuid.UUID(str(value))
 
 
+def require_uuid(value: Any) -> uuid.UUID:
+    """Convert a string or UUID to UUID, raising ValueError if None."""
+    result = coerce_uuid(value)
+    if result is None:
+        raise ValueError("UUID value is required but got None")
+    return result
+
+
 def apply_ordering(
     query: Select[Any],
     order_by: str,

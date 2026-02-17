@@ -59,6 +59,14 @@ class Settings:
         "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv",
     )
 
+    # Paystack
+    paystack_secret_key: str = os.getenv("PAYSTACK_SECRET_KEY", "")
+    paystack_public_key: str = os.getenv("PAYSTACK_PUBLIC_KEY", "")
+
+    # SchoolNet
+    schoolnet_commission_rate: int = int(os.getenv("SCHOOLNET_COMMISSION_RATE", "1000"))  # basis points (10%)
+    schoolnet_currency: str = os.getenv("SCHOOLNET_CURRENCY", "NGN")
+
     # CORS
     cors_origins: str = os.getenv("CORS_ORIGINS", "")  # Comma-separated origins
 

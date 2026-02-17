@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingValueType
 from app.services.domain_settings import (
-    auth_settings,
     audit_settings,
+    auth_settings,
     billing_settings,
     scheduler_settings,
 )

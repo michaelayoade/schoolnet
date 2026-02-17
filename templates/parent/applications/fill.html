@@ -1,0 +1,49 @@
+{% extends "parent/base.html" %}
+{% block title %}Fill Application - Parent Portal{% endblock %}
+{% block parent_content %}
+<div class="mb-6">
+    <a href="/parent/applications" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to applications</a>
+</div>
+
+<div class="max-w-2xl">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-2">Fill Application</h1>
+    {% if school %}
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">{{ school.name }} &bull; {{ form.title if form else '' }}</p>
+    {% endif %}
+
+    <form method="POST" action="/parent/applications/fill/{{ application.id }}" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+        {{ request.state.csrf_form | safe }}
+
+        <h3 class="font-semibold text-slate-900 dark:text-white text-sm">Ward Information</h3>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
+                <input type="text" name="ward_first_name" required value="{{ application.ward_first_name if application.ward_first_name else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+                <input type="text" name="ward_last_name" required value="{{ application.ward_last_name if application.ward_last_name else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date of Birth</label>
+                <input type="date" name="ward_date_of_birth" required value="{{ application.ward_date_of_birth if application.ward_date_of_birth else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
+                <select name="ward_gender" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">Select...</option>
+                    <option value="male" {{ 'selected' if application.ward_gender == 'male' else '' }}>Male</option>
+                    <option value="female" {{ 'selected' if application.ward_gender == 'female' else '' }}>Female</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">Submit Application</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

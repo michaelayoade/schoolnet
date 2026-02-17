@@ -10,6 +10,7 @@ from starlette.responses import Response
 from app.main import (
     _is_audit_path_skipped,
     _load_audit_settings,
+    _load_audit_settings_cached,
     _to_bool,
     _to_list,
     _to_str,
@@ -243,7 +244,7 @@ class TestAuditMiddlewareReadTriggers:
             "read_trigger_query": "audit",
         }
 
-        with patch("app.main._load_audit_settings", return_value=audit_settings):
+        with patch("app.main._load_audit_settings_cached", return_value=audit_settings):
             with patch("app.main.SessionLocal") as mock_session:
                 mock_db = MagicMock()
                 mock_session.return_value = mock_db
@@ -273,7 +274,7 @@ class TestAuditMiddlewareReadTriggers:
             "read_trigger_query": "audit",
         }
 
-        with patch("app.main._load_audit_settings", return_value=audit_settings):
+        with patch("app.main._load_audit_settings_cached", return_value=audit_settings):
             with patch("app.main.SessionLocal") as mock_session:
                 mock_db = MagicMock()
                 mock_session.return_value = mock_db
@@ -303,7 +304,7 @@ class TestAuditMiddlewareReadTriggers:
             "read_trigger_query": "audit",
         }
 
-        with patch("app.main._load_audit_settings", return_value=audit_settings):
+        with patch("app.main._load_audit_settings_cached", return_value=audit_settings):
             with patch("app.main.SessionLocal") as mock_session:
                 mock_db = MagicMock()
                 mock_session.return_value = mock_db
@@ -335,7 +336,7 @@ class TestAuditMiddlewareExceptionLogging:
             "read_trigger_query": "audit",
         }
 
-        with patch("app.main._load_audit_settings", return_value=audit_settings):
+        with patch("app.main._load_audit_settings_cached", return_value=audit_settings):
             with patch("app.main.SessionLocal") as mock_session:
                 mock_db = MagicMock()
                 mock_session.return_value = mock_db
@@ -367,7 +368,7 @@ class TestAuditMiddlewareExceptionLogging:
             "read_trigger_query": "audit",
         }
 
-        with patch("app.main._load_audit_settings", return_value=audit_settings):
+        with patch("app.main._load_audit_settings_cached", return_value=audit_settings):
             with patch("app.main.SessionLocal") as mock_session:
                 mock_db = MagicMock()
                 mock_session.return_value = mock_db
@@ -399,7 +400,7 @@ class TestAuditMiddlewareDisabled:
             "read_trigger_query": "audit",
         }
 
-        with patch("app.main._load_audit_settings", return_value=audit_settings):
+        with patch("app.main._load_audit_settings_cached", return_value=audit_settings):
             with patch("app.main.SessionLocal") as mock_session:
                 mock_db = MagicMock()
                 mock_session.return_value = mock_db
