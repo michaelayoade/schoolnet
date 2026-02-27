@@ -27,7 +27,7 @@ opentelemetry-instrumentation-fastapi = "0.47b0"
 opentelemetry-instrumentation-sqlalchemy = "0.47b0"
 opentelemetry-instrumentation-celery = "0.47b0"
 python-jose = {version = "3.3.0", extras = ["cryptography"]}
-passlib = {version = "1.7.4", extras = ["bcrypt"]}
+bcrypt = ">=4.0.0"
 pyotp = "2.9.0"
 cryptography = ">=44.0.1"
 

@@ -5,11 +5,11 @@ import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
+import bcrypt
 import pyotp
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -30,13 +30,6 @@ from app.schemas.auth_flow import LoginResponse, LogoutResponse, TokenResponse
 from app.services.common import coerce_uuid
 from app.services.response import ListResponseMixin
 from app.services.secrets import resolve_secret
-
-PASSWORD_CONTEXT = CryptContext(
-    schemes=["pbkdf2_sha256", "bcrypt"],
-    default="pbkdf2_sha256",
-    deprecated="auto",
-)
-
 
 def _env_value(name: str) -> str | None:
     value = os.getenv(name)
@@ -331,14 +324,28 @@ def _decrypt_secret(db: Session | None, secret: str) -> str:
         raise HTTPException(status_code=500, detail="Invalid MFA secret") from exc
 
 
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    return bcrypt.checkpw(
+        password.encode("utf-8"),
+        password_hash.encode("utf-8"),
+    )
+
+
 def hash_password(password: str) -> str:
-    return PASSWORD_CONTEXT.hash(password)
+    return _hash_password(password)
 
 
 def verify_password(password: str, password_hash: str | None) -> bool:
     if not password_hash:
         return False
-    return PASSWORD_CONTEXT.verify(password, password_hash)
+    try:
+        return _verify_password(password, password_hash)
+    except ValueError:
+        return False
 
 
 def revoke_sessions_for_person(
