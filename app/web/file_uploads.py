@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/file-uploads", tags=["web-file-uploads"])
 
 PAGE_SIZE = 25
+GENERIC_ERROR_MESSAGE = "An unexpected error occurred. Please try again."
 
 
 def _base_context(
@@ -135,20 +136,20 @@ async def upload_submit(
             url="/admin/file-uploads?success=File+uploaded+successfully",
             status_code=302,
         )
-    except ValueError as exc:
-        logger.warning("File upload validation failed: %s", exc)
+    except ValueError:
+        logger.exception("File upload validation failed")
         ctx = _base_context(
             request, db, auth, title="Upload File", page_title="Upload File"
         )
-        ctx["error"] = str(exc)
+        ctx["error"] = GENERIC_ERROR_MESSAGE
         return templates.TemplateResponse("admin/file_uploads/upload.html", ctx)
-    except Exception as exc:
-        logger.exception("File upload failed: %s", exc)
+    except Exception:
+        logger.exception("File upload failed")
         db.rollback()
         ctx = _base_context(
             request, db, auth, title="Upload File", page_title="Upload File"
         )
-        ctx["error"] = str(exc)
+        ctx["error"] = GENERIC_ERROR_MESSAGE
         return templates.TemplateResponse("admin/file_uploads/upload.html", ctx)
 
 
@@ -172,16 +173,16 @@ async def delete_file_upload(
             url="/admin/file-uploads?success=File+deleted+successfully",
             status_code=302,
         )
-    except ValueError as exc:
-        logger.warning("Failed to delete file upload %s: %s", file_id, exc)
+    except ValueError:
+        logger.exception("Failed to delete file upload %s", file_id)
         return RedirectResponse(
-            url=f"/admin/file-uploads?error={exc}",
+            url="/admin/file-uploads?error=An+unexpected+error+occurred.+Please+try+again.",
             status_code=302,
         )
-    except Exception as exc:
-        logger.exception("Failed to delete file upload %s: %s", file_id, exc)
+    except Exception:
+        logger.exception("Failed to delete file upload %s", file_id)
         db.rollback()
         return RedirectResponse(
-            url=f"/admin/file-uploads?error={exc}",
+            url="/admin/file-uploads?error=An+unexpected+error+occurred.+Please+try+again.",
             status_code=302,
         )
