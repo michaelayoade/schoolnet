@@ -1,5 +1,6 @@
 """Payment webhook and callback API routes."""
 
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -24,8 +25,6 @@ async def paystack_webhook(request: Request, db: Session = Depends(get_db)) -> d
     signature = request.headers.get("x-paystack-signature", "")
     if not paystack_gateway.validate_webhook_signature(body, signature):
         raise HTTPException(status_code=400, detail="Invalid signature")
-
-    import json
 
     try:
         payload = json.loads(body)
