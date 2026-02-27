@@ -3,7 +3,7 @@ import os
 import time
 import uuid
 
-from jose import JWTError, jwt
+import jwt as pyjwt
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -40,8 +40,8 @@ def _extract_actor_id_from_jwt(token: str | None) -> str | None:
     if not secret:
         return None
     try:
-        payload = jwt.decode(token, secret, algorithms=[_jwt_algorithm()])
-    except JWTError:
+        payload = pyjwt.decode(token, secret, algorithms=[_jwt_algorithm()])
+    except pyjwt.exceptions.InvalidTokenError:
         return None
     subject = payload.get("sub")
     if subject:

@@ -5,10 +5,10 @@ import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
+import jwt as pyjwt
 import pyotp
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, Request, Response, status
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -218,7 +218,7 @@ def _issue_access_token(
         payload["roles"] = roles
     if permissions:
         payload["scopes"] = permissions
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return pyjwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
 
 
 def _issue_mfa_token(db: Session | None, person_id: str) -> str:
@@ -229,7 +229,7 @@ def _issue_mfa_token(db: Session | None, person_id: str) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=5)).timestamp()),
     }
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return pyjwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
 
 
 def _password_reset_ttl_minutes(db: Session | None) -> int:
@@ -254,7 +254,7 @@ def _issue_password_reset_token(db: Session | None, person_id: str, email: str) 
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=_password_reset_ttl_minutes(db))).timestamp()),
     }
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return pyjwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
 
 
 def _decode_password_reset_token(db: Session | None, token: str) -> dict:
@@ -263,8 +263,8 @@ def _decode_password_reset_token(db: Session | None, token: str) -> dict:
 
 def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict:
     try:
-        payload = jwt.decode(token, _jwt_secret(db), algorithms=[_jwt_algorithm(db)])
-    except JWTError as exc:
+        payload = pyjwt.decode(token, _jwt_secret(db), algorithms=["HS256"])
+    except pyjwt.exceptions.InvalidTokenError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
     if payload.get("typ") != expected_type:
         raise HTTPException(status_code=401, detail="Invalid token type")

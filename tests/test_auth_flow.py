@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 
 import pyotp
 import pytest
+import jwt as pyjwt
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
-from jose import jwt
 from starlette.requests import Request
 
 from app.models.auth import Session as AuthSession, SessionStatus, UserCredential
@@ -116,7 +116,7 @@ def test_decode_access_token_uses_openbao_secret(monkeypatch):
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=5)).timestamp()),
     }
-    token = jwt.encode(payload, secret_value, algorithm="HS256")
+    token = pyjwt.encode(payload, secret_value, algorithm="HS256")
     decoded = decode_access_token(None, token)
 
     assert decoded["sub"] == "user-id"

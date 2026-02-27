@@ -7,7 +7,7 @@ from types import ModuleType
 
 import pytest
 from fastapi.testclient import TestClient
-from jose import jwt
+import jwt as pyjwt
 from sqlalchemy import DateTime, create_engine
 from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
@@ -243,7 +243,7 @@ def _create_access_token(person_id: str, session_id: str, roles: list[str] = Non
         "exp": int(expire.timestamp()),
         "iat": int(now.timestamp()),
     }
-    return jwt.encode(payload, secret, algorithm=algorithm)
+    return pyjwt.encode(payload, secret, algorithm=algorithm)
 
 
 @pytest.fixture()

@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-from jose import jwt
 from starlette.requests import Request
 
 from app.models.auth import ApiKey, Session as AuthSession, SessionStatus

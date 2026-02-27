@@ -47,7 +47,7 @@ A production-ready FastAPI starter template with enterprise-grade features inclu
 | Migrations | Alembic |
 | Cache/Broker | Redis 7 |
 | Task Queue | Celery 5.4 |
-| Auth | python-jose, passlib, pyotp |
+| Auth | PyJWT, passlib, pyotp |
 | Tracing | OpenTelemetry |
 | Metrics | Prometheus |
 
