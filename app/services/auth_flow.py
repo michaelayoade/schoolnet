@@ -4,8 +4,10 @@ import hashlib
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import pyotp
+import redis
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError, jwt
@@ -27,6 +29,7 @@ from app.models.domain_settings import DomainSetting, SettingDomain
 from app.models.person import Person
 from app.models.rbac import Permission, PersonRole, Role, RolePermission
 from app.schemas.auth_flow import LoginResponse, LogoutResponse, TokenResponse
+from app.services.auth import _get_redis_client
 from app.services.common import coerce_uuid
 from app.services.response import ListResponseMixin
 from app.services.secrets import resolve_secret
@@ -36,6 +39,7 @@ PASSWORD_CONTEXT = CryptContext(
     default="pbkdf2_sha256",
     deprecated="auto",
 )
+_TOTP_REPLAY_TTL_SECONDS = 30
 
 
 def _env_value(name: str) -> str | None:
@@ -199,6 +203,30 @@ def hash_session_token(token: str) -> str:
     return _hash_token(token)
 
 
+def _consume_totp_code_once(person_id: str, code: str) -> None:
+    redis_client = _get_redis_client()
+    if not redis_client:
+        raise HTTPException(
+            status_code=503,
+            detail="MFA verification unavailable (Redis required)",
+        )
+    replay_key = f"totp:used:{person_id}:{code}"
+    try:
+        was_stored = redis_client.set(
+            replay_key,
+            "1",
+            ex=_TOTP_REPLAY_TTL_SECONDS,
+            nx=True,
+        )
+    except redis.RedisError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="MFA verification unavailable (Redis error)",
+        ) from exc
+    if not was_stored:
+        raise HTTPException(status_code=401, detail="Invalid MFA code")
+
+
 def _issue_access_token(
     db: Session | None,
     person_id: str,
@@ -218,7 +246,7 @@ def _issue_access_token(
         payload["roles"] = roles
     if permissions:
         payload["scopes"] = permissions
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
 def _issue_mfa_token(db: Session | None, person_id: str) -> str:
@@ -229,7 +257,7 @@ def _issue_mfa_token(db: Session | None, person_id: str) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=5)).timestamp()),
     }
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
 def _password_reset_ttl_minutes(db: Session | None) -> int:
@@ -254,16 +282,19 @@ def _issue_password_reset_token(db: Session | None, person_id: str, email: str) 
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=_password_reset_ttl_minutes(db))).timestamp()),
     }
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
-def _decode_password_reset_token(db: Session | None, token: str) -> dict:
+def _decode_password_reset_token(db: Session | None, token: str) -> dict[str, Any]:
     return _decode_jwt(db, token, "password_reset")
 
 
-def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict:
+def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict[str, Any]:
     try:
-        payload = jwt.decode(token, _jwt_secret(db), algorithms=[_jwt_algorithm(db)])
+        payload = cast(
+            dict[str, Any],
+            jwt.decode(token, _jwt_secret(db), algorithms=[_jwt_algorithm(db)]),
+        )
     except JWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
     if payload.get("typ") != expected_type:
@@ -271,7 +302,7 @@ def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict:
     return payload
 
 
-def decode_access_token(db: Session | None, token: str) -> dict:
+def decode_access_token(db: Session | None, token: str) -> dict[str, Any]:
     return _decode_jwt(db, token, "access")
 
 
@@ -332,13 +363,13 @@ def _decrypt_secret(db: Session | None, secret: str) -> str:
 
 
 def hash_password(password: str) -> str:
-    return PASSWORD_CONTEXT.hash(password)
+    return cast(str, PASSWORD_CONTEXT.hash(password))
 
 
 def verify_password(password: str, password_hash: str | None) -> bool:
     if not password_hash:
         return False
-    return PASSWORD_CONTEXT.verify(password, password_hash)
+    return cast(bool, PASSWORD_CONTEXT.verify(password, password_hash))
 
 
 def revoke_sessions_for_person(
@@ -474,7 +505,7 @@ class AuthFlow(ListResponseMixin):
                 "mfa_token": _issue_mfa_token(db, str(credential.person_id)),
             }
 
-        return AuthFlow._issue_tokens(db, credential.person_id, request)
+        return AuthFlow._issue_tokens(db, str(credential.person_id), request)
 
     @staticmethod
     def mfa_setup(db: Session, person_id: str, label: str | None):
@@ -567,6 +598,7 @@ class AuthFlow(ListResponseMixin):
         totp = pyotp.TOTP(secret)
         if not totp.verify(code, valid_window=0):
             raise HTTPException(status_code=401, detail="Invalid MFA code")
+        _consume_totp_code_once(str(person_id), code)
 
         method.last_used_at = _now()
         db.commit()

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any, cast
 
 from fastapi import HTTPException
 
@@ -298,25 +299,32 @@ def resolve_value(db, domain: SettingDomain, key: str) -> object | None:
     if spec.allowed and value is not None and value not in spec.allowed:
         value = spec.default
     if spec.value_type == SettingValueType.integer and value is not None:
-        try:
-            parsed = int(value)
-        except (TypeError, ValueError):
-            parsed = spec.default if isinstance(spec.default, int) else None
+        default_int = spec.default if isinstance(spec.default, int) else None
+        parsed: int | None
+        if isinstance(value, int):
+            parsed = value
+        elif isinstance(value, str):
+            try:
+                parsed = int(value)
+            except ValueError:
+                parsed = default_int
+        else:
+            parsed = default_int
         if spec.min_value is not None and parsed is not None and parsed < spec.min_value:
-            parsed = spec.default
+            parsed = default_int
         if spec.max_value is not None and parsed is not None and parsed > spec.max_value:
-            parsed = spec.default
+            parsed = default_int
         value = parsed
     return value
 
 
-def extract_db_value(setting) -> object | None:
+def extract_db_value(setting: Any) -> object | None:
     if not setting:
         return None
     if setting.value_text is not None:
-        return setting.value_text
+        return cast(object, setting.value_text)
     if setting.value_json is not None:
-        return setting.value_json
+        return cast(object, setting.value_json)
     return None
 
 
@@ -354,7 +362,11 @@ def normalize_for_db(spec: SettingSpec, value: object) -> tuple[str | None, obje
         bool_value = bool(value)
         return ("true" if bool_value else "false"), bool_value
     if spec.value_type == SettingValueType.integer:
-        return str(int(value)), None
+        if isinstance(value, int):
+            return str(value), None
+        if isinstance(value, str):
+            return str(int(value)), None
+        raise ValueError("Value must be an integer")
     if spec.value_type == SettingValueType.string:
         return str(value), None
     return None, value

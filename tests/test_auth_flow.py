@@ -10,6 +10,7 @@ from starlette.requests import Request
 
 from app.models.auth import Session as AuthSession, SessionStatus, UserCredential
 from app.models.auth import AuthProvider
+from app.services import auth_flow as auth_flow_service
 from app.services.auth_flow import (
     AuthFlow,
     decode_access_token,
@@ -33,6 +34,17 @@ def _make_request(user_agent: str = "pytest"):
         "client": ("127.0.0.1", 12345),
     }
     return Request(scope)
+
+
+class _FakeReplayRedis:
+    def __init__(self):
+        self.store = set()
+
+    def set(self, key, _value, ex=None, nx=False):
+        if nx and key in self.store:
+            return False
+        self.store.add(key)
+        return True
 
 
 def test_login_and_refresh_reuse_detection(db_session, person, monkeypatch):
@@ -88,6 +100,45 @@ def test_mfa_setup_confirm(db_session, person, monkeypatch):
     assert method.is_primary is True
     assert method.is_active is True
     assert method.verified_at is not None
+
+
+def test_mfa_verify_rejects_replayed_totp_code(db_session, person, monkeypatch):
+    key = Fernet.generate_key().decode("utf-8")
+    monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)
+    monkeypatch.setenv("TOTP_ISSUER", "StarterTemplate")
+    fake_redis = _FakeReplayRedis()
+    monkeypatch.setattr(
+        auth_flow_service,
+        "_get_redis_client",
+        lambda: fake_redis,
+    )
+
+    username = _unique_username()
+    credential = UserCredential(
+        person_id=person.id,
+        provider=AuthProvider.local,
+        username=username,
+        password_hash=hash_password("secret"),
+        is_active=True,
+    )
+    db_session.add(credential)
+    db_session.commit()
+
+    setup = AuthFlow.mfa_setup(db_session, str(person.id), label="device")
+    totp = pyotp.TOTP(setup["secret"])
+    AuthFlow.mfa_confirm(db_session, str(setup["method_id"]), totp.now())
+
+    request = _make_request()
+    login = AuthFlow.login(db_session, username, "secret", request, None)
+    mfa_token = login["mfa_token"]
+
+    code = totp.now()
+    tokens = AuthFlow.mfa_verify(db_session, mfa_token, code, request)
+    assert "access_token" in tokens
+
+    with pytest.raises(HTTPException) as exc:
+        AuthFlow.mfa_verify(db_session, mfa_token, code, request)
+    assert exc.value.status_code == 401
 
 
 def test_decode_access_token_uses_openbao_secret(monkeypatch):
