@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Security] Upgrade `jinja2` to `>=3.1.6` — resolves CVE-2024-56201 (sandbox escape via crafted filenames) and CVE-2024-56326 (sandbox bypass via `__init__` override) (PR #1)
 
 ### Fixed
+- [Fixed] N+1 queries eliminated in all 3 list views — `AdmissionFormService.list_for_school()` now eager-loads `Price` records via `selectinload`; `ApplicationService.list_for_parent()` eager-loads `admission_form → school`; `ApplicationService.list_for_school()` eager-loads `admission_form` and `parent`; reduces per-request query count from O(n) to O(1) for paginated lists (`app/services/`) (PR #48)
+- [Fixed] Raw exception messages removed from `app/web/file_uploads.py` template error responses — generic `'An unexpected error occurred. Please try again.'` shown to users; full exception detail preserved in `logger.exception()` calls (PR #49)
 - [Fixed] Application number generation now retries on unique key collision — `_generate_application_number()` in `app/services/application.py` attempts up to 5 new tokens on `IntegrityError`; raises `RuntimeError` after 5 consecutive failures, preventing silent data corruption under high load (PR #42)
 - [Fixed] `boto3` declared as optional dependency under `[tool.poetry.extras] s3 = ["boto3"]` — deployments with `STORAGE_BACKEND=s3` no longer crash with `ImportError` on startup; install with `pip install .[s3]` or `poetry install -E s3` (`pyproject.toml`) (PR #25)
 - [Fixed] `app/api/__init__.py` and `app/schemas/__init__.py` added — both subdirectories were missing `__init__.py` unlike all other `app/` sub-packages, causing inconsistent namespace package behaviour (PR #26)
@@ -60,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Removed] Dead `ListResponseMixin` class removed — it was never referenced outside its own definition and provided an unimplemented abstract method; removed from `app/services/auth_flow.py` along with its import (PR #22)
 
 ### Added
+- [Added] Pagination added to `GET /applications/my` and `GET /applications/school/{id}` — `limit` and `offset` query parameters prevent unbounded result sets; defaults: `my_applications` limit=50 (max 500), `school_applications` limit=100 (max 1000) (`app/api/applications.py`) (PR #47)
 - [Added] Unit tests for `PaystackGateway` service — covers `create_subaccount`, `update_subaccount`, `initialize_transaction`, `verify_transaction`, `validate_webhook_signature`, and `is_configured` guard path (`tests/test_payment_gateway_service.py`) (PR #19)
 - [Added] Unit tests for `settings_seed` and `scheduler_config` modules (`tests/test_settings_seed.py`, `tests/test_scheduler_config.py`) — happy path, error cases, and mocked DB fixtures (PR #21)
 - Security headers middleware (CSP, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy)
@@ -86,6 +89,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] Migrated remaining 54 `db.query()` legacy calls to SQLAlchemy 2.0 `select()` + `db.scalars()`/`db.scalar()` across 12 files — `auth_flow.py`, `billing.py`, `auth.py`, `rbac.py`, `domain_settings.py`, `api/auth_flow.py`, `branding.py`, `person.py`, `scheduler.py`, `scheduler_config.py`, `audit.py`, `web_home.py` (`app/services/` + `app/api/`) (PR #52)
+- [Changed] All 87 `db.commit()` calls in service files replaced with `db.flush()` — `billing.py` (×37), `auth.py` (×13), `rbac.py` (×12), `auth_flow.py` (×11), `domain_settings.py` (×4), `person.py` (×3), `audit.py` (×3), `scheduler.py` (×3), `branding.py` (×1); routes and Celery tasks now own transaction commit boundaries (PR #51)
+- [Changed] `type: ignore[assignment]` suppressions removed from `app/schemas/billing.py` — `use_enum_values=True` added to `model_config` of `PriceRead`, `SubscriptionRead`, `InvoiceRead`, `PaymentIntentRead`, `WebhookEventRead` so enum fields type-check cleanly (PR #50)
+- [Changed] Inline imports moved to module top-level in `app/api/applications.py` (3 function-body `from app.models.school import ...`) and `app/api/payments.py` (`import json` inside handler) (PR #49)
 - [Changed] Replaced abandoned `passlib` with direct `bcrypt>=4.0.0` — `passlib` is unmaintained and incompatible with `bcrypt 5.0.0`; password hashing now uses `bcrypt.hashpw()` / `bcrypt.checkpw()` directly; `_hash_password()` and `_verify_password()` updated accordingly (`app/services/auth_flow.py`, `pyproject.toml`) (PR #44)
 - [Changed] Global `ignore_missing_imports = true` in `[tool.mypy]` replaced with per-module `[[tool.mypy.overrides]]` sections for stub-less packages (`boto3`, `botocore`, `cachetools`, `redis`, `jose`) — narrows suppression scope so type errors in unrelated packages are no longer silently hidden (`pyproject.toml`) (PR #27)
 - [Changed] `types-cachetools` and `types-redis` added to dev dependencies — enables mypy to type-check `cachetools.TTLCache` (rate limiter) and Redis client calls without `ignore_missing_imports` workarounds (`pyproject.toml`) (PR #26)
