@@ -108,13 +108,19 @@ class SchoolService:
         school: School | None = self.db.scalar(stmt)
         return school
 
-    def get_schools_for_owner(self, owner_id: UUID) -> list[School]:
+    def list_for_person(self, owner_id: UUID, limit: int = 50, offset: int = 0) -> list[School]:
         stmt = (
             select(School)
             .where(School.owner_id == owner_id, School.is_active.is_(True))
             .order_by(School.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(self.db.scalars(stmt).all())
+
+    def get_schools_for_owner(self, owner_id: UUID) -> list[School]:
+        # Backward-compatible wrapper for existing callers.
+        return self.list_for_person(owner_id)
 
     def search(
         self,

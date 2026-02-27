@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_permission
@@ -28,9 +28,14 @@ def get_form(form_id: UUID, db: Session = Depends(get_db)) -> AdmissionFormRead:
 
 
 @router.get("/school/{school_id}", response_model=list[AdmissionFormRead])
-def list_school_forms(school_id: UUID, db: Session = Depends(get_db)) -> list:
+def list_school_forms(
+    school_id: UUID,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> list:
     svc = AdmissionFormService(db)
-    return svc.list_active_for_school(school_id)
+    return svc.list_for_school(school_id, limit=limit, offset=offset)
 
 
 @router.post("/", response_model=AdmissionFormRead, status_code=status.HTTP_201_CREATED)

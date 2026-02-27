@@ -87,13 +87,15 @@ def update_school(
 
 @router.get("/my/list", response_model=list[SchoolRead])
 def my_schools(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("schools:write")),
 ) -> list:
     from app.services.common import require_uuid
 
     svc = SchoolService(db)
-    return svc.get_schools_for_owner(require_uuid(auth["person_id"]))
+    return svc.list_for_person(require_uuid(auth["person_id"]), limit=limit, offset=offset)
 
 
 @router.post("/{school_id}/ratings", response_model=RatingRead, status_code=status.HTTP_201_CREATED)

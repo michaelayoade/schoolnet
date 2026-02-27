@@ -67,7 +67,7 @@ class AdmissionFormService:
         form: AdmissionForm | None = self.db.get(AdmissionForm, form_id)
         return form
 
-    def list_for_school(self, school_id: UUID) -> list[AdmissionForm]:
+    def list_for_school(self, school_id: UUID, limit: int = 100, offset: int = 0) -> list[AdmissionForm]:
         stmt = (
             select(AdmissionForm)
             .where(
@@ -75,6 +75,8 @@ class AdmissionFormService:
                 AdmissionForm.is_active.is_(True),
             )
             .order_by(AdmissionForm.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(self.db.scalars(stmt).all())
 

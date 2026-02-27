@@ -59,6 +59,21 @@ class TestAdmissionFormLists:
         assert len(forms) >= 1
         assert all(f.school_id == school.id for f in forms)
 
+    def test_list_for_school_pagination(self, db_session, school, admission_form_with_price):
+        svc = AdmissionFormService(db_session)
+        payload = AdmissionFormCreate(
+            school_id=school.id,
+            title="Second Form",
+            academic_year="2026/2027",
+            price_amount=350000,
+        )
+        svc.create(payload)
+        db_session.commit()
+
+        all_forms = svc.list_for_school(school.id, limit=500, offset=0)
+        page = svc.list_for_school(school.id, limit=1, offset=1)
+        assert page == all_forms[1:2]
+
     def test_list_active_for_school(self, db_session, school, admission_form_with_price):
         svc = AdmissionFormService(db_session)
         forms = svc.list_active_for_school(school.id)

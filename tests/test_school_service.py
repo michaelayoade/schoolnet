@@ -81,6 +81,24 @@ class TestSchoolServiceGet:
         assert len(results) >= 1
         assert any(s.id == school.id for s in results)
 
+    def test_list_for_person_pagination(self, db_session, school_owner):
+        svc = SchoolService(db_session)
+        s1 = svc.create(
+            SchoolCreate(name="Owner School One", school_type="primary", category="private"),
+            owner_id=school_owner.id,
+        )
+        db_session.flush()
+        s2 = svc.create(
+            SchoolCreate(name="Owner School Two", school_type="secondary", category="private"),
+            owner_id=school_owner.id,
+        )
+        db_session.commit()
+        assert s1.id != s2.id
+
+        all_schools = svc.list_for_person(school_owner.id, limit=200, offset=0)
+        page = svc.list_for_person(school_owner.id, limit=1, offset=1)
+        assert page == all_schools[1:2]
+
 
 class TestSchoolServiceSearch:
     def test_search_returns_active_schools(self, db_session, school):
