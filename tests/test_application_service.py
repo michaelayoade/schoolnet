@@ -97,6 +97,53 @@ class TestApplicationPurchaseFlow:
                 callback_url="/callback",
             )
 
+    def test_initiate_purchase_rejects_external_callback_url(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        svc = ApplicationService(db_session)
+        with pytest.raises(ValueError, match="external URLs"):
+            svc.initiate_purchase(
+                parent_id=parent_person.id,
+                admission_form_id=admission_form_with_price.id,
+                callback_url="https://evil.example/phish",
+            )
+
+    def test_initiate_purchase_accepts_internal_absolute_callback_url(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        svc = ApplicationService(db_session)
+        result = svc.initiate_purchase(
+            parent_id=parent_person.id,
+            admission_form_id=admission_form_with_price.id,
+            callback_url="http://localhost:8000/payments/callback",
+        )
+        db_session.commit()
+
+        assert "reference" in result
+        assert "invoice_id" in result
+
+    def test_initiate_purchase_rejects_protocol_relative_callback_url(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        svc = ApplicationService(db_session)
+        with pytest.raises(ValueError, match="valid http"):
+            svc.initiate_purchase(
+                parent_id=parent_person.id,
+                admission_form_id=admission_form_with_price.id,
+                callback_url="//evil.example/phish",
+            )
+
+    def test_initiate_purchase_rejects_relative_callback_without_leading_slash(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        svc = ApplicationService(db_session)
+        with pytest.raises(ValueError, match="must start with '/'"):
+            svc.initiate_purchase(
+                parent_id=parent_person.id,
+                admission_form_id=admission_form_with_price.id,
+                callback_url="payments/callback",
+            )
+
 
 class TestApplicationSubmission:
     def _create_draft_app(self, db_session, parent_person, admission_form_with_price):

@@ -3,6 +3,7 @@
 import logging
 import secrets
 from datetime import UTC, date, datetime
+from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy import select
@@ -53,6 +54,36 @@ def _generate_reference() -> str:
     return f"SN-{secrets.token_hex(12)}"
 
 
+def _validate_callback_url(callback_url: str) -> str:
+    if not callback_url:
+        raise ValueError("Invalid callback_url: value is required")
+
+    callback = callback_url.strip()
+    if not callback:
+        raise ValueError("Invalid callback_url: value is required")
+
+    parsed = urlparse(callback)
+
+    # Allow app-relative paths only.
+    if not parsed.scheme and not parsed.netloc:
+        if callback.startswith("/") and not callback.startswith("//"):
+            return callback
+        raise ValueError("Invalid callback_url: relative paths must start with '/'")
+
+    # Allow only absolute URLs that resolve to this app's configured host.
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Invalid callback_url: URL must be a valid http(s) absolute URL")
+
+    app_parsed = urlparse(settings.app_url)
+    if not app_parsed.hostname:
+        raise ValueError("APP_URL is not configured correctly")
+
+    if parsed.hostname.lower() != app_parsed.hostname.lower():
+        raise ValueError("Invalid callback_url: external URLs are not allowed")
+
+    return callback
+
+
 class ApplicationService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -93,6 +124,8 @@ class ApplicationService:
             raise ValueError("This form is not currently accepting applications")
         if form.max_submissions and form.current_submissions >= form.max_submissions:
             raise ValueError("This form has reached maximum submissions")
+
+        callback_url = _validate_callback_url(callback_url)
 
         # Get price
         from app.models.billing import Price

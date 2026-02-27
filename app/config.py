@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Settings:
+    app_url: str = os.getenv("APP_URL", "http://localhost:8000")
     database_url: str = os.getenv(
         "DATABASE_URL",
         "postgresql+psycopg://postgres:postgres@localhost:5434/starter_template",

@@ -56,6 +56,7 @@ mock_config_module = ModuleType('app.config')
 
 
 class MockSettings:
+    app_url = "http://localhost:8000"
     database_url = "sqlite+pysqlite:///:memory:"
     redis_url = "redis://localhost:6379/0"
     secret_key = "test-secret-key"
