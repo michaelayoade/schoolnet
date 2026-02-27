@@ -760,6 +760,9 @@ def reset_password(db: Session, token: str, new_password: str) -> datetime:
     if not credential:
         raise HTTPException(status_code=404, detail="No credentials found")
 
+    from app.services.registration import _validate_password_strength
+
+    _validate_password_strength(new_password)
     now = _now()
     credential.password_hash = hash_password(new_password)
     credential.password_updated_at = now
