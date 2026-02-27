@@ -193,6 +193,8 @@ def application_detail(
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
         return RedirectResponse(url="/parent/applications?error=Application+not+found", status_code=303)
+    if str(application.parent_id) != auth["person_id"]:
+        return RedirectResponse(url="/parent/applications?error=Not+your+application", status_code=303)
 
     form = application.admission_form
     school = form.school if form else None
