@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- [Security] IDOR in parent application detail fixed — `application_detail` endpoint (`app/web/parent/applications.py`) now verifies `application.parent_id` matches the logged-in parent before returning data; IDOR attempts logged at WARNING level (PR #15)
+- [Security] Purchase page now validates form is published — `purchase_page` and `purchase_submit` in `app/web/parent/applications.py` redirect to `/schools?error=Form+not+available` (303) when `form.status != AdmissionFormStatus.active`, preventing access to draft or closed forms (PR #15)
 - [Security] HTML injection in password reset email fixed — `html.escape()` applied to `person_name` and `reset_link` before interpolation into the HTML body, preventing XSS via a malicious first name (PR #14)
 - [Security] Rate limiter now validates `X-Forwarded-For` against a `TRUSTED_PROXIES` env var (comma-separated IP/CIDR list; default empty = no proxy headers trusted) — prevents header spoofing to bypass rate limits (`app/middleware/rate_limit.py`) (PR #11)
 - [Security] `/metrics` endpoint now requires a `Bearer` token matching `METRICS_TOKEN` env var; returns 403 if absent or incorrect (PR #12)
@@ -49,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] Migrated all `db.query()` calls (SQLAlchemy 1.x style) to `select()` + `db.scalars()` / `db.scalar()` (SQLAlchemy 2.0) across 10 service files — `billing.py`, `auth_flow.py`, `auth.py`, `rbac.py`, `domain_settings.py` and 5 others (49 total occurrences) (PR #18)
+- [Changed] Deleted stale `app/services/query_utils.py` — migrated 8 service files (`audit.py`, `auth.py`, `billing.py`, `domain_settings.py`, `person.py`, `rbac.py`, `scheduler.py`, `scheduler_config.py`) to import `apply_ordering`, `apply_pagination`, and `validate_enum` from `app.services.common` (PR #16)
+- [Changed] Refactored `app/services/application.py` `initiate_purchase()` — extracted `_create_billing_records()` and `_init_paystack_or_dev()` as private helpers, reducing function body from ~125 lines to ~40 lines (PR #17)
 - SQLAlchemy 2.0 pattern in `main.py`: `db.query()` → `select()` + `db.scalars()`
 - Error responses now include `request_id` field for debugging
 
