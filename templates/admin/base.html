@@ -122,9 +122,9 @@ function notificationBell() {
             var token = this.getToken();
             if (!token) return;
             var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            var wsUrl = protocol + '//' + window.location.host + '/ws/notifications?token=' + token;
+            var wsUrl = protocol + '//' + window.location.host + '/ws/notifications';
             try {
-                this.ws = new WebSocket(wsUrl);
+                this.ws = new WebSocket(wsUrl, token);
                 this.ws.onmessage = function(event) {
                     try {
                         var data = JSON.parse(event.data);

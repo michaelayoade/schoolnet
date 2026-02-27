@@ -3,14 +3,14 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
 # ---- Injected at spawn time ----
-WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-1
+WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-5
 PROJECT_DIR=/home/dotmac/projects/schoolnet
-SCRIPT_DIR=/home/dotmac/.seabone/scripts
+SCRIPT_DIR=/home/dotmac/projects/schoolnet/scripts
 ACTIVE_FILE=/home/dotmac/projects/schoolnet/.seabone/active-tasks.json
-LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-1.log
-TASK_ID=fix-security-c1-1
-DESCRIPTION=In\ app/web/auth.py\ lines\ 61\ and\ 82\,\ the\ next\ URL\ parameter\ from\ the\ login\ form\ POST\ is\ passed\ directly\ to\ RedirectResponse\ without\ validation\,\ enabling\ open\ redirect\ to\ external\ domains.\ Fix:\ validate\ that\ next_url\ starts\ with\ \'/\'\ and\ does\ not\ contain\ \'://\'\ before\ using\ it\;\ default\ to\ \'/admin\'\ if\ invalid.\ Apply\ the\ same\ guard\ to\ any\ other\ redirect-after-login\ logic\ in\ app/main.py:342.
-BRANCH=agent/fix-security-c1-1
+LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-5.log
+TASK_ID=fix-security-c1-5
+DESCRIPTION=app/api/ws.py\ line\ 38:\ JWT\ access\ token\ is\ passed\ as\ a\ URL\ query\ parameter\ \(\?token=...\)\,\ appearing\ in\ server\ access\ logs\,\ browser\ history\,\ and\ Referer\ headers.\ Fix:\ accept\ the\ token\ via\ the\ Sec-WebSocket-Protocol\ subprotocol\ header\ instead\ \(client\ sends\ token\ as\ a\ subprotocol\ value\,\ server\ extracts\ and\ validates\ it\).\ If\ the\ existing\ JS\ client\ code\ passes\ the\ token\ as\ a\ query\ param\,\ update\ the\ client-side\ WebSocket\ constructor\ too.\ Remove\ the\ query\ param\ fallback\ entirely.
+BRANCH=agent/fix-security-c1-5
 ENGINE=codex
 MODEL=gpt-5.3-codex
 EVENT_LOG=/home/dotmac/projects/schoolnet/.seabone/logs/events.log
@@ -75,11 +75,13 @@ if [[ "$ENGINE" == "claude" ]]; then
 elif [[ "$ENGINE" == "claude-frontend" ]]; then
     echo "[RUN] Claude Frontend Design Specialist..."
 
+    # Load the frontend design system prompt
     FRONTEND_PROMPT=""
     if [[ -f "$PROMPTS_DIR/frontend-design.md" ]]; then
         FRONTEND_PROMPT=$(cat "$PROMPTS_DIR/frontend-design.md")
     fi
 
+    # Build the full prompt: system context + task
     FULL_TASK="$FRONTEND_PROMPT
 
 ---
@@ -139,6 +141,7 @@ elif [[ "$ENGINE" == "codex" ]]; then
 elif [[ "$ENGINE" == "codex-test" ]]; then
     echo "[RUN] Codex Testing Specialist..."
 
+    # Load the testing system prompt
     TEST_PROMPT=""
     if [[ -f "$PROMPTS_DIR/testing-agent.md" ]]; then
         TEST_PROMPT=$(cat "$PROMPTS_DIR/testing-agent.md")
@@ -181,15 +184,19 @@ ${DESCRIPTION}
 elif [[ "$ENGINE" == "codex-senior" ]]; then
     echo "[RUN] Codex Senior Dev (Escalation)..."
 
+    # Load the senior dev system prompt
     SENIOR_PROMPT=""
     if [[ -f "$PROMPTS_DIR/senior-dev.md" ]]; then
         SENIOR_PROMPT=$(cat "$PROMPTS_DIR/senior-dev.md")
     fi
 
+    # Check for previous agent logs to provide context
     PREV_LOG_CONTEXT=""
+    # Extract base task ID (strip -v2, -v3 suffixes for escalation lookups)
     BASE_TASK_ID=$(echo "$TASK_ID" | sed -E 's/-v[0-9]+$//')
     for prev_log in "$LOG_DIR/${BASE_TASK_ID}"*.log; do
         if [[ -f "$prev_log" && "$prev_log" != "$LOG_FILE" ]]; then
+            # Get last 80 lines of previous attempts
             PREV_LOG_CONTEXT="${PREV_LOG_CONTEXT}
 
 --- Previous attempt log: $(basename "$prev_log") ---

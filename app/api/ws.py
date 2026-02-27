@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
@@ -13,6 +14,17 @@ from app.services.websocket_manager import ws_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _token_from_subprotocol(websocket: WebSocket) -> str:
+    """Return the first WebSocket subprotocol value as bearer token."""
+    offered = websocket.scope.get("subprotocols")
+    if not isinstance(offered, list):
+        return ""
+    for value in offered:
+        if isinstance(value, str) and value:
+            return value
+    return ""
 
 
 def _authenticate_ws(token: str) -> str | None:
@@ -33,18 +45,16 @@ def _authenticate_ws(token: str) -> str | None:
 async def ws_notifications(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time notification push.
 
-    Authenticate via query param: /ws/notifications?token=<JWT>
+    Authenticate via Sec-WebSocket-Protocol subprotocol value.
     """
-    token = websocket.query_params.get("token", "")
+    token = _token_from_subprotocol(websocket)
     person_id_str = _authenticate_ws(token)
     if not person_id_str:
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
-    from uuid import UUID
-
     person_id = UUID(person_id_str)
-    await ws_manager.connect(person_id, websocket)
+    await ws_manager.connect(person_id, websocket, subprotocol=token)
     try:
         while True:
             # Keep connection alive; client can send pings

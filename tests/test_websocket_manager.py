@@ -36,6 +36,15 @@ class TestConnectionManager:
         ws.accept.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_connect_with_subprotocol(self, manager):
+        person_id = uuid.uuid4()
+        ws = _make_ws()
+        token = "header.jwt.token"
+        await manager.connect(person_id, ws, subprotocol=token)
+        assert manager.get_connection_count(person_id) == 1
+        ws.accept.assert_called_once_with(subprotocol=token)
+
+    @pytest.mark.asyncio
     async def test_disconnect(self, manager):
         person_id = uuid.uuid4()
         ws = _make_ws()
