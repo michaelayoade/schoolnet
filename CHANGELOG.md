@@ -26,7 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Security] Upgrade `cryptography` to `>=44.0.1` — resolves CVE-2024-12797 (TLS client certificate validation bypass) and several CVEs in the 42–43 range (PR #2)
 - [Security] Upgrade `jinja2` to `>=3.1.6` — resolves CVE-2024-56201 (sandbox escape via crafted filenames) and CVE-2024-56326 (sandbox bypass via `__init__` override) (PR #1)
 
+### Fixed
+- [Fixed] `S3Storage.exists()` now catches `botocore.ClientError` specifically — 404/NoSuchKey returns `False`; all other `ClientError` variants log a warning and re-raise so misconfigurations and permission errors surface (`app/services/storage.py`) (PR #20)
+- [Fixed] `send_email()` SMTP connection now wrapped in `try/finally` — `server.quit()` is always called even when the send fails, preventing connection leaks (`app/services/email.py`) (PR #20)
+
+### Removed
+- [Removed] Dead `ListResponseMixin` class removed — it was never referenced outside its own definition and provided an unimplemented abstract method; removed from `app/services/auth_flow.py` along with its import (PR #22)
+
 ### Added
+- [Added] Unit tests for `PaystackGateway` service — covers `create_subaccount`, `update_subaccount`, `initialize_transaction`, `verify_transaction`, `validate_webhook_signature`, and `is_configured` guard path (`tests/test_payment_gateway_service.py`) (PR #19)
+- [Added] Unit tests for `settings_seed` and `scheduler_config` modules (`tests/test_settings_seed.py`, `tests/test_scheduler_config.py`) — happy path, error cases, and mocked DB fixtures (PR #21)
 - Security headers middleware (CSP, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy)
 - CORS middleware with configurable origins via `CORS_ORIGINS` env var
 - Redis-backed sliding window rate limiting on auth endpoints (login, password-reset, MFA, register)
@@ -51,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] Refactored `seed_auth_settings()` in `app/services/settings_seed.py` — extracted 2–3 private setting-group builder helpers to reduce function body below 80 lines (PR #21)
+- [Changed] Applied `ruff format` cleanup across `app/` — eliminates remaining E501 line-length violations in `app/schemas/billing.py` and `app/services/application.py` (PR #22)
+- [Changed] Added `logger.debug()` call in `WebSocketManager.send_to_person()` on failed sends — outbound message failures are now traceable (`app/services/websocket_manager.py`) (PR #22)
 - [Changed] Migrated all `db.query()` calls (SQLAlchemy 1.x style) to `select()` + `db.scalars()` / `db.scalar()` (SQLAlchemy 2.0) across 10 service files — `billing.py`, `auth_flow.py`, `auth.py`, `rbac.py`, `domain_settings.py` and 5 others (49 total occurrences) (PR #18)
 - [Changed] Deleted stale `app/services/query_utils.py` — migrated 8 service files (`audit.py`, `auth.py`, `billing.py`, `domain_settings.py`, `person.py`, `rbac.py`, `scheduler.py`, `scheduler_config.py`) to import `apply_ordering`, `apply_pagination`, and `validate_enum` from `app.services.common` (PR #16)
 - [Changed] Refactored `app/services/application.py` `initiate_purchase()` — extracted `_create_billing_records()` and `_init_paystack_or_dev()` as private helpers, reducing function body from ~125 lines to ~40 lines (PR #17)
