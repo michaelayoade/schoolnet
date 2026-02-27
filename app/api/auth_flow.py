@@ -45,6 +45,7 @@ from app.services.auth_flow import (
 )
 from app.services.common import coerce_uuid
 from app.services.email import send_password_reset_email
+from app.services.registration import _validate_password_strength
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -431,6 +432,11 @@ def change_password(
 
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password must be different")
+
+    try:
+        _validate_password_strength(payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     now = datetime.now(UTC)
     credential.password_hash = hash_password(payload.new_password)

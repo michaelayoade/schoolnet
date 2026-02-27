@@ -3,14 +3,14 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
 # ---- Injected at spawn time ----
-WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-3
+WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-16
 PROJECT_DIR=/home/dotmac/projects/schoolnet
 SCRIPT_DIR=/home/dotmac/projects/schoolnet/scripts
 ACTIVE_FILE=/home/dotmac/projects/schoolnet/.seabone/active-tasks.json
-LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-3.log
-TASK_ID=fix-security-c1-3
-DESCRIPTION=app/middleware/rate_limit.py\ line\ 77:\ Rate\ limiter\ fails\ open\ when\ Redis\ is\ unavailable\,\ removing\ all\ brute-force\ protection\ from\ login/MFA/registration.\ Fix:\ add\ an\ in-memory\ sliding-window\ fallback\ using\ cachetools.TTLCache\ \(or\ equivalent\ stdlib\ collections.deque\)\ that\ enforces\ a\ conservative\ limit\ \(e.g.\ 5\ req/60s\ per\ IP\)\ when\ Redis\ raises\ ConnectionError.\ Add\ cachetools\ to\ pyproject.toml\ if\ not\ present.\ Test:\ verify\ that\ with\ Redis\ down\,\ the\ 6th\ request\ is\ rejected.
-BRANCH=agent/fix-security-c1-3
+LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-16.log
+TASK_ID=fix-security-c1-16
+DESCRIPTION=In\ app/api/auth_flow.py\,\ the\ change_password\ endpoint\ \(around\ line\ 436\)\ is\ missing\ a\ password\ strength\ check.\ Fix:\ import\ _validate_password_strength\ from\ app.services.registration\ and\ call\ it\ with\ payload.new_password\ after\ the\ \'current_password\ ==\ new_password\'\ guard\ but\ before\ calling\ hash_password\(\).\ If\ validation\ fails\,\ raise\ HTTPException\(status_code=400\,\ detail=\<validation\ error\ message\>\).\ Match\ the\ exact\ pattern\ used\ in\ register_parent\ and\ reset_password\ in\ app/services/registration.py.\ Run:\ make\ lint\ \&\&\ poetry\ run\ mypy\ app/api/auth_flow.py\ --ignore-missing-imports\ \&\&\ pytest\ tests/\ -x\ --tb=short\ -q
+BRANCH=agent/fix-security-c1-16
 ENGINE=codex
 MODEL=gpt-5.3-codex
 EVENT_LOG=/home/dotmac/projects/schoolnet/.seabone/logs/events.log
