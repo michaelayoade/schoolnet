@@ -3,14 +3,14 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
 # ---- Injected at spawn time ----
-WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-3
+WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-17
 PROJECT_DIR=/home/dotmac/projects/schoolnet
 SCRIPT_DIR=/home/dotmac/projects/schoolnet/scripts
 ACTIVE_FILE=/home/dotmac/projects/schoolnet/.seabone/active-tasks.json
-LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-3.log
-TASK_ID=fix-security-c1-3
-DESCRIPTION=app/middleware/rate_limit.py\ line\ 77:\ Rate\ limiter\ fails\ open\ when\ Redis\ is\ unavailable\,\ removing\ all\ brute-force\ protection\ from\ login/MFA/registration.\ Fix:\ add\ an\ in-memory\ sliding-window\ fallback\ using\ cachetools.TTLCache\ \(or\ equivalent\ stdlib\ collections.deque\)\ that\ enforces\ a\ conservative\ limit\ \(e.g.\ 5\ req/60s\ per\ IP\)\ when\ Redis\ raises\ ConnectionError.\ Add\ cachetools\ to\ pyproject.toml\ if\ not\ present.\ Test:\ verify\ that\ with\ Redis\ down\,\ the\ 6th\ request\ is\ rejected.
-BRANCH=agent/fix-security-c1-3
+LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-17.log
+TASK_ID=fix-security-c1-17
+DESCRIPTION=Fix\ cookie\ secure\ flag\ —\ two\ related\ issues\ bundled\ together:\ \(1\)\ app/services/auth_flow.py\ _refresh_cookie_secure\(\)\ function\ \(around\ line\ 154\):\ it\ currently\ always\ returns\ False.\ Fix\ it\ to\ read\ the\ REFRESH_COOKIE_SECURE\ environment\ variable\ \(import\ os\)\ and\ return\ True\ when\ the\ value\ is\ \'true\'\,\ \'1\'\,\ or\ \'yes\'\ \(case-insensitive\).\ \(2\)\ app/web/auth.py\ login_submit\ \(around\ line\ 85\)\ AND\ app/web/public.py\ login_submit\ \(around\ line\ 243\):\ both\ set\ access_token\ and\ refresh_token\ cookies\ via\ response.set_cookie\(\)\ with\ no\ \'secure\'\ kwarg\ at\ all.\ Import\ _refresh_cookie_secure\ from\ app.services.auth_flow\ and\ pass\ secure=_refresh_cookie_secure\(db\)\ to\ each\ set_cookie\(\)\ call\ for\ both\ cookies\ in\ both\ files.\ Read\ the\ model\ files\ first\ to\ confirm\ exact\ line\ numbers.\ Run:\ make\ lint\ \&\&\ poetry\ run\ mypy\ app/web/auth.py\ app/web/public.py\ app/services/auth_flow.py\ --ignore-missing-imports\ \&\&\ pytest\ tests/\ -x\ --tb=short\ -q
+BRANCH=agent/fix-security-c1-17
 ENGINE=codex
 MODEL=gpt-5.3-codex
 EVENT_LOG=/home/dotmac/projects/schoolnet/.seabone/logs/events.log

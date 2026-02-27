@@ -145,12 +145,12 @@ def _refresh_cookie_name(db: Session | None) -> str:
 
 
 def _refresh_cookie_secure(db: Session | None) -> bool:
-    env_value = _env_value("REFRESH_COOKIE_SECURE")
+    env_value = os.getenv("REFRESH_COOKIE_SECURE")
     if env_value is not None:
-        return env_value.lower() in {"1", "true", "yes", "on"}
+        return env_value.strip().lower() in {"1", "true", "yes"}
     value = _setting_value(db, "refresh_cookie_secure")
     if value is not None:
-        return str(value).lower() in {"1", "true", "yes", "on"}
+        return str(value).strip().lower() in {"1", "true", "yes"}
     return False
 
 
