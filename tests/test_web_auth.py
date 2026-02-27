@@ -1,5 +1,4 @@
 """Tests for web authentication routes."""
-import pytest
 
 
 class TestWebAuth:
@@ -44,6 +43,44 @@ class TestWebAuth:
         assert response.status_code == 200
         assert b"Invalid" in response.content or b"required" in response.content
 
+    def test_login_success_redirects_to_safe_next(self, client, user_credential):
+        resp = client.get("/admin/login")
+        csrf_token = resp.cookies.get("csrf_token", "")
+
+        response = client.post(
+            "/admin/login",
+            data={
+                "username": user_credential.username,
+                "password": "testpassword123",
+                "next": "/admin/people",
+                "csrf_token": csrf_token,
+            },
+            headers={"X-CSRF-Token": csrf_token},
+            cookies={"csrf_token": csrf_token},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.headers.get("location") == "/admin/people"
+
+    def test_login_success_rejects_external_next(self, client, user_credential):
+        resp = client.get("/admin/login")
+        csrf_token = resp.cookies.get("csrf_token", "")
+
+        response = client.post(
+            "/admin/login",
+            data={
+                "username": user_credential.username,
+                "password": "testpassword123",
+                "next": "https://evil.example",
+                "csrf_token": csrf_token,
+            },
+            headers={"X-CSRF-Token": csrf_token},
+            cookies={"csrf_token": csrf_token},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.headers.get("location") == "/admin"
+
     def test_logout_clears_cookies(self, client):
         response = client.get("/admin/logout", follow_redirects=False)
         assert response.status_code == 302
@@ -64,3 +101,19 @@ class TestWebAuth:
         )
         # Should succeed or redirect to /admin/ (trailing slash normalization)
         assert response.status_code in (200, 307)
+
+    def test_admin_redirect_handler_rejects_external_next_url(self, client):
+        from app.main import app
+        from app.web.deps import WebAuthRedirect, require_web_auth
+
+        def override_require_web_auth():
+            raise WebAuthRedirect(next_url="https://evil.example")
+
+        app.dependency_overrides[require_web_auth] = override_require_web_auth
+        try:
+            response = client.get("/admin", follow_redirects=False)
+        finally:
+            app.dependency_overrides.pop(require_web_auth, None)
+
+        assert response.status_code == 302
+        assert response.headers.get("location") == "/admin/login?next=/admin"

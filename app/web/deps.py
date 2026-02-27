@@ -25,6 +25,14 @@ class WebAuthRedirect(HTTPException):
         super().__init__(status_code=302, detail="Not authenticated")
 
 
+def sanitize_next_url(next_url: str | None, default: str = "/admin") -> str:
+    """Allow only local path redirects, fallback to default otherwise."""
+    candidate = str(next_url or "").strip()
+    if candidate.startswith("/") and "://" not in candidate:
+        return candidate
+    return default
+
+
 def _make_aware(dt: datetime) -> datetime:
     if dt is None:
         return None  # type: ignore[return-value]
