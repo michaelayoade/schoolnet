@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, require_user_auth
 from app.schemas.common import ListResponse
 from app.schemas.notification import (
+    MarkedReadResponse,
     NotificationCreate,
     NotificationRead,
     UnreadCountResponse,
@@ -74,13 +75,17 @@ def mark_notification_read(
     return NotificationRead.model_validate(record)
 
 
-@router.post("/me/read-all", status_code=status.HTTP_200_OK)
+@router.post(
+    "/me/read-all",
+    response_model=MarkedReadResponse,
+    status_code=status.HTTP_200_OK,
+)
 def mark_all_read(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_user_auth),
-) -> dict[str, int]:
+) -> MarkedReadResponse:
     person_id = UUID(auth["person_id"])
     svc = NotificationService(db)
     count = svc.mark_all_read(person_id)
     db.commit()
-    return {"marked_read": count}
+    return MarkedReadResponse(marked_read=count)

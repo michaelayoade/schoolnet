@@ -12,6 +12,7 @@ from app.schemas.school import (
     ApplicationReview,
     ApplicationSubmit,
     PurchaseInitiate,
+    PurchaseResponse,
 )
 from app.services.application import ApplicationService
 from app.services.common import require_uuid
@@ -20,12 +21,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/applications", tags=["applications"])
 
 
-@router.post("/purchase", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/purchase",
+    response_model=PurchaseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def purchase_form(
     payload: PurchaseInitiate,
     db: Session = Depends(get_db),
     auth: dict = Depends(require_user_auth),
-) -> dict:
+) -> PurchaseResponse:
     svc = ApplicationService(db)
     result = svc.initiate_purchase(
         parent_id=require_uuid(auth["person_id"]),
@@ -33,7 +38,21 @@ def purchase_form(
         callback_url=payload.callback_url or "/parent/applications",
     )
     db.commit()
-    return result
+    checkout_url = result.get("checkout_url") or result.get("authorization_url") or ""
+    application_id = result.get("application_id")
+    if application_id is None and checkout_url:
+        maybe_id = checkout_url.rsplit("/", 1)[-1].split("?", 1)[0]
+        try:
+            application_id = UUID(maybe_id)
+        except ValueError:
+            application_id = None
+    if application_id is None:
+        application_id = require_uuid(result.get("invoice_id"))
+    return PurchaseResponse(
+        checkout_url=checkout_url,
+        reference=result["reference"],
+        application_id=require_uuid(application_id),
+    )
 
 
 @router.get("/my", response_model=list[ApplicationRead])

@@ -239,3 +239,9 @@ class SchoolDashboardStats(BaseModel):
 class PurchaseInitiate(BaseModel):
     admission_form_id: UUID
     callback_url: str | None = None
+
+
+class PurchaseResponse(BaseModel):
+    checkout_url: str
+    reference: str
+    application_id: UUID

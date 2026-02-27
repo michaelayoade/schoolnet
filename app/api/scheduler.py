@@ -7,6 +7,8 @@ from app.schemas.scheduler import (
     ScheduledTaskCreate,
     ScheduledTaskRead,
     ScheduledTaskUpdate,
+    ScheduleRefreshResponse,
+    TaskEnqueueResponse,
 )
 from app.services import scheduler as scheduler_service
 
@@ -55,14 +57,26 @@ def delete_scheduled_task(task_id: str, db: Session = Depends(get_db)):
     scheduler_service.scheduled_tasks.delete(db, task_id)
 
 
-@router.post("/tasks/refresh", status_code=status.HTTP_200_OK)
-def refresh_schedule():
-    return scheduler_service.refresh_schedule()
+@router.post(
+    "/tasks/refresh",
+    response_model=ScheduleRefreshResponse,
+    status_code=status.HTTP_200_OK,
+)
+def refresh_schedule() -> ScheduleRefreshResponse:
+    return ScheduleRefreshResponse.model_validate(scheduler_service.refresh_schedule())
 
 
-@router.post("/tasks/{task_id}/enqueue", status_code=status.HTTP_202_ACCEPTED)
-def enqueue_scheduled_task(task_id: str, db: Session = Depends(get_db)):
+@router.post(
+    "/tasks/{task_id}/enqueue",
+    response_model=TaskEnqueueResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def enqueue_scheduled_task(
+    task_id: str, db: Session = Depends(get_db)
+) -> TaskEnqueueResponse:
     task = scheduler_service.scheduled_tasks.get(db, task_id)
-    return scheduler_service.enqueue_task(
-        task.task_name, task.args_json or [], task.kwargs_json or {}
+    return TaskEnqueueResponse.model_validate(
+        scheduler_service.enqueue_task(
+            task.task_name, task.args_json or [], task.kwargs_json or {}
+        )
     )

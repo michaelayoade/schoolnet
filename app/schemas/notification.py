@@ -37,3 +37,7 @@ class NotificationRead(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     count: int
+
+
+class MarkedReadResponse(BaseModel):
+    marked_read: int

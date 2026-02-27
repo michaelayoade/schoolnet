@@ -37,3 +37,12 @@ class ScheduledTaskRead(ScheduledTaskBase):
     last_run_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class ScheduleRefreshResponse(BaseModel):
+    detail: str
+
+
+class TaskEnqueueResponse(BaseModel):
+    queued: bool
+    task_id: str
