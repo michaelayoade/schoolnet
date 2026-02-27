@@ -21,14 +21,14 @@ class UserCredentialBase(BaseModel):
 
 
 class UserCredentialCreate(UserCredentialBase):
-    password_hash: str | None = Field(default=None, max_length=255)
+    password: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class UserCredentialUpdate(BaseModel):
     person_id: UUID | None = None
     provider: AuthProvider | None = None
     username: str | None = Field(default=None, max_length=150)
-    password_hash: str | None = Field(default=None, max_length=255)
+    password: str | None = Field(default=None, min_length=1, max_length=255)
     must_change_password: bool | None = None
     password_updated_at: datetime | None = None
     failed_login_attempts: int | None = None

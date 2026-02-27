@@ -11,7 +11,7 @@ from app.schemas.auth import (
     UserCredentialCreate,
 )
 from app.services import auth as auth_service
-from app.services.auth_flow import hash_password
+from app.services.auth_flow import verify_password
 
 
 class _FakeRedis:
@@ -27,12 +27,16 @@ class _FakeRedis:
 
 
 def test_user_credentials_soft_delete(db_session, person):
+    raw_password = "secret"
     payload = UserCredentialCreate(
         person_id=person.id,
         username="user@example.com",
-        password_hash=hash_password("secret"),
+        password=raw_password,
     )
     credential = auth_service.user_credentials.create(db_session, payload)
+    assert credential.password_hash is not None
+    assert verify_password(raw_password, credential.password_hash)
+    assert credential.password_hash != raw_password
     active = auth_service.user_credentials.list(
         db_session,
         person_id=str(person.id),

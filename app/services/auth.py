@@ -34,6 +34,7 @@ from app.schemas.auth import (
     UserCredentialUpdate,
 )
 from app.services import settings_spec
+from app.services.auth_flow import hash_password
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
 from app.services.response import ListResponseMixin
@@ -101,6 +102,9 @@ class UserCredentials(ListResponseMixin):
     def create(db: Session, payload: UserCredentialCreate):
         _ensure_person(db, str(payload.person_id))
         data = payload.model_dump()
+        password = data.pop("password", None)
+        if password is not None:
+            data["password_hash"] = hash_password(password)
         fields_set = payload.model_fields_set
         if "provider" not in fields_set:
             default_provider = settings_spec.resolve_value(
@@ -164,6 +168,11 @@ class UserCredentials(ListResponseMixin):
         if not credential:
             raise HTTPException(status_code=404, detail="User credential not found")
         data = payload.model_dump(exclude_unset=True)
+        if "password" in data:
+            password = data.pop("password")
+            data["password_hash"] = (
+                hash_password(password) if password is not None else None
+            )
         if "person_id" in data:
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
