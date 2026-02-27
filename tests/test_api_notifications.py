@@ -7,7 +7,7 @@ from app.models.notification import Notification, NotificationType
 
 
 class TestNotificationAPI:
-    def test_create_notification(self, client, auth_headers, person):
+    def test_create_notification_forbidden_for_non_admin(self, client, auth_headers, person):
         payload = {
             "recipient_id": str(person.id),
             "title": "API Test",
@@ -16,6 +16,18 @@ class TestNotificationAPI:
         }
         response = client.post(
             "/notifications", json=payload, headers=auth_headers
+        )
+        assert response.status_code == 403
+
+    def test_create_notification_as_admin(self, client, admin_headers, person):
+        payload = {
+            "recipient_id": str(person.id),
+            "title": "API Test",
+            "message": "Test message",
+            "type": "info",
+        }
+        response = client.post(
+            "/notifications", json=payload, headers=admin_headers
         )
         assert response.status_code == 201
         data = response.json()

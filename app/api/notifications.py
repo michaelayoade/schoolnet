@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_user_auth
+from app.api.deps import get_db, require_role, require_user_auth
 from app.schemas.common import ListResponse
 from app.schemas.notification import (
     NotificationCreate,
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 def create_notification(
     payload: NotificationCreate,
     db: Session = Depends(get_db),
+    _auth: dict = Depends(require_role("admin")),
 ) -> NotificationRead:
     svc = NotificationService(db)
     record = svc.create(payload)
