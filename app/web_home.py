@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -12,8 +14,17 @@ from app.services.branding_context import (
     load_branding_context,
 )
 from app.templates import templates
+from app.web.deps import require_web_auth
 
 router = APIRouter()
+_DANGEROUS_CSS_RE = re.compile(r"(?i)</style>|<script")
+
+
+def _sanitize_custom_css(value: object) -> str | None:
+    if value is None:
+        return None
+    css = str(value)
+    return _DANGEROUS_CSS_RE.sub("", css)
 
 
 @router.get("/", tags=["web"], response_class=HTMLResponse)
@@ -63,7 +74,11 @@ def home(
 
 
 @router.get("/settings/branding", tags=["web"], response_class=HTMLResponse)
-def branding_settings(request: Request, db: Session = Depends(get_db)):
+def branding_settings(
+    request: Request,
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(require_web_auth),
+):
     branding_ctx = load_branding_context(db)
     return templates.TemplateResponse(
         "branding.html",
@@ -78,7 +93,11 @@ def branding_settings(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/settings/branding", tags=["web"], response_class=HTMLResponse)
-async def branding_settings_update(request: Request, db: Session = Depends(get_db)):
+async def branding_settings_update(
+    request: Request,
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(require_web_auth),
+):
     form = await request.form()
     data = dict(form)
     branding_ctx = load_branding_context(db)
@@ -119,7 +138,7 @@ async def branding_settings_update(request: Request, db: Session = Depends(get_d
         "accent_color": data.get("accent_color"),
         "font_family_display": data.get("font_family_display"),
         "font_family_body": data.get("font_family_body"),
-        "custom_css": data.get("custom_css"),
+        "custom_css": _sanitize_custom_css(data.get("custom_css")),
         "logo_url": data.get("logo_url", branding.get("logo_url")),
         "logo_dark_url": data.get("logo_dark_url", branding.get("logo_dark_url")),
     }
