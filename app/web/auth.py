@@ -71,7 +71,13 @@ async def login_submit(
     try:
         result = AuthFlow.login(db, username, password, request, None)
     except HTTPException:
+        db.commit()
         return _login_error(request, db, "Invalid username or password", next_url)
+    except Exception:
+        db.rollback()
+        raise
+
+    db.commit()
 
     if result.get("mfa_required"):
         return _login_error(request, db, "MFA is not yet supported in web login", next_url)

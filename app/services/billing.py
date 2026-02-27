@@ -68,7 +68,7 @@ class Products(ListResponseMixin):
     def create(db: Session, payload: ProductCreate) -> Product:
         item = Product(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Product: %s", item.id)
         return item
@@ -109,7 +109,7 @@ class Products(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Product not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Product.__name__, item.id)
         return item
@@ -120,7 +120,7 @@ class Products(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Product not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", Product.__name__, item.id)
 
@@ -135,7 +135,7 @@ class Prices(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Product not found")
         item = Price(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Price: %s", item.id)
         return item
@@ -185,7 +185,7 @@ class Prices(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Price not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Price.__name__, item.id)
         return item
@@ -196,7 +196,7 @@ class Prices(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Price not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", Price.__name__, item.id)
 
@@ -209,7 +209,7 @@ class Customers(ListResponseMixin):
     def create(db: Session, payload: CustomerCreate) -> Customer:
         item = Customer(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Customer: %s", item.id)
         return item
@@ -256,7 +256,7 @@ class Customers(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Customer not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Customer.__name__, item.id)
         return item
@@ -267,7 +267,7 @@ class Customers(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Customer not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", Customer.__name__, item.id)
 
@@ -282,7 +282,7 @@ class Subscriptions(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Customer not found")
         item = Subscription(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Subscription: %s", item.id)
         return item
@@ -332,7 +332,7 @@ class Subscriptions(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Subscription not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Subscription.__name__, item.id)
         return item
@@ -343,7 +343,7 @@ class Subscriptions(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Subscription not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", Subscription.__name__, item.id)
 
@@ -360,7 +360,7 @@ class SubscriptionItems(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Price not found")
         item = SubscriptionItem(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created SubscriptionItem: %s", item.id)
         return item
@@ -408,7 +408,7 @@ class SubscriptionItems(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Subscription item not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", SubscriptionItem.__name__, item.id)
         return item
@@ -419,7 +419,7 @@ class SubscriptionItems(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Subscription item not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", SubscriptionItem.__name__, item.id)
 
@@ -438,7 +438,7 @@ class Invoices(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Subscription not found")
         item = Invoice(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Invoice: %s", item.id)
         return item
@@ -489,7 +489,7 @@ class Invoices(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Invoice not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Invoice.__name__, item.id)
         return item
@@ -500,7 +500,7 @@ class Invoices(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Invoice not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", Invoice.__name__, item.id)
 
@@ -523,7 +523,7 @@ class InvoiceItems(ListResponseMixin):
             )
         item = InvoiceItem(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created InvoiceItem: %s", item.id)
         return item
@@ -564,7 +564,7 @@ class InvoiceItems(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Invoice item not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", InvoiceItem.__name__, item.id)
         return item
@@ -575,7 +575,7 @@ class InvoiceItems(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Invoice item not found")
         db.delete(item)
-        db.commit()
+        db.flush()
         logger.info("Deleted %s: %s", InvoiceItem.__name__, item_id)
 
 
@@ -589,7 +589,7 @@ class PaymentMethods(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Customer not found")
         item = PaymentMethod(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created PaymentMethod: %s", item.id)
         return item
@@ -640,7 +640,7 @@ class PaymentMethods(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Payment method not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", PaymentMethod.__name__, item.id)
         return item
@@ -651,7 +651,7 @@ class PaymentMethods(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Payment method not found")
         item.is_active = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted %s: %s", PaymentMethod.__name__, item.id)
 
@@ -674,7 +674,7 @@ class PaymentIntents(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Payment method not found")
         item = PaymentIntent(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created PaymentIntent: %s", item.id)
         return item
@@ -726,7 +726,7 @@ class PaymentIntents(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Payment intent not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", PaymentIntent.__name__, item.id)
         return item
@@ -744,7 +744,7 @@ class UsageRecords(ListResponseMixin):
             )
         item = UsageRecord(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created UsageRecord: %s", item.id)
         return item
@@ -792,7 +792,7 @@ class Coupons(ListResponseMixin):
     def create(db: Session, payload: CouponCreate) -> Coupon:
         item = Coupon(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Coupon: %s", item.id)
         return item
@@ -836,7 +836,7 @@ class Coupons(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Coupon not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Coupon.__name__, item.id)
         return item
@@ -847,7 +847,7 @@ class Coupons(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Coupon not found")
         item.valid = False
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Soft-deleted Coupon: %s", item.id)
 
@@ -870,7 +870,7 @@ class Discounts(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Subscription not found")
         item = Discount(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Discount: %s", item.id)
         return item
@@ -918,7 +918,7 @@ class Discounts(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Discount not found")
         db.delete(item)
-        db.commit()
+        db.flush()
         logger.info("Deleted %s: %s", Discount.__name__, item_id)
 
 
@@ -932,7 +932,7 @@ class Entitlements(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Product not found")
         item = Entitlement(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created Entitlement: %s", item.id)
         return item
@@ -976,7 +976,7 @@ class Entitlements(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Entitlement not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Entitlement.__name__, item.id)
         return item
@@ -987,7 +987,7 @@ class Entitlements(ListResponseMixin):
         if not item:
             raise HTTPException(status_code=404, detail="Entitlement not found")
         db.delete(item)
-        db.commit()
+        db.flush()
         logger.info("Deleted %s: %s", Entitlement.__name__, item_id)
 
 
@@ -999,7 +999,7 @@ class WebhookEvents(ListResponseMixin):
     def create(db: Session, payload: WebhookEventCreate) -> WebhookEvent:
         item = WebhookEvent(**payload.model_dump())
         db.add(item)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Created WebhookEvent: %s", item.id)
         return item
@@ -1049,7 +1049,7 @@ class WebhookEvents(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Webhook event not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
-        db.commit()
+        db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", WebhookEvent.__name__, item.id)
         return item

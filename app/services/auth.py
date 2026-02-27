@@ -112,7 +112,7 @@ class UserCredentials(ListResponseMixin):
                 )
         credential = UserCredential(**data)
         db.add(credential)
-        db.commit()
+        db.flush()
         db.refresh(credential)
         return credential
 
@@ -168,7 +168,7 @@ class UserCredentials(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
             setattr(credential, key, value)
-        db.commit()
+        db.flush()
         db.refresh(credential)
         return credential
 
@@ -178,7 +178,7 @@ class UserCredentials(ListResponseMixin):
         if not credential:
             raise HTTPException(status_code=404, detail="User credential not found")
         credential.is_active = False
-        db.commit()
+        db.flush()
 
 
 class MFAMethods(ListResponseMixin):
@@ -193,7 +193,7 @@ class MFAMethods(ListResponseMixin):
         method = MFAMethod(**payload.model_dump())
         db.add(method)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -269,7 +269,7 @@ class MFAMethods(ListResponseMixin):
         for key, value in data.items():
             setattr(method, key, value)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -287,7 +287,7 @@ class MFAMethods(ListResponseMixin):
         method.is_active = False
         method.enabled = False
         method.is_primary = False
-        db.commit()
+        db.flush()
 
 
 class Sessions(ListResponseMixin):
@@ -297,7 +297,7 @@ class Sessions(ListResponseMixin):
         data = payload.model_dump()
         session = AuthSession(**data)
         db.add(session)
-        db.commit()
+        db.flush()
         db.refresh(session)
         return session
 
@@ -348,7 +348,7 @@ class Sessions(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
             setattr(session, key, value)
-        db.commit()
+        db.flush()
         db.refresh(session)
         return session
 
@@ -359,7 +359,7 @@ class Sessions(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Session not found")
         session.status = SessionStatus.revoked
         session.revoked_at = datetime.now(UTC)
-        db.commit()
+        db.flush()
 
 
 class ApiKeys(ListResponseMixin):
@@ -406,7 +406,7 @@ class ApiKeys(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         api_key = ApiKey(**data)
         db.add(api_key)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key, raw_key
 
@@ -418,7 +418,7 @@ class ApiKeys(ListResponseMixin):
         data["key_hash"] = hash_api_key(data["key_hash"])
         api_key = ApiKey(**data)
         db.add(api_key)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key
 
@@ -466,7 +466,7 @@ class ApiKeys(ListResponseMixin):
             data["key_hash"] = hash_api_key(data["key_hash"])
         for key, value in data.items():
             setattr(api_key, key, value)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key
 
@@ -477,7 +477,7 @@ class ApiKeys(ListResponseMixin):
             raise HTTPException(status_code=404, detail="API key not found")
         api_key.is_active = False
         api_key.revoked_at = datetime.now(UTC)
-        db.commit()
+        db.flush()
 
     @staticmethod
     def revoke(db: Session, key_id: str):

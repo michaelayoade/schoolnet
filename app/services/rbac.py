@@ -23,7 +23,7 @@ class Roles(ListResponseMixin):
     def create(db: Session, payload: RoleCreate):
         role = Role(**payload.model_dump())
         db.add(role)
-        db.commit()
+        db.flush()
         db.refresh(role)
         return role
 
@@ -63,7 +63,7 @@ class Roles(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Role not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(role, key, value)
-        db.commit()
+        db.flush()
         db.refresh(role)
         return role
 
@@ -73,7 +73,7 @@ class Roles(ListResponseMixin):
         if not role:
             raise HTTPException(status_code=404, detail="Role not found")
         role.is_active = False
-        db.commit()
+        db.flush()
 
 
 class Permissions(ListResponseMixin):
@@ -81,7 +81,7 @@ class Permissions(ListResponseMixin):
     def create(db: Session, payload: PermissionCreate):
         permission = Permission(**payload.model_dump())
         db.add(permission)
-        db.commit()
+        db.flush()
         db.refresh(permission)
         return permission
 
@@ -121,7 +121,7 @@ class Permissions(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Permission not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(permission, key, value)
-        db.commit()
+        db.flush()
         db.refresh(permission)
         return permission
 
@@ -131,7 +131,7 @@ class Permissions(ListResponseMixin):
         if not permission:
             raise HTTPException(status_code=404, detail="Permission not found")
         permission.is_active = False
-        db.commit()
+        db.flush()
 
 
 class RolePermissions(ListResponseMixin):
@@ -145,7 +145,7 @@ class RolePermissions(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Permission not found")
         link = RolePermission(**payload.model_dump())
         db.add(link)
-        db.commit()
+        db.flush()
         db.refresh(link)
         return link
 
@@ -195,7 +195,7 @@ class RolePermissions(ListResponseMixin):
                 raise HTTPException(status_code=404, detail="Permission not found")
         for key, value in data.items():
             setattr(link, key, value)
-        db.commit()
+        db.flush()
         db.refresh(link)
         return link
 
@@ -205,7 +205,7 @@ class RolePermissions(ListResponseMixin):
         if not link:
             raise HTTPException(status_code=404, detail="Role permission not found")
         db.delete(link)
-        db.commit()
+        db.flush()
 
 
 class PersonRoles(ListResponseMixin):
@@ -219,7 +219,7 @@ class PersonRoles(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Role not found")
         link = PersonRole(**payload.model_dump())
         db.add(link)
-        db.commit()
+        db.flush()
         db.refresh(link)
         return link
 
@@ -269,7 +269,7 @@ class PersonRoles(ListResponseMixin):
                 raise HTTPException(status_code=404, detail="Role not found")
         for key, value in data.items():
             setattr(link, key, value)
-        db.commit()
+        db.flush()
         db.refresh(link)
         return link
 
@@ -279,7 +279,7 @@ class PersonRoles(ListResponseMixin):
         if not link:
             raise HTTPException(status_code=404, detail="Person role not found")
         db.delete(link)
-        db.commit()
+        db.flush()
 
 
 roles = Roles()

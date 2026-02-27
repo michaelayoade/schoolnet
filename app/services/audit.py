@@ -29,7 +29,7 @@ class AuditEvents(ListResponseMixin):
             data.pop("occurred_at", None)
         event = AuditEvent(**data)
         db.add(event)
-        db.commit()
+        db.flush()
         db.refresh(event)
         return event
 
@@ -122,7 +122,7 @@ class AuditEvents(ListResponseMixin):
         )
         event = AuditEvent(**payload.model_dump())
         db.add(event)
-        db.commit()
+        db.flush()
 
     @staticmethod
     def delete(db: Session, event_id: str):
@@ -130,7 +130,7 @@ class AuditEvents(ListResponseMixin):
         if not event:
             raise HTTPException(status_code=404, detail="Audit event not found")
         event.is_active = False
-        db.commit()
+        db.flush()
 
 
 audit_events = AuditEvents()

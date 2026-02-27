@@ -13,7 +13,7 @@ class People(ListResponseMixin):
     def create(db: Session, payload: PersonCreate):
         person = Person(**payload.model_dump())
         db.add(person)
-        db.commit()
+        db.flush()
         db.refresh(person)
         return person
 
@@ -63,7 +63,7 @@ class People(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Person not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(person, key, value)
-        db.commit()
+        db.flush()
         db.refresh(person)
         return person
 
@@ -73,7 +73,7 @@ class People(ListResponseMixin):
         if not person:
             raise HTTPException(status_code=404, detail="Person not found")
         db.delete(person)
-        db.commit()
+        db.flush()
 
 
 people = People()

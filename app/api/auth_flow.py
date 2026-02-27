@@ -71,9 +71,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     },
 )
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.login_response(
-        db, payload.username, payload.password, request, payload.provider
-    )
+    try:
+        result = auth_flow_service.auth_flow.login_response(
+            db, payload.username, payload.password, request, payload.provider
+        )
+        db.commit()
+        return result
+    except HTTPException:
+        # Persist failed-attempt counters/locks updated before auth errors.
+        db.commit()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post(
@@ -92,9 +102,13 @@ def mfa_setup(
 ):
     if str(payload.person_id) != auth["person_id"]:
         raise HTTPException(status_code=403, detail="Forbidden")
-    return auth_flow_service.auth_flow.mfa_setup(
-        db, auth["person_id"], payload.label
-    )
+    try:
+        result = auth_flow_service.auth_flow.mfa_setup(db, auth["person_id"], payload.label)
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post(
@@ -112,9 +126,15 @@ def mfa_confirm(
     auth: dict = Depends(require_user_auth),
     db: Session = Depends(get_db),
 ):
-    return auth_flow_service.auth_flow.mfa_confirm(
-        db, str(payload.method_id), payload.code, auth["person_id"]
-    )
+    try:
+        result = auth_flow_service.auth_flow.mfa_confirm(
+            db, str(payload.method_id), payload.code, auth["person_id"]
+        )
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post(
@@ -127,9 +147,15 @@ def mfa_confirm(
     },
 )
 def mfa_verify(payload: MfaVerifyRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.mfa_verify_response(
-        db, payload.mfa_token, payload.code, request
-    )
+    try:
+        result = auth_flow_service.auth_flow.mfa_verify_response(
+            db, payload.mfa_token, payload.code, request
+        )
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post(
@@ -141,9 +167,19 @@ def mfa_verify(payload: MfaVerifyRequest, request: Request, db: Session = Depend
     },
 )
 def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.refresh_response(
-        db, payload.refresh_token, request
-    )
+    try:
+        result = auth_flow_service.auth_flow.refresh_response(
+            db, payload.refresh_token, request
+        )
+        db.commit()
+        return result
+    except HTTPException:
+        # Persist reuse/expiry revocations before returning auth errors.
+        db.commit()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post(
@@ -155,9 +191,15 @@ def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get
     },
 )
 def logout(payload: LogoutRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.logout_response(
-        db, payload.refresh_token, request
-    )
+    try:
+        result = auth_flow_service.auth_flow.logout_response(
+            db, payload.refresh_token, request
+        )
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.get(
@@ -484,5 +526,10 @@ def reset_password_endpoint(
     """
     Reset password using the token from forgot-password email.
     """
-    reset_at = reset_password(db, payload.token, payload.new_password)
-    return ResetPasswordResponse(reset_at=reset_at)
+    try:
+        reset_at = reset_password(db, payload.token, payload.new_password)
+        db.commit()
+        return ResetPasswordResponse(reset_at=reset_at)
+    except Exception:
+        db.rollback()
+        raise

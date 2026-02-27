@@ -451,7 +451,7 @@ class AuthFlow(ListResponseMixin):
             credential.failed_login_attempts += 1
             if credential.failed_login_attempts >= 5:
                 credential.locked_until = now + timedelta(minutes=15)
-            db.commit()
+            db.flush()
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         if credential.must_change_password:
@@ -466,7 +466,7 @@ class AuthFlow(ListResponseMixin):
         credential.failed_login_attempts = 0
         credential.locked_until = None
         credential.last_login_at = now
-        db.commit()
+        db.flush()
 
         if _primary_totp_method(db, str(credential.person_id)):
             return {
@@ -500,7 +500,7 @@ class AuthFlow(ListResponseMixin):
             is_primary=False,
         )
         db.add(method)
-        db.commit()
+        db.flush()
         db.refresh(method)
 
         totp = pyotp.TOTP(secret)
@@ -542,7 +542,7 @@ class AuthFlow(ListResponseMixin):
         method.is_active = True
         method.verified_at = _now()
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -569,7 +569,7 @@ class AuthFlow(ListResponseMixin):
             raise HTTPException(status_code=401, detail="Invalid MFA code")
 
         method.last_used_at = _now()
-        db.commit()
+        db.flush()
         return AuthFlow._issue_tokens(db, person_id, request)
 
     @staticmethod
@@ -600,7 +600,7 @@ class AuthFlow(ListResponseMixin):
             if reused:
                 reused.status = SessionStatus.revoked
                 reused.revoked_at = _now()
-                db.commit()
+                db.flush()
                 raise HTTPException(
                     status_code=401,
                     detail="Refresh token reuse detected",
@@ -609,7 +609,7 @@ class AuthFlow(ListResponseMixin):
         expires_at = _as_utc(session.expires_at)
         if expires_at and expires_at <= _now():
             session.status = SessionStatus.expired
-            db.commit()
+            db.flush()
             raise HTTPException(status_code=401, detail="Refresh token expired")
 
         new_refresh = secrets.token_urlsafe(48)
@@ -620,7 +620,7 @@ class AuthFlow(ListResponseMixin):
         if request.client:
             session.ip_address = request.client.host
         session.user_agent = _truncate_user_agent(request.headers.get("user-agent"))
-        db.commit()
+        db.flush()
 
         roles, permissions = _load_rbac_claims(db, str(session.person_id))
         access_token = _issue_access_token(
@@ -651,7 +651,7 @@ class AuthFlow(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Session not found")
         session.status = SessionStatus.revoked
         session.revoked_at = _now()
-        db.commit()
+        db.flush()
         return {"revoked_at": session.revoked_at}
 
     @staticmethod
@@ -698,7 +698,7 @@ class AuthFlow(ListResponseMixin):
             expires_at=expires_at,
         )
         db.add(session)
-        db.commit()
+        db.flush()
         db.refresh(session)
         roles, permissions = _load_rbac_claims(db, str(person_uuid))
         access_token = _issue_access_token(db, str(person_uuid), str(session.id), roles, permissions)
@@ -770,6 +770,6 @@ def reset_password(db: Session, token: str, new_password: str) -> datetime:
     credential.failed_login_attempts = 0
     credential.locked_until = None
     revoke_sessions_for_person(db, str(person.id))
-    db.commit()
+    db.flush()
 
     return now

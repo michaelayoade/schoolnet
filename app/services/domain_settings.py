@@ -26,7 +26,7 @@ class DomainSettings(ListResponseMixin):
         data["domain"] = self._resolve_domain(payload.domain)
         setting = DomainSetting(**data)
         db.add(setting)
-        db.commit()
+        db.flush()
         db.refresh(setting)
         return setting
 
@@ -71,7 +71,7 @@ class DomainSettings(ListResponseMixin):
             raise HTTPException(status_code=400, detail="Setting domain mismatch")
         for key, value in data.items():
             setattr(setting, key, value)
-        db.commit()
+        db.flush()
         db.refresh(setting)
         return setting
 
@@ -103,7 +103,7 @@ class DomainSettings(ListResponseMixin):
             data.pop("key", None)
             for field, value in data.items():
                 setattr(setting, field, value)
-            db.commit()
+            db.flush()
             db.refresh(setting)
             return setting
         create_payload = DomainSettingCreate(
@@ -152,7 +152,7 @@ class DomainSettings(ListResponseMixin):
         if not setting or (self.domain and setting.domain != self.domain):
             raise HTTPException(status_code=404, detail="Setting not found")
         setting.is_active = False
-        db.commit()
+        db.flush()
 
 
 settings = DomainSettings()

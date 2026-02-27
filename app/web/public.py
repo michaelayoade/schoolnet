@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
@@ -211,7 +211,16 @@ def login_submit(
 ) -> Response:
     try:
         result = AuthFlow.login(db, email, password, request, "local")
+        db.commit()
+    except HTTPException as e:
+        db.commit()
+        logger.warning("Login failed for %s: %s", email, e)
+        return templates.TemplateResponse(
+            "public/auth/login.html",
+            {"request": request, "error_message": "Invalid email or password"},
+        )
     except Exception as e:
+        db.rollback()
         logger.warning("Login failed for %s: %s", email, e)
         return templates.TemplateResponse(
             "public/auth/login.html",

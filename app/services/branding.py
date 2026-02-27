@@ -103,7 +103,7 @@ def save_branding(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
         setting.value_json = current
         setting.is_active = True
 
-    db.commit()
+    db.flush()
     return current
 
 
