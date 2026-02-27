@@ -12,6 +12,7 @@ from app.services.common import require_uuid
 from app.services.registration import RegistrationService
 from app.services.school import SchoolService
 from app.templates import templates
+from app.web.deps import require_web_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["public"])
@@ -260,7 +261,15 @@ def login_submit(
 
 
 @router.get("/logout")
-def logout(request: Request) -> Response:
+def logout(
+    request: Request,
+    _auth: dict = Depends(require_web_auth),
+    db: Session = Depends(get_db),
+) -> Response:
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        AuthFlow.logout(db, refresh_token)
+
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
