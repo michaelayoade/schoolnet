@@ -6,6 +6,8 @@ from email.mime.text import MIMEText
 
 from sqlalchemy.orm import Session
 
+from app.services.secrets import resolve_secret
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +40,7 @@ def _get_smtp_config() -> dict:
         "host": _env_value("SMTP_HOST") or "localhost",
         "port": _env_int("SMTP_PORT", 587),
         "username": _env_value("SMTP_USERNAME"),
-        "password": _env_value("SMTP_PASSWORD"),
+        "password": resolve_secret(_env_value("SMTP_PASSWORD")),
         "use_tls": _env_bool("SMTP_USE_TLS", True),
         "use_ssl": _env_bool("SMTP_USE_SSL", False),
         "from_email": _env_value("SMTP_FROM_EMAIL") or "noreply@example.com",

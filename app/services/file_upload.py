@@ -119,8 +119,10 @@ class FileUploadService:
             raise ValueError("File upload not found")
         try:
             self.storage.delete(record.storage_key)
-        except Exception:
-            logger.exception("Failed to delete file from storage: %s", record.storage_key)
+        except (OSError, IOError, ValueError) as exc:
+            logger.exception(
+                "Failed to delete file from storage: %s (%s)", record.storage_key, exc
+            )
         record.status = FileUploadStatus.deleted
         record.is_active = False
         self.db.flush()
