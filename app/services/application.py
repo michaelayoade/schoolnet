@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.models.billing import (
@@ -339,6 +339,9 @@ class ApplicationService:
     def list_for_parent(self, parent_id: UUID) -> list[Application]:
         stmt = (
             select(Application)
+            .options(
+                selectinload(Application.admission_form).selectinload(AdmissionForm.school)
+            )
             .where(Application.parent_id == parent_id, Application.is_active.is_(True))
             .order_by(Application.created_at.desc())
         )
@@ -348,6 +351,10 @@ class ApplicationService:
         form_ids_stmt = select(AdmissionForm.id).where(AdmissionForm.school_id == school_id)
         stmt = (
             select(Application)
+            .options(
+                selectinload(Application.admission_form),
+                selectinload(Application.parent),
+            )
             .where(
                 Application.admission_form_id.in_(form_ids_stmt),
                 Application.is_active.is_(True),

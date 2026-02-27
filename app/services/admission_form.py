@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.models.billing import Price, PriceType, Product
@@ -70,6 +70,7 @@ class AdmissionFormService:
     def list_for_school(self, school_id: UUID) -> list[AdmissionForm]:
         stmt = (
             select(AdmissionForm)
+            .options(selectinload(AdmissionForm.price))
             .where(
                 AdmissionForm.school_id == school_id,
                 AdmissionForm.is_active.is_(True),
