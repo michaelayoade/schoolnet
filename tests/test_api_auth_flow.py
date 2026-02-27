@@ -129,6 +129,26 @@ class TestMeAPI:
         assert data["first_name"] == "NewFirst"
         assert data["last_name"] == "NewLast"
 
+    def test_update_me_ignores_disallowed_fields(
+        self, client, auth_headers, db_session, person
+    ):
+        """Test that non-permitted profile fields are ignored."""
+        person.display_name = "Original Display Name"
+        person.locale = "en-US"
+        db_session.commit()
+
+        payload = {
+            "first_name": "Allowed",
+            "display_name": "Blocked",
+            "locale": "fr-FR",
+        }
+        response = client.patch("/auth/me", json=payload, headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["first_name"] == "Allowed"
+        assert data["display_name"] == "Original Display Name"
+        assert data["locale"] == "en-US"
+
 
 class TestSessionsAPI:
     """Tests for the /auth/me/sessions endpoints."""

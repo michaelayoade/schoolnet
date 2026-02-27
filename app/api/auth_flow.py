@@ -213,8 +213,13 @@ def update_me(
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(person, field, value)
+
+    if "first_name" in update_data:
+        person.first_name = update_data["first_name"]
+    if "last_name" in update_data:
+        person.last_name = update_data["last_name"]
+    if "phone" in update_data:
+        person.phone = update_data["phone"]
 
     db.commit()
     db.refresh(person)
