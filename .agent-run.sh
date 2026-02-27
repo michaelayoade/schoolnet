@@ -3,14 +3,14 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
 # ---- Injected at spawn time ----
-WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-deps-002
+WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-deps-003
 PROJECT_DIR=/home/dotmac/projects/schoolnet
 SCRIPT_DIR=/home/dotmac/.seabone/scripts
 ACTIVE_FILE=/home/dotmac/projects/schoolnet/.seabone/active-tasks.json
-LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-deps-002.log
-TASK_ID=fix-deps-002
-DESCRIPTION=Jinja2\ 3.1.4\ is\ vulnerable\ to\ CVE-2024-56201\ \(sandbox\ escape\ via\ crafted\ filenames\)\ and\ CVE-2024-56326\ \(sandbox\ bypass\ via\ __init__\ override\)\,\ both\ fixed\ in\ 3.1.5+.\ Fix:\ in\ pyproject.toml\ update\ jinja2\ to\ \'\>=3.1.6\'\,\ then\ run\ \'poetry\ update\ jinja2\'\ and\ verify\ the\ lock\ file\ resolves\ to\ 3.1.6.\ Run\ make\ lint\ and\ pytest\ to\ confirm\ no\ breakage.
-BRANCH=agent/fix-deps-002
+LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-deps-003.log
+TASK_ID=fix-deps-003
+DESCRIPTION=cryptography\ 42.0.8\ has\ CVE-2024-12797\ \(TLS\ connection\ validation\ bypass\,\ fixed\ in\ 44.0.1\)\ plus\ several\ CVEs\ in\ the\ 42-43\ range.\ Fix:\ in\ pyproject.toml\ update\ cryptography\ to\ \'\>=44.0.1\'\,\ run\ \'poetry\ update\ cryptography\'\,\ confirm\ poetry.lock\ resolves\ to\ \>=44.0.1\,\ and\ run\ make\ lint\ +\ pytest.\ Note:\ cryptography\ is\ a\ transitive\ dep\ of\ several\ packages\ —\ check\ for\ conflicts.
+BRANCH=agent/fix-deps-003
 ENGINE=aider
 MODEL=deepseek-chat
 EVENT_LOG=/home/dotmac/projects/schoolnet/.seabone/logs/events.log
