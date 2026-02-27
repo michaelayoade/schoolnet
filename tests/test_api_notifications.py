@@ -1,8 +1,6 @@
 """Tests for notification API endpoints."""
 import uuid
 
-import pytest
-
 from app.models.notification import Notification, NotificationType
 
 

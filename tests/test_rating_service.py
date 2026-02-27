@@ -1,11 +1,10 @@
 """Tests for RatingService — create, validation, queries."""
 
 import uuid
-from datetime import date
 
 import pytest
 
-from app.models.school import Application, ApplicationStatus, Rating
+from app.models.school import Rating
 from app.services.rating import RatingService
 
 
@@ -104,8 +103,8 @@ class TestRatingQueries:
         assert len(ratings) >= 1
 
     def test_get_average(self, db_session, school):
-        from tests.conftest import _unique_email
         from app.models.person import Person
+        from tests.conftest import _unique_email
 
         p1 = Person(first_name="A", last_name="B", email=_unique_email())
         p2 = Person(first_name="C", last_name="D", email=_unique_email())

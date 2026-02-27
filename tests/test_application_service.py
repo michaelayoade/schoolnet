@@ -2,11 +2,10 @@
 
 import uuid
 from datetime import date
-from unittest.mock import patch
 
 import pytest
 
-from app.models.school import Application, ApplicationStatus
+from app.models.school import ApplicationStatus
 from app.services.application import ApplicationService
 
 
@@ -38,9 +37,9 @@ class TestApplicationPurchaseFlow:
         )
         db_session.commit()
 
-        from app.models.billing import Customer
-
         from sqlalchemy import select
+
+        from app.models.billing import Customer
 
         stmt = select(Customer).where(Customer.person_id == parent_person.id)
         customer = db_session.scalar(stmt)

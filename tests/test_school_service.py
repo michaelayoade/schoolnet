@@ -2,19 +2,11 @@
 
 import uuid
 
-import pytest
-
 from app.models.school import (
-    AdmissionForm,
-    AdmissionFormStatus,
     Application,
     ApplicationStatus,
     Rating,
-    School,
-    SchoolCategory,
-    SchoolGender,
     SchoolStatus,
-    SchoolType,
 )
 from app.schemas.school import SchoolCreate, SchoolUpdate
 from app.services.school import SchoolService
