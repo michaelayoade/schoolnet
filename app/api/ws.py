@@ -1,14 +1,19 @@
 """WebSocket endpoint for real-time notifications."""
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.models.auth import Session as AuthSession
+from app.models.auth import SessionStatus
 from app.services.auth_flow import decode_access_token
+from app.services.common import coerce_uuid
 from app.services.websocket_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -34,7 +39,24 @@ def _authenticate_ws(token: str) -> str | None:
     db: Session = SessionLocal()
     try:
         payload = decode_access_token(db, token)
-        return payload.get("sub")
+        person_id = payload.get("sub")
+        session_id = payload.get("session_id")
+        if not person_id or not session_id:
+            return None
+
+        now = datetime.now(UTC)
+        stmt = select(AuthSession).where(
+            AuthSession.id == coerce_uuid(session_id),
+            AuthSession.person_id == coerce_uuid(person_id),
+            AuthSession.status == SessionStatus.active,
+            AuthSession.revoked_at.is_(None),
+            AuthSession.expires_at > now,
+        )
+        session = db.scalar(stmt)
+        if not session:
+            return None
+
+        return str(person_id)
     except Exception:
         return None
     finally:
