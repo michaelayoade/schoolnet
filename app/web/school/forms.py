@@ -129,6 +129,9 @@ def edit_form_submit(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=403)
 
     from app.schemas.school import AdmissionFormUpdate
 
@@ -154,6 +157,9 @@ def activate_form(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=403)
     svc.activate(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+activated", status_code=303)
@@ -170,6 +176,9 @@ def close_form(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=403)
     svc.close(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+closed", status_code=303)
