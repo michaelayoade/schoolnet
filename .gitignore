@@ -94,3 +94,4 @@ poetry.lock
 
 # Seabone agent bootstrap (auto-generated, never commit)
 .agent-run.sh
+.aider*
