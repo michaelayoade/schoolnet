@@ -92,9 +92,7 @@ def mfa_setup(
 ):
     if str(payload.person_id) != auth["person_id"]:
         raise HTTPException(status_code=403, detail="Forbidden")
-    return auth_flow_service.auth_flow.mfa_setup(
-        db, auth["person_id"], payload.label
-    )
+    return auth_flow_service.auth_flow.mfa_setup(db, auth["person_id"], payload.label)
 
 
 @router.post(
@@ -126,7 +124,9 @@ def mfa_confirm(
         404: {"model": ErrorResponse},
     },
 )
-def mfa_verify(payload: MfaVerifyRequest, request: Request, db: Session = Depends(get_db)):
+def mfa_verify(
+    payload: MfaVerifyRequest, request: Request, db: Session = Depends(get_db)
+):
     return auth_flow_service.auth_flow.mfa_verify_response(
         db, payload.mfa_token, payload.code, request
     )
@@ -187,7 +187,9 @@ def get_me(
         phone=person.phone,
         date_of_birth=person.date_of_birth,
         gender=person.gender.value if person.gender else "unknown",
-        preferred_contact_method=person.preferred_contact_method.value if person.preferred_contact_method else None,
+        preferred_contact_method=person.preferred_contact_method.value
+        if person.preferred_contact_method
+        else None,
         locale=person.locale,
         timezone=person.timezone,
         roles=auth.get("roles", []),
@@ -230,7 +232,9 @@ def update_me(
         phone=person.phone,
         date_of_birth=person.date_of_birth,
         gender=person.gender.value if person.gender else "unknown",
-        preferred_contact_method=person.preferred_contact_method.value if person.preferred_contact_method else None,
+        preferred_contact_method=person.preferred_contact_method.value
+        if person.preferred_contact_method
+        else None,
         locale=person.locale,
         timezone=person.timezone,
         roles=auth.get("roles", []),

@@ -73,7 +73,9 @@ class PriceUpdate(BaseModel):
 
 
 class PriceRead(PriceBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     type: str  # type: ignore[assignment]
     billing_scheme: str  # type: ignore[assignment]
@@ -128,7 +130,9 @@ class CustomerRead(CustomerBase):
 class SubscriptionBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     customer_id: UUID
-    status: Literal["incomplete", "trialing", "active", "past_due", "canceled", "unpaid", "paused"] = "incomplete"
+    status: Literal[
+        "incomplete", "trialing", "active", "past_due", "canceled", "unpaid", "paused"
+    ] = "incomplete"
     current_period_start: datetime | None = None
     current_period_end: datetime | None = None
     trial_start: datetime | None = None
@@ -148,7 +152,18 @@ class SubscriptionCreate(SubscriptionBase):
 
 class SubscriptionUpdate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    status: Literal["incomplete", "trialing", "active", "past_due", "canceled", "unpaid", "paused"] | None = None
+    status: (
+        Literal[
+            "incomplete",
+            "trialing",
+            "active",
+            "past_due",
+            "canceled",
+            "unpaid",
+            "paused",
+        ]
+        | None
+    ) = None
     current_period_start: datetime | None = None
     current_period_end: datetime | None = None
     trial_start: datetime | None = None
@@ -163,7 +178,9 @@ class SubscriptionUpdate(BaseModel):
 
 
 class SubscriptionRead(SubscriptionBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     status: str  # type: ignore[assignment]
     created_at: datetime
@@ -248,7 +265,9 @@ class InvoiceUpdate(BaseModel):
 
 
 class InvoiceRead(InvoiceBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     status: str  # type: ignore[assignment]
     created_at: datetime
@@ -321,7 +340,9 @@ class PaymentMethodUpdate(BaseModel):
 
 
 class PaymentMethodRead(PaymentMethodBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     type: str  # type: ignore[assignment]
     created_at: datetime
@@ -338,7 +359,14 @@ class PaymentIntentBase(BaseModel):
     payment_method_id: UUID | None = None
     amount: int
     currency: str = Field(max_length=3)
-    status: Literal["requires_payment_method", "requires_confirmation", "processing", "succeeded", "canceled", "requires_action"] = "requires_payment_method"
+    status: Literal[
+        "requires_payment_method",
+        "requires_confirmation",
+        "processing",
+        "succeeded",
+        "canceled",
+        "requires_action",
+    ] = "requires_payment_method"
     failure_code: str | None = Field(default=None, max_length=80)
     failure_message: str | None = None
     external_id: str | None = Field(default=None, max_length=255)
@@ -351,7 +379,17 @@ class PaymentIntentCreate(PaymentIntentBase):
 
 class PaymentIntentUpdate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    status: Literal["requires_payment_method", "requires_confirmation", "processing", "succeeded", "canceled", "requires_action"] | None = None
+    status: (
+        Literal[
+            "requires_payment_method",
+            "requires_confirmation",
+            "processing",
+            "succeeded",
+            "canceled",
+            "requires_action",
+        ]
+        | None
+    ) = None
     payment_method_id: UUID | None = None
     failure_code: str | None = Field(default=None, max_length=80)
     failure_message: str | None = None
@@ -360,7 +398,9 @@ class PaymentIntentUpdate(BaseModel):
 
 
 class PaymentIntentRead(PaymentIntentBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     status: str  # type: ignore[assignment]
     created_at: datetime
@@ -384,7 +424,9 @@ class UsageRecordCreate(UsageRecordBase):
 
 
 class UsageRecordRead(UsageRecordBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     action: str  # type: ignore[assignment]
     created_at: datetime
@@ -430,7 +472,9 @@ class CouponUpdate(BaseModel):
 
 
 class CouponRead(CouponBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     duration: str  # type: ignore[assignment]
     created_at: datetime
@@ -488,7 +532,9 @@ class EntitlementUpdate(BaseModel):
 
 
 class EntitlementRead(EntitlementBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     value_type: str  # type: ignore[assignment]
     created_at: datetime
@@ -521,7 +567,9 @@ class WebhookEventUpdate(BaseModel):
 
 
 class WebhookEventRead(WebhookEventBase):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, use_enum_values=True
+    )
     id: UUID
     status: str  # type: ignore[assignment]
     created_at: datetime

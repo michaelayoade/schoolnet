@@ -170,7 +170,9 @@ class RolePermissions(ListResponseMixin):
         if role_id:
             query = query.filter(RolePermission.role_id == coerce_uuid(role_id))
         if permission_id:
-            query = query.filter(RolePermission.permission_id == coerce_uuid(permission_id))
+            query = query.filter(
+                RolePermission.permission_id == coerce_uuid(permission_id)
+            )
         query = apply_ordering(
             query,
             order_by,

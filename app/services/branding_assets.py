@@ -60,7 +60,7 @@ def _validate_declared_type(file: UploadFile) -> None:
 
 
 def _sniff_content_type(content: bytes) -> str | None:
-    if content.startswith(b"\xFF\xD8\xFF"):
+    if content.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
     if content.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
@@ -92,7 +92,9 @@ def _validate_svg_safety(content: bytes) -> None:
     ]
     for pattern in dangerous_patterns:
         if re.search(pattern, lowered):
-            raise HTTPException(status_code=400, detail="Unsafe SVG content is not allowed")
+            raise HTTPException(
+                status_code=400, detail="Unsafe SVG content is not allowed"
+            )
 
 
 async def _read_limited(file: UploadFile, max_size: int) -> bytes:
@@ -135,18 +137,25 @@ async def save_branding_asset(file: UploadFile, kind: str) -> str:
     content = await _read_limited(file, _max_size())
     sniffed_type = _sniff_content_type(content)
     if not sniffed_type:
-        raise HTTPException(status_code=400, detail="Could not verify uploaded file type")
+        raise HTTPException(
+            status_code=400, detail="Could not verify uploaded file type"
+        )
     declared_type = file.content_type or ""
     declared_normalized = _normalize_mime(declared_type)
     sniffed_normalized = _normalize_mime(sniffed_type)
     if declared_normalized and declared_normalized != sniffed_normalized:
-        raise HTTPException(status_code=400, detail="Uploaded file content does not match file type")
+        raise HTTPException(
+            status_code=400, detail="Uploaded file content does not match file type"
+        )
     allowed_normalized = {_normalize_mime(item) for item in _allowed_types()}
     if sniffed_normalized not in allowed_normalized:
         raise HTTPException(status_code=400, detail="Detected file type is not allowed")
     if sniffed_type == "image/svg+xml":
         _validate_svg_safety(content)
-    if file.content_type in {"image/x-icon", "image/vnd.microsoft.icon"} and sniffed_type == "image/x-icon":
+    if (
+        file.content_type in {"image/x-icon", "image/vnd.microsoft.icon"}
+        and sniffed_type == "image/x-icon"
+    ):
         resolved_type = file.content_type
     else:
         resolved_type = sniffed_type

@@ -33,8 +33,12 @@ def list_applications(
     if not school_id:
         return templates.TemplateResponse(
             "school/applications/list.html",
-            {"request": request, "auth": auth, "applications": [],
-             "error_message": "No school found"},
+            {
+                "request": request,
+                "auth": auth,
+                "applications": [],
+                "error_message": "No school found",
+            },
         )
 
     svc = ApplicationService(db)
@@ -43,11 +47,13 @@ def list_applications(
     enriched = []
     for app in applications:
         form = app.admission_form
-        enriched.append({
-            "app": app,
-            "form_title": form.title if form else "",
-            "parent": app.parent,
-        })
+        enriched.append(
+            {
+                "app": app,
+                "form_title": form.title if form else "",
+                "parent": app.parent,
+            }
+        )
 
     return templates.TemplateResponse(
         "school/applications/list.html",
@@ -65,7 +71,9 @@ def application_detail(
     svc = ApplicationService(db)
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
-        return RedirectResponse(url="/school/applications?error=Application+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/applications?error=Application+not+found", status_code=303
+        )
 
     form = application.admission_form
     parent = application.parent
@@ -94,7 +102,9 @@ def review_application(
     svc = ApplicationService(db)
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
-        return RedirectResponse(url="/school/applications?error=Application+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/applications?error=Application+not+found", status_code=303
+        )
 
     try:
         svc.review(

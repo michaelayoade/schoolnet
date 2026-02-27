@@ -1,17 +1,18 @@
+# ruff: noqa: E402
 import os
 import sys
+import tempfile
 import uuid
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import ModuleType
 
 import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
 from sqlalchemy import DateTime, create_engine
-from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
-
 
 # Create a test engine BEFORE any app imports
 _test_engine = create_engine(
@@ -35,24 +36,24 @@ class TimestampMixin:
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
 
 # Create a mock db module
-mock_db_module = ModuleType('app.db')
+mock_db_module = ModuleType("app.db")
 mock_db_module.Base = TestBase
 mock_db_module.TimestampMixin = TimestampMixin
 mock_db_module.SessionLocal = _TestSessionLocal
 mock_db_module.get_engine = lambda: _test_engine
 
 # Also mock app.config to prevent .env loading
-mock_config_module = ModuleType('app.config')
+mock_config_module = ModuleType("app.config")
 
 
 class MockSettings:
@@ -72,7 +73,7 @@ class MockSettings:
     brand_logo_url = None
     cors_origins = ""
     storage_backend = "local"
-    storage_local_dir = "/tmp/test_uploads"
+    storage_local_dir = str(Path(tempfile.gettempdir()) / "test_uploads")
     storage_url_prefix = "/static/uploads"
     s3_bucket = ""
     s3_region = ""
@@ -80,7 +81,9 @@ class MockSettings:
     s3_secret_key = ""
     s3_endpoint_url = ""
     upload_max_size_bytes = 10 * 1024 * 1024
-    upload_allowed_types = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    upload_allowed_types = (
+        "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    )
     branding_upload_dir = "static/branding"
     branding_max_size_bytes = 5 * 1024 * 1024
     branding_allowed_types = "image/jpeg,image/png"
@@ -96,8 +99,8 @@ mock_config_module.Settings = MockSettings
 mock_config_module.validate_settings = lambda s: []
 
 # Insert mocks before any app imports
-sys.modules['app.config'] = mock_config_module
-sys.modules['app.db'] = mock_db_module
+sys.modules["app.config"] = mock_config_module
+sys.modules["app.db"] = mock_db_module
 
 # Set environment variables
 os.environ["JWT_SECRET"] = "test-secret"
@@ -106,52 +109,34 @@ os.environ["TOTP_ENCRYPTION_KEY"] = "QLUJktsTSfZEbST4R-37XmQ0tCkiVCBXZN2Zt053w8g
 os.environ["TOTP_ISSUER"] = "StarterTemplate"
 
 # Now import the models - they'll use our mocked db module
-from app.models.person import Person
-from app.models.auth import UserCredential, Session as AuthSession, SessionStatus
-from app.models.rbac import Role, Permission, RolePermission, PersonRole
-from app.models.audit import AuditEvent, AuditActorType
-from app.models.domain_settings import DomainSetting, SettingDomain
-from app.models.scheduler import ScheduledTask, ScheduleType
-from app.models.file_upload import FileUpload, FileUploadStatus
-from app.models.notification import Notification, NotificationType
+from app.models.audit import AuditActorType, AuditEvent
+from app.models.auth import Session as AuthSession
+from app.models.auth import SessionStatus, UserCredential
 from app.models.billing import (
-    Product,
-    Price,
-    PriceType,
     BillingScheme,
-    RecurringInterval,
-    Customer,
-    Subscription,
-    SubscriptionStatus,
-    SubscriptionItem,
-    Invoice,
-    InvoiceStatus,
-    InvoiceItem,
-    PaymentMethod,
-    PaymentMethodType,
-    PaymentIntent,
-    PaymentIntentStatus,
-    UsageRecord,
-    UsageAction,
     Coupon,
     CouponDuration,
-    Discount,
-    Entitlement,
-    EntitlementValueType,
-    WebhookEvent,
-    WebhookEventStatus,
+    Customer,
+    Price,
+    PriceType,
+    Product,
+    RecurringInterval,
+    Subscription,
+    SubscriptionItem,
+    SubscriptionStatus,
 )
+from app.models.domain_settings import DomainSetting, SettingDomain
+from app.models.person import Person
+from app.models.rbac import Permission, PersonRole, Role
+from app.models.scheduler import ScheduledTask, ScheduleType
 from app.models.school import (
-    School,
-    SchoolStatus,
-    SchoolType,
-    SchoolCategory,
-    SchoolGender,
     AdmissionForm,
     AdmissionFormStatus,
-    Application,
-    ApplicationStatus,
-    Rating,
+    School,
+    SchoolCategory,
+    SchoolGender,
+    SchoolStatus,
+    SchoolType,
 )
 
 # Create all tables
@@ -211,8 +196,8 @@ def auth_env():
 @pytest.fixture()
 def client(db_session):
     """Create a test client with database dependency override."""
-    from app.main import app
     from app.api.deps import get_db as api_get_db
+    from app.main import app
     from app.services.auth_dependencies import _get_db as auth_deps_get_db
 
     def override_get_db():
@@ -228,11 +213,13 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-def _create_access_token(person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None) -> str:
+def _create_access_token(
+    person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None
+) -> str:
     """Create a JWT access token for testing."""
     secret = os.getenv("JWT_SECRET", "test-secret")
     algorithm = os.getenv("JWT_ALGORITHM", "HS256")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + timedelta(minutes=15)
     payload = {
         "sub": person_id,
@@ -255,7 +242,7 @@ def auth_session(db_session, person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        expires_at=datetime.now(UTC) + timedelta(days=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -317,7 +304,7 @@ def admin_session(db_session, admin_person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        expires_at=datetime.now(UTC) + timedelta(days=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -436,7 +423,9 @@ def scheduled_task(db_session):
 @pytest.fixture()
 def billing_product(db_session):
     """Create a test billing product."""
-    product = Product(name=f"Product {uuid.uuid4().hex[:8]}", description="Test product")
+    product = Product(
+        name=f"Product {uuid.uuid4().hex[:8]}", description="Test product"
+    )
     db_session.add(product)
     db_session.commit()
     db_session.refresh(product)

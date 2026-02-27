@@ -1,4 +1,5 @@
 """Admin web routes for Notification management."""
+
 from __future__ import annotations
 
 import logging
@@ -64,9 +65,10 @@ def list_notifications(
         )
         .order_by(Notification.created_at.desc())
     )
-    total = db.scalar(
-        select(func.count()).select_from(query.order_by(None).subquery())
-    ) or 0
+    total = (
+        db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+        or 0
+    )
     items = list(db.scalars(query.limit(PAGE_SIZE).offset(offset)).all())
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 

@@ -11,7 +11,9 @@ def test_paystack_webhook_returns_503_when_gateway_unconfigured(client):
 
     with (
         patch("app.api.payments.paystack_gateway.is_configured", return_value=False),
-        patch("app.api.payments.paystack_gateway.validate_webhook_signature") as mock_validate,
+        patch(
+            "app.api.payments.paystack_gateway.validate_webhook_signature"
+        ) as mock_validate,
         patch("app.api.payments.ApplicationService") as mock_application_service,
     ):
         response = client.post(

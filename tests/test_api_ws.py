@@ -1,4 +1,5 @@
 """Tests for WebSocket auth token extraction."""
+
 from unittest.mock import MagicMock
 
 from app.api.ws import _token_from_subprotocol

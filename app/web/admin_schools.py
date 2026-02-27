@@ -63,7 +63,9 @@ def school_detail(
     svc = SchoolService(db)
     school = svc.get_by_id(require_uuid(school_id))
     if not school:
-        return RedirectResponse(url="/admin/schools?error=School+not+found", status_code=303)
+        return RedirectResponse(
+            url="/admin/schools?error=School+not+found", status_code=303
+        )
 
     stats = svc.get_dashboard_stats(school.id)
     avg_rating = svc.get_average_rating(school.id)
@@ -90,10 +92,14 @@ def approve_school(
     svc = SchoolService(db)
     school = svc.get_by_id(require_uuid(school_id))
     if not school:
-        return RedirectResponse(url="/admin/schools?error=School+not+found", status_code=303)
+        return RedirectResponse(
+            url="/admin/schools?error=School+not+found", status_code=303
+        )
     svc.approve(school, approved_by=require_uuid(auth["person_id"]))
     db.commit()
-    return RedirectResponse(url=f"/admin/schools/{school_id}?success=School+approved", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/schools/{school_id}?success=School+approved", status_code=303
+    )
 
 
 @router.post("/{school_id}/suspend")
@@ -106,7 +112,11 @@ def suspend_school(
     svc = SchoolService(db)
     school = svc.get_by_id(require_uuid(school_id))
     if not school:
-        return RedirectResponse(url="/admin/schools?error=School+not+found", status_code=303)
+        return RedirectResponse(
+            url="/admin/schools?error=School+not+found", status_code=303
+        )
     svc.suspend(school)
     db.commit()
-    return RedirectResponse(url=f"/admin/schools/{school_id}?success=School+suspended", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/schools/{school_id}?success=School+suspended", status_code=303
+    )

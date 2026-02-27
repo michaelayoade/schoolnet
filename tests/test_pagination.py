@@ -1,17 +1,18 @@
 """Tests for the paginate() helper and common utilities."""
+
 from __future__ import annotations
 
 import uuid
 
 import pytest
-from sqlalchemy import Column, Integer, String, create_engine, select
+from sqlalchemy import Integer, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.services.common import apply_ordering, apply_pagination, coerce_uuid, paginate
 
-
 # ── Test DB setup ────────────────────────────────────────
+
 
 class _Base(DeclarativeBase):
     pass
@@ -130,6 +131,7 @@ class TestApplyOrdering:
 
     def test_invalid_column_raises(self, db: Session) -> None:
         from fastapi import HTTPException
+
         query = select(_Item)
         with pytest.raises(HTTPException) as exc_info:
             apply_ordering(query, "invalid", "asc", {"name": _Item.name})

@@ -1,4 +1,5 @@
 """Admin web routes for Payment Method management (read-only)."""
+
 from __future__ import annotations
 
 import logging
@@ -97,9 +98,7 @@ def list_payment_methods(
             "error": request.query_params.get("error"),
         }
     )
-    return templates.TemplateResponse(
-        "admin/billing/payment_methods/list.html", ctx
-    )
+    return templates.TemplateResponse("admin/billing/payment_methods/list.html", ctx)
 
 
 @router.get("/{item_id}", response_class=HTMLResponse)
@@ -123,9 +122,7 @@ def payment_method_detail(
     ctx["customer"] = customer
     ctx["success"] = request.query_params.get("success")
     ctx["error"] = request.query_params.get("error")
-    return templates.TemplateResponse(
-        "admin/billing/payment_methods/detail.html", ctx
-    )
+    return templates.TemplateResponse("admin/billing/payment_methods/detail.html", ctx)
 
 
 @router.post("/{item_id}/delete", response_model=None)

@@ -115,9 +115,11 @@ def google_fonts_url(branding: dict[str, Any]) -> str | None:
             families.append(name.replace(" ", "+") + ":wght@400;500;600;700")
     if not families:
         return None
-    return "https://fonts.googleapis.com/css2?family=" + "&family=".join(
-        dict.fromkeys(families)
-    ) + "&display=swap"
+    return (
+        "https://fonts.googleapis.com/css2?family="
+        + "&family=".join(dict.fromkeys(families))
+        + "&display=swap"
+    )
 
 
 def generate_css(branding: dict[str, Any]) -> str:
