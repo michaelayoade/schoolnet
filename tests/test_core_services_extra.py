@@ -1,6 +1,6 @@
 import uuid
-from datetime import datetime, timezone
 
+import pytest
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -11,7 +11,9 @@ from app.services import scheduler as scheduler_service
 
 
 def test_rbac_role_permission_link(db_session, person):
-    role = rbac_service.roles.create(db_session, RoleCreate(name=f"test_role_{uuid.uuid4().hex[:8]}"))
+    role = rbac_service.roles.create(
+        db_session, RoleCreate(name=f"test_role_{uuid.uuid4().hex[:8]}")
+    )
     permission_key = f"people:read:{uuid.uuid4().hex[:8]}"
     permission = rbac_service.permissions.create(
         db_session, PermissionCreate(key=permission_key, description="People Read")
@@ -55,3 +57,31 @@ def test_audit_log_request(db_session):
 def test_scheduler_refresh_response():
     result = scheduler_service.refresh_schedule()
     assert "detail" in result
+
+
+def test_scheduler_enqueue_task_allowlist(monkeypatch):
+    class _Result:
+        id = "task-123"
+
+    class _FakeCeleryApp:
+        tasks = {
+            "app.tasks.allowed": object(),
+            "celery.backend_cleanup": object(),
+        }
+
+        def send_task(self, task_name, args, kwargs):
+            if task_name != "app.tasks.allowed":
+                raise AssertionError("Unexpected task")
+            assert args == ["x"]
+            assert kwargs == {"k": "v"}
+            return _Result()
+
+    monkeypatch.setattr("app.celery_app.celery_app", _FakeCeleryApp())
+
+    response = scheduler_service.enqueue_task("app.tasks.allowed", ["x"], {"k": "v"})
+    assert response == {"queued": True, "task_id": "task-123"}
+    assert "app.tasks.allowed" in scheduler_service.ALLOWED_TASK_NAMES
+    assert "celery.backend_cleanup" not in scheduler_service.ALLOWED_TASK_NAMES
+
+    with pytest.raises(ValueError, match="not allowed for scheduling"):
+        scheduler_service.enqueue_task("app.tasks.denied", [], {})

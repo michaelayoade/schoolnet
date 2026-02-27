@@ -7,6 +7,8 @@ from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination
 from app.services.response import ListResponseMixin
 
+ALLOWED_TASK_NAMES: set[str] = set()
+
 
 def _validate_schedule_type(value):
     if value is None:
@@ -93,7 +95,15 @@ def refresh_schedule() -> dict:
 
 
 def enqueue_task(task_name: str, args: list | None, kwargs: dict | None) -> dict:
+    global ALLOWED_TASK_NAMES
     from app.celery_app import celery_app
+
+    # Ignore Celery internal tasks; only application task names are schedulable.
+    ALLOWED_TASK_NAMES = {
+        name for name in celery_app.tasks if not name.startswith("celery.")
+    }
+    if task_name not in ALLOWED_TASK_NAMES:
+        raise ValueError(f"Task '{task_name}' is not allowed for scheduling")
 
     async_result = celery_app.send_task(task_name, args=args or [], kwargs=kwargs or {})
     return {"queued": True, "task_id": str(async_result.id)}
