@@ -6,8 +6,23 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
-from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware, _get_client_ip
+
+
+def _make_request(client_host: str | None, forwarded_for: str | None = None) -> Request:
+    headers: list[tuple[bytes, bytes]] = []
+    if forwarded_for is not None:
+        headers.append((b"x-forwarded-for", forwarded_for.encode("utf-8")))
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/auth/login",
+        "headers": headers,
+        "client": (client_host, 12345) if client_host is not None else None,
+    }
+    return Request(scope)
 
 
 @pytest.fixture
@@ -150,3 +165,26 @@ class TestRateLimitPaths:
     def test_register_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
         assert "/auth/register" in _RATE_LIMIT_PATHS
+
+
+class TestClientIpExtraction:
+    def test_ignores_x_forwarded_for_when_proxy_untrusted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("TRUSTED_PROXIES", "198.51.100.0/24")
+        request = _make_request("203.0.113.10", "198.51.100.8")
+        assert _get_client_ip(request) == "203.0.113.10"
+
+    def test_uses_x_forwarded_for_when_proxy_trusted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("TRUSTED_PROXIES", "198.51.100.0/24")
+        request = _make_request("198.51.100.10", "203.0.113.10, 198.51.100.10")
+        assert _get_client_ip(request) == "203.0.113.10"
+
+    def test_invalid_x_forwarded_for_falls_back_to_direct_client(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("TRUSTED_PROXIES", "198.51.100.0/24")
+        request = _make_request("198.51.100.10", "not-an-ip")
+        assert _get_client_ip(request) == "198.51.100.10"

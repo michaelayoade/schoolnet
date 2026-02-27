@@ -8,6 +8,8 @@ import logging
 import os
 import time
 from collections import deque
+from functools import lru_cache
+from ipaddress import IPv4Network, IPv6Network, ip_address, ip_network
 from threading import Lock
 
 from cachetools import TTLCache
@@ -26,15 +28,61 @@ _RATE_LIMIT_PATHS: dict[str, tuple[int, int]] = {
 }
 _FALLBACK_LIMIT = (5, 60)  # 5 attempts per minute per IP when Redis is unavailable.
 _FALLBACK_CACHE_SIZE = 10_000
+_IPNetwork = IPv4Network | IPv6Network
+
+
+@lru_cache(maxsize=32)
+def _parse_trusted_proxies(value: str) -> tuple[_IPNetwork, ...]:
+    trusted_proxies: list[_IPNetwork] = []
+    for raw_proxy in value.split(","):
+        proxy = raw_proxy.strip()
+        if not proxy:
+            continue
+        try:
+            trusted_proxies.append(ip_network(proxy, strict=False))
+        except ValueError:
+            logger.warning(
+                "Rate limiter: ignoring invalid TRUSTED_PROXIES entry: %s",
+                proxy,
+            )
+    return tuple(trusted_proxies)
+
+
+def _get_trusted_proxies() -> tuple[_IPNetwork, ...]:
+    return _parse_trusted_proxies(os.getenv("TRUSTED_PROXIES", ""))
+
+
+def _is_trusted_proxy(host: str, trusted_proxies: tuple[_IPNetwork, ...]) -> bool:
+    if not trusted_proxies:
+        return False
+    try:
+        proxy_ip = ip_address(host)
+    except ValueError:
+        return False
+    return any(proxy_ip in trusted_proxy for trusted_proxy in trusted_proxies)
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract client IP, respecting X-Forwarded-For behind a proxy."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Extract client IP, honoring X-Forwarded-For only for trusted proxies."""
     client = request.client
-    return client.host if client else "unknown"
+    direct_host = client.host if client else "unknown"
+
+    if not _is_trusted_proxy(direct_host, _get_trusted_proxies()):
+        return direct_host
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if not forwarded:
+        return direct_host
+
+    candidate = forwarded.split(",")[0].strip()
+    if not candidate:
+        return direct_host
+
+    try:
+        ip_address(candidate)
+    except ValueError:
+        return direct_host
+    return candidate
 
 
 def _get_redis() -> object | None:
