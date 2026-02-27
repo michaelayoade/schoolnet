@@ -10,8 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.models.school import School
 from app.models.rbac import PersonRole, Role
+from app.models.school import School
 from app.services.common import require_uuid
 from app.services.school import SchoolService
 from app.web.deps import WebAuthRedirect, require_web_auth
