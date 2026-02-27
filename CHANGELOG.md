@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- [Security] TOTP replay attack prevented — after successful TOTP verification, the code is stored in Redis with a 30-second TTL (keyed by `person_id:code`); reuse of the same code within the same window is rejected, preventing session takeover via intercepted OTPs (`app/services/auth_flow.py`) (PR #24)
 - [Security] IDOR in parent application detail fixed — `application_detail` endpoint (`app/web/parent/applications.py`) now verifies `application.parent_id` matches the logged-in parent before returning data; IDOR attempts logged at WARNING level (PR #15)
 - [Security] Purchase page now validates form is published — `purchase_page` and `purchase_submit` in `app/web/parent/applications.py` redirect to `/schools?error=Form+not+available` (303) when `form.status != AdmissionFormStatus.active`, preventing access to draft or closed forms (PR #15)
 - [Security] HTML injection in password reset email fixed — `html.escape()` applied to `person_name` and `reset_link` before interpolation into the HTML body, preventing XSS via a malicious first name (PR #14)
