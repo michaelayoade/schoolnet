@@ -270,7 +270,9 @@ def test_product_price_relationship(db_session, billing_product, billing_price):
     assert billing_price.product.id == billing_product.id
 
 
-def test_customer_subscription_relationship(db_session, billing_customer, billing_subscription):
+def test_customer_subscription_relationship(
+    db_session, billing_customer, billing_subscription
+):
     db_session.refresh(billing_customer)
     assert len(billing_customer.subscriptions) >= 1
 

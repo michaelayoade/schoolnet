@@ -54,10 +54,7 @@ def resolve_openbao_ref(reference: str) -> str:
         raise HTTPException(status_code=500, detail="OpenBao request failed") from exc
     payload = response.json()
     data = payload.get("data", {})
-    if str(kv_version) == "1":
-        secret_data = data
-    else:
-        secret_data = data.get("data", {})
+    secret_data = data if str(kv_version) == "1" else data.get("data", {})
     if field not in secret_data:
         raise HTTPException(status_code=500, detail="OpenBao secret field not found")
     return str(secret_data[field])

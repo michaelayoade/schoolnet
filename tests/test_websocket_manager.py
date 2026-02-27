@@ -1,12 +1,12 @@
 """Tests for WebSocket connection manager."""
-import asyncio
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
 import pytest
+from starlette.websockets import WebSocketState
 
 from app.services.websocket_manager import ConnectionManager
-from starlette.websockets import WebSocketState
 
 
 @pytest.fixture()
@@ -21,7 +21,9 @@ def _make_ws(connected: bool = True) -> MagicMock:
     ws.send_text = AsyncMock()
     ws.close = AsyncMock()
     type(ws).client_state = PropertyMock(
-        return_value=WebSocketState.CONNECTED if connected else WebSocketState.DISCONNECTED
+        return_value=WebSocketState.CONNECTED
+        if connected
+        else WebSocketState.DISCONNECTED
     )
     return ws
 

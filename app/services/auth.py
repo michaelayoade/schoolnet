@@ -90,6 +90,7 @@ def _get_redis_client() -> redis.Redis | None:
     except redis.RedisError:
         return None
 
+
 def _ensure_person(db: Session, person_id: str):
     person = db.get(Person, coerce_uuid(person_id))
     if not person:
@@ -323,8 +324,7 @@ class Sessions(ListResponseMixin):
             query = query.filter(AuthSession.person_id == coerce_uuid(person_id))
         if status:
             query = query.filter(
-                AuthSession.status
-                == validate_enum(status, SessionStatus, "status")
+                AuthSession.status == validate_enum(status, SessionStatus, "status")
             )
         query = apply_ordering(
             query,
@@ -373,7 +373,9 @@ class ApiKeys(ListResponseMixin):
         window_seconds = _auth_int_setting(
             db, "api_key_rate_window_seconds", _API_KEY_WINDOW_SECONDS
         )
-        max_per_window = _auth_int_setting(db, "api_key_rate_max", _API_KEY_MAX_PER_WINDOW)
+        max_per_window = _auth_int_setting(
+            db, "api_key_rate_max", _API_KEY_MAX_PER_WINDOW
+        )
         redis_client = _get_redis_client()
         if not redis_client:
             raise HTTPException(

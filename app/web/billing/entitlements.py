@@ -1,4 +1,5 @@
 """Admin web routes for Entitlement management."""
+
 from __future__ import annotations
 
 import logging
@@ -135,7 +136,9 @@ async def create_entitlement_submit(
             feature_key=str(data.get("feature_key", "")),
             value_type=str(data.get("value_type", "boolean")),  # type: ignore[arg-type]
             value_text=str(data["value_text"]) if data.get("value_text") else None,
-            value_numeric=int(data["value_numeric"]) if data.get("value_numeric") else None,
+            value_numeric=int(data["value_numeric"])
+            if data.get("value_numeric")
+            else None,
         )
         billing_service.entitlements.create(db, payload)
         logger.info("Created entitlement via web: %s", payload.feature_key)
@@ -234,7 +237,9 @@ async def edit_entitlement_submit(
             feature_key=str(data["feature_key"]) if data.get("feature_key") else None,
             value_type=str(data["value_type"]) if data.get("value_type") else None,  # type: ignore[arg-type]
             value_text=str(data["value_text"]) if data.get("value_text") else None,
-            value_numeric=int(data["value_numeric"]) if data.get("value_numeric") else None,
+            value_numeric=int(data["value_numeric"])
+            if data.get("value_numeric")
+            else None,
         )
         billing_service.entitlements.update(db, str(item_id), payload)
         logger.info("Updated entitlement via web: %s", item_id)

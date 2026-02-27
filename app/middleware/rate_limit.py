@@ -2,6 +2,7 @@
 
 Protects login, password reset, and MFA verification from brute-force attacks.
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 # Paths and their rate limit configs: (max_requests, window_seconds)
 _RATE_LIMIT_PATHS: dict[str, tuple[int, int]] = {
-    "/auth/login": (10, 60),           # 10 attempts per minute
+    "/auth/login": (10, 60),  # 10 attempts per minute
     "/auth/password-reset": (5, 300),  # 5 attempts per 5 minutes
-    "/auth/mfa/verify": (10, 60),      # 10 attempts per minute
-    "/auth/register": (5, 300),        # 5 registrations per 5 minutes
+    "/auth/mfa/verify": (10, 60),  # 10 attempts per minute
+    "/auth/register": (5, 300),  # 5 registrations per 5 minutes
 }
 _FALLBACK_LIMIT = (5, 60)  # 5 attempts per minute per IP when Redis is unavailable.
 _FALLBACK_CACHE_SIZE = 10_000
@@ -79,7 +80,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             headers={"Retry-After": str(retry_after)},
         )
 
-    def _check_fallback_limit(self, client_ip: str, now: float) -> tuple[bool, int, int]:
+    def _check_fallback_limit(
+        self, client_ip: str, now: float
+    ) -> tuple[bool, int, int]:
         """Fallback in-memory sliding window: (allowed, remaining, reset_or_retry)."""
         max_requests, window_seconds = _FALLBACK_LIMIT
         key = f"rate_limit:fallback:{client_ip}"
@@ -136,7 +139,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
         # Also check /api/v1 prefixed versions
-        clean_path = path.replace("/api/v1", "", 1) if path.startswith("/api/v1") else path
+        clean_path = (
+            path.replace("/api/v1", "", 1) if path.startswith("/api/v1") else path
+        )
 
         config = _RATE_LIMIT_PATHS.get(clean_path)
         if not config:

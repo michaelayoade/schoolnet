@@ -2,11 +2,10 @@
 
 import uuid
 from datetime import date
-from unittest.mock import patch
 
 import pytest
 
-from app.models.school import Application, ApplicationStatus
+from app.models.school import ApplicationStatus
 from app.services.application import ApplicationService
 
 
@@ -38,9 +37,9 @@ class TestApplicationPurchaseFlow:
         )
         db_session.commit()
 
-        from app.models.billing import Customer
-
         from sqlalchemy import select
+
+        from app.models.billing import Customer
 
         stmt = select(Customer).where(Customer.person_id == parent_person.id)
         customer = db_session.scalar(stmt)
@@ -162,7 +161,9 @@ class TestApplicationSubmission:
 
 
 class TestApplicationReview:
-    def _create_submitted_app(self, db_session, parent_person, admission_form_with_price):
+    def _create_submitted_app(
+        self, db_session, parent_person, admission_form_with_price
+    ):
         svc = ApplicationService(db_session)
         result = svc.initiate_purchase(
             parent_id=parent_person.id,
@@ -204,7 +205,9 @@ class TestApplicationReview:
             db_session, parent_person, admission_form_with_price
         )
         svc = ApplicationService(db_session)
-        reviewed = svc.review(app, "rejected", school_owner.id, "Does not meet criteria")
+        reviewed = svc.review(
+            app, "rejected", school_owner.id, "Does not meet criteria"
+        )
         db_session.commit()
 
         assert reviewed.status == ApplicationStatus.rejected

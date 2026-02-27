@@ -1,10 +1,11 @@
 """Tests for file upload service."""
+
 import shutil
 from pathlib import Path
 
 import pytest
 
-from app.models.file_upload import FileUpload, FileUploadStatus
+from app.models.file_upload import FileUploadStatus
 from app.services.file_upload import FileUploadService
 from app.services.storage import LocalStorage
 
@@ -81,6 +82,7 @@ class TestFileUploadService:
 
     def test_get_by_id_not_found(self, upload_service):
         import uuid
+
         result = upload_service.get_by_id(uuid.uuid4())
         assert result is None
 
@@ -116,6 +118,7 @@ class TestFileUploadService:
 
     def test_delete_not_found_raises(self, upload_service):
         import uuid
+
         with pytest.raises(ValueError, match="not found"):
             upload_service.delete(uuid.uuid4())
 

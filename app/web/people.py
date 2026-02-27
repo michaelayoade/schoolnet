@@ -1,4 +1,5 @@
 """Admin web routes for People management."""
+
 from __future__ import annotations
 
 import logging
@@ -61,9 +62,10 @@ def list_people(
     if email:
         query = query.where(Person.email.ilike(f"%{email}%"))
 
-    total = db.scalar(
-        select(func.count()).select_from(query.order_by(None).subquery())
-    ) or 0
+    total = (
+        db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+        or 0
+    )
     items = list(db.scalars(query.limit(PAGE_SIZE).offset(offset)).all())
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
@@ -111,7 +113,9 @@ async def create_person_submit(
             first_name=str(data.get("first_name", "")),
             last_name=str(data.get("last_name", "")),
             email=str(data.get("email", "")),
-            display_name=str(data["display_name"]) if data.get("display_name") else None,
+            display_name=str(data["display_name"])
+            if data.get("display_name")
+            else None,
             phone=str(data["phone"]) if data.get("phone") else None,
             status=str(data.get("status", "active")),
             is_active=data.get("is_active") == "on",
@@ -185,7 +189,9 @@ async def edit_person_submit(
             first_name=str(data["first_name"]) if data.get("first_name") else None,
             last_name=str(data["last_name"]) if data.get("last_name") else None,
             email=str(data["email"]) if data.get("email") else None,
-            display_name=str(data["display_name"]) if data.get("display_name") else None,
+            display_name=str(data["display_name"])
+            if data.get("display_name")
+            else None,
             phone=str(data["phone"]) if data.get("phone") else None,
             status=str(data["status"]) if data.get("status") else None,
             is_active="is_active" in data,

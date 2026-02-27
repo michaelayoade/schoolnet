@@ -1,8 +1,7 @@
 """Tests for file upload API endpoints."""
-import io
-from unittest.mock import patch, MagicMock
 
-import pytest
+import io
+from unittest.mock import MagicMock, patch
 
 
 def _csrf_headers(client) -> dict[str, str]:
@@ -27,7 +26,10 @@ class TestFileUploadAPI:
             response = client.post(
                 "/file-uploads",
                 files={"file": ("test.txt", io.BytesIO(file_content), "text/plain")},
-                data={"category": "document", "csrf_token": csrf.get("X-CSRF-Token", "")},
+                data={
+                    "category": "document",
+                    "csrf_token": csrf.get("X-CSRF-Token", ""),
+                },
                 headers=headers,
                 cookies=client.cookies,
             )
@@ -89,6 +91,7 @@ class TestFileUploadAPI:
 
     def test_get_file_upload_not_found(self, client, auth_headers):
         import uuid
+
         response = client.get(f"/file-uploads/{uuid.uuid4()}", headers=auth_headers)
         assert response.status_code == 404
 
@@ -111,7 +114,5 @@ class TestFileUploadAPI:
             storage = MagicMock()
             mock_backend.return_value = storage
 
-            response = client.delete(
-                f"/file-uploads/{upload.id}", headers=auth_headers
-            )
+            response = client.delete(f"/file-uploads/{upload.id}", headers=auth_headers)
         assert response.status_code == 204

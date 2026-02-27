@@ -3,6 +3,7 @@
 Supports local filesystem and S3-compatible storage. The backend is
 selected via ``settings.storage_backend`` ("local" or "s3").
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,7 +40,9 @@ class StorageBackend(ABC):
 class LocalStorage(StorageBackend):
     """Store files on the local filesystem."""
 
-    def __init__(self, base_dir: str | None = None, url_prefix: str | None = None) -> None:
+    def __init__(
+        self, base_dir: str | None = None, url_prefix: str | None = None
+    ) -> None:
         self.base_dir = Path(base_dir or settings.storage_local_dir)
         self.url_prefix = (url_prefix or settings.storage_url_prefix).rstrip("/")
 
@@ -47,7 +50,9 @@ class LocalStorage(StorageBackend):
         self.base_dir.mkdir(parents=True, exist_ok=True)
         unique = uuid.uuid4().hex[:10]
         ext = Path(filename).suffix or ""
-        storage_key = f"{unique}_{filename}" if len(filename) <= 80 else f"{unique}{ext}"
+        storage_key = (
+            f"{unique}_{filename}" if len(filename) <= 80 else f"{unique}{ext}"
+        )
         file_path = self.base_dir / storage_key
         with open(file_path, "wb") as f:
             f.write(content)
@@ -114,7 +119,9 @@ class S3Storage(StorageBackend):
     def save(self, content: bytes, filename: str, content_type: str) -> str:
         unique = uuid.uuid4().hex[:10]
         ext = Path(filename).suffix or ""
-        storage_key = f"{unique}_{filename}" if len(filename) <= 80 else f"{unique}{ext}"
+        storage_key = (
+            f"{unique}_{filename}" if len(filename) <= 80 else f"{unique}{ext}"
+        )
         client = self._get_client()
         client.put_object(  # type: ignore[union-attr]
             Bucket=self.bucket,

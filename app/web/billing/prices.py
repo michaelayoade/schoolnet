@@ -1,4 +1,5 @@
 """Admin web routes for Price management."""
+
 from __future__ import annotations
 
 import logging
@@ -138,9 +139,15 @@ async def create_price_submit(
             unit_amount=int(data.get("unit_amount", 0)),
             type=str(data.get("type", "one_time")),  # type: ignore[arg-type]
             billing_scheme=str(data.get("billing_scheme", "per_unit")),  # type: ignore[arg-type]
-            recurring_interval=str(data["recurring_interval"]) if data.get("recurring_interval") else None,  # type: ignore[arg-type]
-            recurring_interval_count=int(data["recurring_interval_count"]) if data.get("recurring_interval_count") else 1,
-            trial_period_days=int(data["trial_period_days"]) if data.get("trial_period_days") else None,
+            recurring_interval=str(data["recurring_interval"])
+            if data.get("recurring_interval")
+            else None,  # type: ignore[arg-type]
+            recurring_interval_count=int(data["recurring_interval_count"])
+            if data.get("recurring_interval_count")
+            else 1,
+            trial_period_days=int(data["trial_period_days"])
+            if data.get("trial_period_days")
+            else None,
             lookup_key=str(data["lookup_key"]) if data.get("lookup_key") else None,
             is_active=data.get("is_active") == "on",
         )
@@ -210,9 +217,7 @@ def edit_price_form(
         limit=500,
         offset=0,
     )
-    ctx = _base_context(
-        request, db, auth, title="Edit Price", page_title="Edit Price"
-    )
+    ctx = _base_context(request, db, auth, title="Edit Price", page_title="Edit Price")
     ctx["price"] = item
     ctx["products"] = all_products
     return templates.TemplateResponse("admin/billing/prices/edit.html", ctx)
@@ -235,10 +240,18 @@ async def edit_price_submit(
             currency=str(data["currency"]) if data.get("currency") else None,
             unit_amount=int(data["unit_amount"]) if data.get("unit_amount") else None,
             type=str(data["type"]) if data.get("type") else None,  # type: ignore[arg-type]
-            billing_scheme=str(data["billing_scheme"]) if data.get("billing_scheme") else None,  # type: ignore[arg-type]
-            recurring_interval=str(data["recurring_interval"]) if data.get("recurring_interval") else None,  # type: ignore[arg-type]
-            recurring_interval_count=int(data["recurring_interval_count"]) if data.get("recurring_interval_count") else None,
-            trial_period_days=int(data["trial_period_days"]) if data.get("trial_period_days") else None,
+            billing_scheme=str(data["billing_scheme"])
+            if data.get("billing_scheme")
+            else None,  # type: ignore[arg-type]
+            recurring_interval=str(data["recurring_interval"])
+            if data.get("recurring_interval")
+            else None,  # type: ignore[arg-type]
+            recurring_interval_count=int(data["recurring_interval_count"])
+            if data.get("recurring_interval_count")
+            else None,
+            trial_period_days=int(data["trial_period_days"])
+            if data.get("trial_period_days")
+            else None,
             lookup_key=str(data["lookup_key"]) if data.get("lookup_key") else None,
             is_active="is_active" in data,
         )
