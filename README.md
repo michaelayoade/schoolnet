@@ -106,6 +106,16 @@ A production-ready FastAPI starter template with enterprise-grade features inclu
    pip install -r requirements.txt
    ```
 
+   **Optional: S3 storage support**
+   ```bash
+   # Poetry
+   poetry install -E s3
+
+   # pip
+   pip install .[s3]
+   ```
+   Required when `STORAGE_BACKEND=s3` is set. Without this, the application will crash with `ImportError` on startup.
+
 ### Running with Docker (Recommended)
 
 The easiest way to run the application is with Docker Compose:

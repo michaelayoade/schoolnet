@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Security] Upgrade `jinja2` to `>=3.1.6` — resolves CVE-2024-56201 (sandbox escape via crafted filenames) and CVE-2024-56326 (sandbox bypass via `__init__` override) (PR #1)
 
 ### Fixed
+- [Fixed] `boto3` declared as optional dependency under `[tool.poetry.extras] s3 = ["boto3"]` — deployments with `STORAGE_BACKEND=s3` no longer crash with `ImportError` on startup; install with `pip install .[s3]` or `poetry install -E s3` (`pyproject.toml`) (PR #25)
+- [Fixed] `app/api/__init__.py` and `app/schemas/__init__.py` added — both subdirectories were missing `__init__.py` unlike all other `app/` sub-packages, causing inconsistent namespace package behaviour (PR #26)
 - [Fixed] `S3Storage.exists()` now catches `botocore.ClientError` specifically — 404/NoSuchKey returns `False`; all other `ClientError` variants log a warning and re-raise so misconfigurations and permission errors surface (`app/services/storage.py`) (PR #20)
 - [Fixed] `send_email()` SMTP connection now wrapped in `try/finally` — `server.quit()` is always called even when the send fails, preventing connection leaks (`app/services/email.py`) (PR #20)
 
@@ -61,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] `types-cachetools` and `types-redis` added to dev dependencies — enables mypy to type-check `cachetools.TTLCache` (rate limiter) and Redis client calls without `ignore_missing_imports` workarounds (`pyproject.toml`) (PR #26)
+- [Changed] OpenTelemetry instrumentation packages (`opentelemetry-instrumentation-fastapi`, `-sqlalchemy`, `-celery`) upgraded from pre-release `0.47b0` to stable release (`pyproject.toml`) (PR #26)
 - [Changed] Refactored `seed_auth_settings()` in `app/services/settings_seed.py` — extracted 2–3 private setting-group builder helpers to reduce function body below 80 lines (PR #21)
 - [Changed] Applied `ruff format` cleanup across `app/` — eliminates remaining E501 line-length violations in `app/schemas/billing.py` and `app/services/application.py` (PR #22)
 - [Changed] Added `logger.debug()` call in `WebSocketManager.send_to_person()` on failed sends — outbound message failures are now traceable (`app/services/websocket_manager.py`) (PR #22)
