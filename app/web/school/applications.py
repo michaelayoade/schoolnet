@@ -63,9 +63,20 @@ def application_detail(
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
     svc = ApplicationService(db)
+    school_id = _get_school_id(db, auth)
+    if not school_id:
+        return RedirectResponse(url="/school/applications?error=No+school+found", status_code=303)
+
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
         return RedirectResponse(url="/school/applications?error=Application+not+found", status_code=303)
+    if not application.admission_form or application.admission_form.school_id != school_id:
+        logger.warning(
+            "Cross-school application detail access denied: app_id=%s admin_person_id=%s",
+            app_id,
+            auth.get("person_id"),
+        )
+        return Response(status_code=403)
 
     form = application.admission_form
     parent = application.parent
@@ -92,9 +103,20 @@ def review_application(
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
     svc = ApplicationService(db)
+    school_id = _get_school_id(db, auth)
+    if not school_id:
+        return RedirectResponse(url="/school/applications?error=No+school+found", status_code=303)
+
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
         return RedirectResponse(url="/school/applications?error=Application+not+found", status_code=303)
+    if not application.admission_form or application.admission_form.school_id != school_id:
+        logger.warning(
+            "Cross-school application review denied: app_id=%s admin_person_id=%s",
+            app_id,
+            auth.get("person_id"),
+        )
+        return Response(status_code=403)
 
     try:
         svc.review(
