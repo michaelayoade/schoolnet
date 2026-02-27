@@ -3,8 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.models.scheduler import ScheduledTask, ScheduleType
 from app.schemas.scheduler import ScheduledTaskCreate, ScheduledTaskUpdate
-from app.services.common import coerce_uuid
-from app.services.query_utils import apply_ordering, apply_pagination
+from app.services.common import apply_ordering, apply_pagination, coerce_uuid
 from app.services.response import ListResponseMixin
 
 

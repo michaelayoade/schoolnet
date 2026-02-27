@@ -3,8 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.models.audit import AuditActorType, AuditEvent
 from app.schemas.audit import AuditEventCreate
-from app.services.common import coerce_uuid
-from app.services.query_utils import apply_ordering, apply_pagination
+from app.services.common import apply_ordering, apply_pagination, coerce_uuid
 from app.services.response import ListResponseMixin
 
 

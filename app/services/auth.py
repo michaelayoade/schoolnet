@@ -34,8 +34,12 @@ from app.schemas.auth import (
     UserCredentialUpdate,
 )
 from app.services import settings_spec
-from app.services.common import coerce_uuid
-from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
+from app.services.common import (
+    apply_ordering,
+    apply_pagination,
+    coerce_uuid,
+    validate_enum,
+)
 from app.services.response import ListResponseMixin
 
 

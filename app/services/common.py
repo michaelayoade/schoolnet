@@ -30,11 +30,8 @@ def require_uuid(value: Any) -> uuid.UUID:
 
 
 def apply_ordering(
-    query: Select[Any],
-    order_by: str,
-    order_dir: str,
-    allowed_columns: dict[str, Any],
-) -> Select[Any]:
+    query: Any, order_by: str, order_dir: str, allowed_columns: dict[str, Any]
+) -> Any:
     """Apply ordering to a select statement with validation."""
     if order_by not in allowed_columns:
         raise HTTPException(
@@ -47,9 +44,19 @@ def apply_ordering(
     return query.order_by(column.asc())
 
 
-def apply_pagination(query: Select[Any], limit: int, offset: int) -> Select[Any]:
+def apply_pagination(query: Any, limit: int, offset: int) -> Any:
     """Apply limit/offset to a select statement."""
     return query.limit(limit).offset(offset)
+
+
+def validate_enum(value: Any, enum_cls: Any, label: str) -> Any:
+    """Validate and coerce enum values, returning HTTP 400 on invalid input."""
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid {label}") from exc
 
 
 def paginate(
