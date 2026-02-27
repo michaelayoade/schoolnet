@@ -2,10 +2,12 @@
 
 import logging
 import secrets
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -42,11 +44,41 @@ VALID_TRANSITIONS: dict[ApplicationStatus, set[ApplicationStatus]] = {
 }
 
 
-def _generate_application_number() -> str:
-    """Generate a unique application number like SCH-2026-XXXXX."""
-    year = datetime.now(UTC).year
-    suffix = secrets.token_hex(3).upper()[:5]
-    return f"SCH-{year}-{suffix}"
+def _generate_application_number(persist_application: Callable[[str], None] | None = None) -> str:
+    """Generate an application number, retrying on collisions when a persist callback is supplied."""
+    last_collision_error: IntegrityError | None = None
+
+    for attempt in range(1, 6):
+        year = datetime.now(UTC).year
+        suffix = secrets.token_hex(3)[:5]
+        application_number = f"SCH-{year}-{suffix}"
+
+        if persist_application is None:
+            return application_number
+
+        try:
+            persist_application(application_number)
+            return application_number
+        except IntegrityError as error:
+            if not _is_application_number_collision(error):
+                raise
+            last_collision_error = error
+            logger.warning("Application number collision on attempt %d/5", attempt)
+
+    raise RuntimeError(
+        "Failed to generate a unique application number after 5 attempts"
+    ) from last_collision_error
+
+
+def _is_application_number_collision(error: IntegrityError) -> bool:
+    """Return True when IntegrityError is a duplicate application number."""
+    original = getattr(error, "orig", None)
+    diag = getattr(original, "diag", None)
+    if getattr(diag, "constraint_name", None) == "uq_applications_number":
+        return True
+
+    message = str(original or error).lower()
+    return "uq_applications_number" in message or "applications.application_number" in message
 
 
 def _generate_reference() -> str:
@@ -56,6 +88,36 @@ def _generate_reference() -> str:
 class ApplicationService:
     def __init__(self, db: Session) -> None:
         self.db = db
+
+    def _create_application_with_retry(
+        self,
+        *,
+        admission_form_id: UUID,
+        parent_id: UUID,
+        invoice_id: UUID | None,
+    ) -> Application:
+        """Create an application and retry on application-number collisions."""
+        application: Application | None = None
+
+        def _persist_application(application_number: str) -> None:
+            nonlocal application
+            candidate = Application(
+                admission_form_id=admission_form_id,
+                parent_id=parent_id,
+                invoice_id=invoice_id,
+                application_number=application_number,
+                status=ApplicationStatus.draft,
+            )
+            # Savepoint prevents rolling back the whole transaction on one duplicate key.
+            with self.db.begin_nested():
+                self.db.add(candidate)
+                self.db.flush()
+            application = candidate
+
+        _generate_application_number(_persist_application)
+        if application is None:
+            raise RuntimeError("Failed to create application after generating a number")
+        return application
 
     # ── Purchase flow ────────────────────────────────────
 
@@ -177,17 +239,12 @@ class ApplicationService:
             invoice.amount_paid = amount
             invoice.amount_due = 0
             # Create application directly in dev mode
-            app_number = _generate_application_number()
-            application = Application(
+            application = self._create_application_with_retry(
                 admission_form_id=admission_form_id,
                 parent_id=parent_id,
                 invoice_id=invoice.id,
-                application_number=app_number,
-                status=ApplicationStatus.draft,
             )
-            self.db.add(application)
             form.current_submissions += 1
-            self.db.flush()
             paystack_data = {"authorization_url": f"/parent/applications/fill/{application.id}"}
 
         self.db.flush()
@@ -243,15 +300,11 @@ class ApplicationService:
         parent_uuid = coerce_uuid(parent_id)
 
         # Create application
-        app_number = _generate_application_number()
-        application = Application(
+        application = self._create_application_with_retry(
             admission_form_id=form_uuid,
             parent_id=parent_uuid,
             invoice_id=payment_intent.invoice_id,
-            application_number=app_number,
-            status=ApplicationStatus.draft,
         )
-        self.db.add(application)
 
         # Increment form submissions
         form = self.db.get(AdmissionForm, form_uuid)

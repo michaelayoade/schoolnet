@@ -1,11 +1,13 @@
 """Tests for ApplicationService — purchase flow, submission, review, state machine."""
 
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select
 
+from app.models.billing import Customer
 from app.models.school import Application, ApplicationStatus
 from app.services.application import ApplicationService
 
@@ -37,10 +39,6 @@ class TestApplicationPurchaseFlow:
             callback_url="/parent/applications",
         )
         db_session.commit()
-
-        from app.models.billing import Customer
-
-        from sqlalchemy import select
 
         stmt = select(Customer).where(Customer.person_id == parent_person.id)
         customer = db_session.scalar(stmt)
@@ -300,3 +298,59 @@ class TestApplicationQueries:
 
         apps = svc.list_for_school(school.id)
         assert len(apps) >= 1
+
+
+class TestApplicationNumberCollisionRetries:
+    def test_create_application_retries_after_unique_collision(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        svc = ApplicationService(db_session)
+        year = datetime.now(UTC).year
+        existing_number = f"SCH-{year}-abcde"
+        existing = Application(
+            admission_form_id=admission_form_with_price.id,
+            parent_id=parent_person.id,
+            application_number=existing_number,
+            status=ApplicationStatus.draft,
+        )
+        db_session.add(existing)
+        db_session.flush()
+
+        with patch(
+            "app.services.application.secrets.token_hex",
+            side_effect=["abcde0", "f01230"],
+        ):
+            application = svc._create_application_with_retry(
+                admission_form_id=admission_form_with_price.id,
+                parent_id=parent_person.id,
+                invoice_id=None,
+            )
+
+        assert application.application_number == f"SCH-{year}-f0123"
+
+    def test_create_application_raises_after_five_collisions(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        svc = ApplicationService(db_session)
+        year = datetime.now(UTC).year
+        existing = Application(
+            admission_form_id=admission_form_with_price.id,
+            parent_id=parent_person.id,
+            application_number=f"SCH-{year}-abcde",
+            status=ApplicationStatus.draft,
+        )
+        db_session.add(existing)
+        db_session.flush()
+
+        with patch(
+            "app.services.application.secrets.token_hex",
+            side_effect=["abcde0", "abcde0", "abcde0", "abcde0", "abcde0"],
+        ), pytest.raises(
+            RuntimeError,
+            match="Failed to generate a unique application number after 5 attempts",
+        ):
+            svc._create_application_with_retry(
+                admission_form_id=admission_form_with_price.id,
+                parent_id=parent_person.id,
+                invoice_id=None,
+            )
