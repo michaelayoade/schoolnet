@@ -75,9 +75,6 @@ class PriceUpdate(BaseModel):
 class PriceRead(PriceBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    type: str  # type: ignore[assignment]
-    billing_scheme: str  # type: ignore[assignment]
-    recurring_interval: str | None = None  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -165,7 +162,6 @@ class SubscriptionUpdate(BaseModel):
 class SubscriptionRead(SubscriptionBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    status: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -250,7 +246,6 @@ class InvoiceUpdate(BaseModel):
 class InvoiceRead(InvoiceBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    status: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -323,7 +318,6 @@ class PaymentMethodUpdate(BaseModel):
 class PaymentMethodRead(PaymentMethodBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    type: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -362,7 +356,6 @@ class PaymentIntentUpdate(BaseModel):
 class PaymentIntentRead(PaymentIntentBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    status: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -386,7 +379,6 @@ class UsageRecordCreate(UsageRecordBase):
 class UsageRecordRead(UsageRecordBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    action: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -432,7 +424,6 @@ class CouponUpdate(BaseModel):
 class CouponRead(CouponBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    duration: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -490,7 +481,6 @@ class EntitlementUpdate(BaseModel):
 class EntitlementRead(EntitlementBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    value_type: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
 
@@ -523,6 +513,5 @@ class WebhookEventUpdate(BaseModel):
 class WebhookEventRead(WebhookEventBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
     id: UUID
-    status: str  # type: ignore[assignment]
     created_at: datetime
     updated_at: datetime
