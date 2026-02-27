@@ -107,6 +107,14 @@ def edit_form_page(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        logger.warning(
+            "Blocked IDOR form edit page access: admin person_id=%s form.school_id=%s",
+            auth.get("person_id"),
+            form.school_id,
+        )
+        return RedirectResponse(url="/school/forms?error=Unauthorized", status_code=303)
     price_amount = svc.get_price_amount(form)
     return templates.TemplateResponse(
         "school/forms/edit.html",
@@ -129,6 +137,14 @@ def edit_form_submit(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        logger.warning(
+            "Blocked IDOR form edit submit: admin person_id=%s form.school_id=%s",
+            auth.get("person_id"),
+            form.school_id,
+        )
+        return RedirectResponse(url="/school/forms?error=Unauthorized", status_code=303)
 
     from app.schemas.school import AdmissionFormUpdate
 
@@ -154,6 +170,14 @@ def activate_form(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        logger.warning(
+            "Blocked IDOR form activate: admin person_id=%s form.school_id=%s",
+            auth.get("person_id"),
+            form.school_id,
+        )
+        return RedirectResponse(url="/school/forms?error=Unauthorized", status_code=303)
     svc.activate(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+activated", status_code=303)
@@ -170,6 +194,14 @@ def close_form(
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+    school = _get_school_for_admin(db, auth)
+    if not school or form.school_id != school.id:
+        logger.warning(
+            "Blocked IDOR form close: admin person_id=%s form.school_id=%s",
+            auth.get("person_id"),
+            form.school_id,
+        )
+        return RedirectResponse(url="/school/forms?error=Unauthorized", status_code=303)
     svc.close(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+closed", status_code=303)
