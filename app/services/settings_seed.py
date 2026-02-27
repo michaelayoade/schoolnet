@@ -21,79 +21,82 @@ def _csv_list(raw: str | None, upper: bool = True) -> list[str] | None:
     return items
 
 
+def _auth_jwt_setting_defs() -> list[tuple[str, SettingValueType, str | None]]:
+    return [
+        ("jwt_algorithm", SettingValueType.string, os.getenv("JWT_ALGORITHM", "HS256")),
+        (
+            "jwt_access_ttl_minutes",
+            SettingValueType.integer,
+            os.getenv("JWT_ACCESS_TTL_MINUTES", "15"),
+        ),
+        (
+            "jwt_refresh_ttl_days",
+            SettingValueType.integer,
+            os.getenv("JWT_REFRESH_TTL_DAYS", "30"),
+        ),
+    ]
+
+
+def _auth_cookie_setting_defs() -> list[tuple[str, SettingValueType, str | None]]:
+    return [
+        (
+            "refresh_cookie_name",
+            SettingValueType.string,
+            os.getenv("REFRESH_COOKIE_NAME", "refresh_token"),
+        ),
+        (
+            "refresh_cookie_secure",
+            SettingValueType.boolean,
+            os.getenv("REFRESH_COOKIE_SECURE", "false"),
+        ),
+        (
+            "refresh_cookie_samesite",
+            SettingValueType.string,
+            os.getenv("REFRESH_COOKIE_SAMESITE", "lax"),
+        ),
+        (
+            "refresh_cookie_domain",
+            SettingValueType.string,
+            os.getenv("REFRESH_COOKIE_DOMAIN"),
+        ),
+        (
+            "refresh_cookie_path",
+            SettingValueType.string,
+            os.getenv("REFRESH_COOKIE_PATH", "/auth"),
+        ),
+    ]
+
+
+def _auth_misc_setting_defs() -> list[tuple[str, SettingValueType, str | None]]:
+    return [
+        ("totp_issuer", SettingValueType.string, os.getenv("TOTP_ISSUER", "starter_template")),
+        (
+            "api_key_rate_window_seconds",
+            SettingValueType.integer,
+            os.getenv("API_KEY_RATE_WINDOW_SECONDS", "60"),
+        ),
+        ("api_key_rate_max", SettingValueType.integer, os.getenv("API_KEY_RATE_MAX", "5")),
+        (
+            "default_auth_provider",
+            SettingValueType.string,
+            os.getenv("AUTH_DEFAULT_AUTH_PROVIDER", "local"),
+        ),
+    ]
+
+
 def seed_auth_settings(db: Session) -> None:
-    auth_settings.ensure_by_key(
-        db,
-        key="jwt_algorithm",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("JWT_ALGORITHM", "HS256"),
+    setting_defs = (
+        _auth_jwt_setting_defs()
+        + _auth_cookie_setting_defs()
+        + _auth_misc_setting_defs()
     )
-    auth_settings.ensure_by_key(
-        db,
-        key="jwt_access_ttl_minutes",
-        value_type=SettingValueType.integer,
-        value_text=os.getenv("JWT_ACCESS_TTL_MINUTES", "15"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="jwt_refresh_ttl_days",
-        value_type=SettingValueType.integer,
-        value_text=os.getenv("JWT_REFRESH_TTL_DAYS", "30"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="refresh_cookie_name",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("REFRESH_COOKIE_NAME", "refresh_token"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="refresh_cookie_secure",
-        value_type=SettingValueType.boolean,
-        value_text=os.getenv("REFRESH_COOKIE_SECURE", "false"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="refresh_cookie_samesite",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("REFRESH_COOKIE_SAMESITE", "lax"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="refresh_cookie_domain",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("REFRESH_COOKIE_DOMAIN"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="refresh_cookie_path",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("REFRESH_COOKIE_PATH", "/auth"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="totp_issuer",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("TOTP_ISSUER", "starter_template"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="api_key_rate_window_seconds",
-        value_type=SettingValueType.integer,
-        value_text=os.getenv("API_KEY_RATE_WINDOW_SECONDS", "60"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="api_key_rate_max",
-        value_type=SettingValueType.integer,
-        value_text=os.getenv("API_KEY_RATE_MAX", "5"),
-    )
-    auth_settings.ensure_by_key(
-        db,
-        key="default_auth_provider",
-        value_type=SettingValueType.string,
-        value_text=os.getenv("AUTH_DEFAULT_AUTH_PROVIDER", "local"),
-    )
+    for key, value_type, value_text in setting_defs:
+        auth_settings.ensure_by_key(
+            db,
+            key=key,
+            value_type=value_type,
+            value_text=value_text,
+        )
     jwt_secret = os.getenv("JWT_SECRET")
     if jwt_secret and is_openbao_ref(jwt_secret):
         auth_settings.ensure_by_key(
