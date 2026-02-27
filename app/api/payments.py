@@ -8,21 +8,30 @@ from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
 from app.services.application import ApplicationService
-from app.services.payment_gateway import paystack_gateway
+from app.services.payment_gateway import PaystackGateway, paystack_gateway
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
+def get_paystack_gateway() -> PaystackGateway:
+    """Return the configured Paystack gateway."""
+    return paystack_gateway
+
+
 @router.post("/webhook/paystack")
-async def paystack_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
+async def paystack_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    gateway: PaystackGateway = Depends(get_paystack_gateway),
+) -> dict:
     """Handle Paystack webhook — no auth required, signature verified."""
-    if not paystack_gateway.is_configured():
+    if not gateway.is_configured():
         raise HTTPException(status_code=503, detail="Payment gateway not configured")
 
     body = await request.body()
     signature = request.headers.get("x-paystack-signature", "")
-    if not paystack_gateway.validate_webhook_signature(body, signature):
+    if not gateway.validate_webhook_signature(body, signature):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     import json
@@ -48,14 +57,25 @@ def payment_callback(
     reference: str | None = None,
     trxref: str | None = None,
     db: Session = Depends(get_db),
+    gateway: PaystackGateway = Depends(get_paystack_gateway),
 ) -> Response:
     """Handle redirect from Paystack after payment."""
     ref = reference or trxref
     if not ref:
         return RedirectResponse(url="/parent/applications?error=No+payment+reference", status_code=303)
 
+    try:
+        verification = gateway.verify_transaction(ref)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Payment gateway not configured") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if verification.get("status") != "success":
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+
     svc = ApplicationService(db)
-    application = svc.handle_payment_success(ref)
+    application = svc.handle_payment_success(ref, verification)
     db.commit()
 
     if application:
