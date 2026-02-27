@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- [Security] `POST /notifications` endpoint restricted to `admin` role — previously any authenticated user could create notifications for arbitrary `person_id` values; `require_role('admin')` dependency added to the create-notification route, preventing cross-user notification injection (`app/api/notifications.py`) (PR #56)
 - [Security] Upgrade `python-jose` to `PyJWT>=2.8.0` — resolves CVE-2024-33663 and CVE-2024-33664 (JWT algorithm confusion allowing signature bypass); `jwt.encode()` / `jwt.decode()` updated to PyJWT 2.x API; `JWTError` replaced with `jwt.exceptions.InvalidTokenError` (`app/services/auth_flow.py`, `pyproject.toml`) (PR #46)
 - [Security] SVG sanitizer extended to block additional XSS vectors — `<use>`, `<animate>`, `<animateTransform>`, `<animateMotion>`, `<set>`, `<foreignObject>`, `<script>`, and `<iframe>` elements now blocked; `href` and `xlink:href` attributes stripped from all elements (SVG use-href XSS); CSS `url()` expressions stripped from `style` attributes (`app/services/branding_assets.py`) (PR #45)
 - [Security] Payment callback endpoint now verifies transaction with Paystack before marking as paid — `/payments/callback` calls `gateway.verify_transaction(reference)` before `handle_payment_success()`; non-success or unverified transactions rejected with HTTP 400, preventing payment bypass without paying (`app/api/payments.py`) (PR #43)
@@ -62,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Removed] Dead `ListResponseMixin` class removed — it was never referenced outside its own definition and provided an unimplemented abstract method; removed from `app/services/auth_flow.py` along with its import (PR #22)
 
 ### Added
+- [Added] Integration tests for web application routes — `tests/test_web_parent_applications.py` covers list applications, purchase form page and submit, application detail, and IDOR enforcement (parent A cannot access parent B's application); `tests/test_web_school_applications.py` covers list applications, view detail, and review/approve flow; external services (Paystack, email) mocked (PR #55)
 - [Added] Pagination added to `GET /applications/my` and `GET /applications/school/{id}` — `limit` and `offset` query parameters prevent unbounded result sets; defaults: `my_applications` limit=50 (max 500), `school_applications` limit=100 (max 1000) (`app/api/applications.py`) (PR #47)
 - [Added] Unit tests for `PaystackGateway` service — covers `create_subaccount`, `update_subaccount`, `initialize_transaction`, `verify_transaction`, `validate_webhook_signature`, and `is_configured` guard path (`tests/test_payment_gateway_service.py`) (PR #19)
 - [Added] Unit tests for `settings_seed` and `scheduler_config` modules (`tests/test_settings_seed.py`, `tests/test_scheduler_config.py`) — happy path, error cases, and mocked DB fixtures (PR #21)
@@ -89,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] Five API quality fixes — `search_schools()` `limit` Query param gains `ge=1` constraint preventing zero-limit queries; inline imports moved to module top-level in `app/api/admission_forms.py` (`School` model), `app/api/schools.py` (`require_uuid`, `RatingService`), `app/api/file_uploads.py` (`HTTPException`), and `app/api/notifications.py` (`HTTPException`) (`app/api/`) (PR #57)
 - [Changed] `get_school_for_admin()` shared helper extracted into `app/web/schoolnet_deps.py` — duplicate `_get_school_for_admin()` in `app/web/school/forms.py` and `_get_school_id()` in `app/web/school/applications.py` replaced with a single utility calling `SchoolService(db).get_schools_for_owner()`; callers that previously received a bare UUID now extract `.school_id` from the returned `School` object (PR #54)
 - [Changed] `app/services/billing.py` (1073 lines, 13 classes) split into domain sub-modules under `app/services/billing/` — 7 new files: `products.py`, `prices.py`, `customers.py`, `invoices.py`, `subscriptions.py`, `payments.py`, `webhooks.py`; `__init__.py` re-exports all public classes and singletons so existing `from app.services.billing import X` imports continue to work unchanged (PR #53)
 - [Changed] Migrated remaining 54 `db.query()` legacy calls to SQLAlchemy 2.0 `select()` + `db.scalars()`/`db.scalar()` across 12 files — `auth_flow.py`, `billing.py`, `auth.py`, `rbac.py`, `domain_settings.py`, `api/auth_flow.py`, `branding.py`, `person.py`, `scheduler.py`, `scheduler_config.py`, `audit.py`, `web_home.py` (`app/services/` + `app/api/`) (PR #52)
