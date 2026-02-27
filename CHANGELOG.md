@@ -89,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] `app/services/billing.py` (1073 lines, 13 classes) split into domain sub-modules under `app/services/billing/` — 7 new files: `products.py`, `prices.py`, `customers.py`, `invoices.py`, `subscriptions.py`, `payments.py`, `webhooks.py`; `__init__.py` re-exports all public classes and singletons so existing `from app.services.billing import X` imports continue to work unchanged (PR #53)
 - [Changed] Migrated remaining 54 `db.query()` legacy calls to SQLAlchemy 2.0 `select()` + `db.scalars()`/`db.scalar()` across 12 files — `auth_flow.py`, `billing.py`, `auth.py`, `rbac.py`, `domain_settings.py`, `api/auth_flow.py`, `branding.py`, `person.py`, `scheduler.py`, `scheduler_config.py`, `audit.py`, `web_home.py` (`app/services/` + `app/api/`) (PR #52)
 - [Changed] All 87 `db.commit()` calls in service files replaced with `db.flush()` — `billing.py` (×37), `auth.py` (×13), `rbac.py` (×12), `auth_flow.py` (×11), `domain_settings.py` (×4), `person.py` (×3), `audit.py` (×3), `scheduler.py` (×3), `branding.py` (×1); routes and Celery tasks now own transaction commit boundaries (PR #51)
 - [Changed] `type: ignore[assignment]` suppressions removed from `app/schemas/billing.py` — `use_enum_values=True` added to `model_config` of `PriceRead`, `SubscriptionRead`, `InvoiceRead`, `PaymentIntentRead`, `WebhookEventRead` so enum fields type-check cleanly (PR #50)
