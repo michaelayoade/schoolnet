@@ -1,8 +1,7 @@
 """Tests for file upload API endpoints."""
-import io
-from unittest.mock import patch, MagicMock
 
-import pytest
+import io
+from unittest.mock import MagicMock, patch
 
 
 def _csrf_headers(client) -> dict[str, str]:
@@ -14,7 +13,7 @@ def _csrf_headers(client) -> dict[str, str]:
 
 
 class TestFileUploadAPI:
-    def test_upload_file(self, client, auth_headers):
+    def test_upload_file(self, client, auth_headers, person):
         file_content = b"hello world test file"
         csrf = _csrf_headers(client)
         headers = {**auth_headers, **csrf}
@@ -27,15 +26,69 @@ class TestFileUploadAPI:
             response = client.post(
                 "/file-uploads",
                 files={"file": ("test.txt", io.BytesIO(file_content), "text/plain")},
-                data={"category": "document", "csrf_token": csrf.get("X-CSRF-Token", "")},
+                data={
+                    "category": "document",
+                    "csrf_token": csrf.get("X-CSRF-Token", ""),
+                },
                 headers=headers,
                 cookies=client.cookies,
             )
         assert response.status_code == 201
         data = response.json()
+        assert data["uploaded_by"] == str(person.id)
         assert data["original_filename"] == "test.txt"
         assert data["content_type"] == "text/plain"
         assert data["category"] == "document"
+
+    def test_upload_file_rejects_invalid_entity_type(
+        self, client, auth_headers, person
+    ):
+        csrf = _csrf_headers(client)
+        headers = {**auth_headers, **csrf}
+        with patch("app.services.file_upload.get_storage_backend") as mock_backend:
+            storage = MagicMock()
+            storage.save.return_value = "abc123_invalid.txt"
+            storage.get_url.return_value = "/static/uploads/abc123_invalid.txt"
+            mock_backend.return_value = storage
+
+            response = client.post(
+                "/file-uploads",
+                files={"file": ("invalid.txt", io.BytesIO(b"data"), "text/plain")},
+                data={
+                    "category": "document",
+                    "entity_type": "unknown",
+                    "entity_id": str(person.id),
+                    "csrf_token": csrf.get("X-CSRF-Token", ""),
+                },
+                headers=headers,
+                cookies=client.cookies,
+            )
+        assert response.status_code == 400
+
+    def test_upload_file_rejects_unowned_school_entity(
+        self, client, auth_headers, school
+    ):
+        csrf = _csrf_headers(client)
+        headers = {**auth_headers, **csrf}
+        with patch("app.services.file_upload.get_storage_backend") as mock_backend:
+            storage = MagicMock()
+            storage.save.return_value = "abc123_school.txt"
+            storage.get_url.return_value = "/static/uploads/abc123_school.txt"
+            mock_backend.return_value = storage
+
+            response = client.post(
+                "/file-uploads",
+                files={"file": ("school.txt", io.BytesIO(b"data"), "text/plain")},
+                data={
+                    "category": "document",
+                    "entity_type": "school",
+                    "entity_id": str(school.id),
+                    "csrf_token": csrf.get("X-CSRF-Token", ""),
+                },
+                headers=headers,
+                cookies=client.cookies,
+            )
+        assert response.status_code == 403
 
     def test_upload_file_unauthenticated(self, client):
         csrf = _csrf_headers(client)
@@ -89,13 +142,15 @@ class TestFileUploadAPI:
 
     def test_get_file_upload_not_found(self, client, auth_headers):
         import uuid
+
         response = client.get(f"/file-uploads/{uuid.uuid4()}", headers=auth_headers)
         assert response.status_code == 404
 
-    def test_delete_file_upload(self, client, auth_headers, db_session):
+    def test_delete_file_upload(self, client, auth_headers, db_session, person):
         from app.models.file_upload import FileUpload, FileUploadStatus
 
         upload = FileUpload(
+            uploaded_by=person.id,
             original_filename="del_test.txt",
             content_type="text/plain",
             file_size=10,
@@ -111,7 +166,57 @@ class TestFileUploadAPI:
             storage = MagicMock()
             mock_backend.return_value = storage
 
+            response = client.delete(f"/file-uploads/{upload.id}", headers=auth_headers)
+        assert response.status_code == 204
+
+    def test_delete_file_upload_forbidden(
+        self, client, auth_headers, db_session, parent_person
+    ):
+        from app.models.file_upload import FileUpload, FileUploadStatus
+
+        upload = FileUpload(
+            uploaded_by=parent_person.id,
+            original_filename="del_forbidden.txt",
+            content_type="text/plain",
+            file_size=10,
+            storage_key="delforbidden",
+            url="/static/uploads/delforbidden",
+            status=FileUploadStatus.active,
+        )
+        db_session.add(upload)
+        db_session.commit()
+        db_session.refresh(upload)
+
+        with patch("app.services.file_upload.get_storage_backend") as mock_backend:
+            storage = MagicMock()
+            mock_backend.return_value = storage
+
+            response = client.delete(f"/file-uploads/{upload.id}", headers=auth_headers)
+        assert response.status_code == 403
+
+    def test_delete_file_upload_admin_can_delete(
+        self, client, admin_headers, db_session, parent_person
+    ):
+        from app.models.file_upload import FileUpload, FileUploadStatus
+
+        upload = FileUpload(
+            uploaded_by=parent_person.id,
+            original_filename="del_admin.txt",
+            content_type="text/plain",
+            file_size=10,
+            storage_key="deladmin",
+            url="/static/uploads/deladmin",
+            status=FileUploadStatus.active,
+        )
+        db_session.add(upload)
+        db_session.commit()
+        db_session.refresh(upload)
+
+        with patch("app.services.file_upload.get_storage_backend") as mock_backend:
+            storage = MagicMock()
+            mock_backend.return_value = storage
+
             response = client.delete(
-                f"/file-uploads/{upload.id}", headers=auth_headers
+                f"/file-uploads/{upload.id}", headers=admin_headers
             )
         assert response.status_code == 204

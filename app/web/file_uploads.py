@@ -1,4 +1,5 @@
 """Admin web routes for File Upload management."""
+
 from __future__ import annotations
 
 import logging
@@ -63,9 +64,10 @@ def list_file_uploads(
         )
         .order_by(FileUpload.created_at.desc())
     )
-    total = db.scalar(
-        select(func.count()).select_from(query.order_by(None).subquery())
-    ) or 0
+    total = (
+        db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+        or 0
+    )
     items = list(db.scalars(query.limit(PAGE_SIZE).offset(offset)).all())
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
@@ -126,6 +128,7 @@ async def upload_submit(
             content_type=uploaded_file.content_type or "application/octet-stream",
             uploaded_by=person.id,
             category=category,
+            actor_id=person.id,
         )
         db.commit()
         logger.info(
@@ -165,11 +168,21 @@ async def delete_file_upload(
 
     try:
         svc = FileUploadService(db)
-        svc.delete(file_id)
+        svc.delete(
+            file_id,
+            actor_id=auth["person"].id,
+            roles=auth.get("roles"),
+        )
         db.commit()
         logger.info("Deleted file upload via web: %s", file_id)
         return RedirectResponse(
             url="/admin/file-uploads?success=File+deleted+successfully",
+            status_code=302,
+        )
+    except PermissionError as exc:
+        logger.warning("Unauthorized delete for file upload %s: %s", file_id, exc)
+        return RedirectResponse(
+            url=f"/admin/file-uploads?error={exc}",
             status_code=302,
         )
     except ValueError as exc:

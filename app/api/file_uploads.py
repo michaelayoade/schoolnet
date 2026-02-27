@@ -1,11 +1,21 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_user_auth
 from app.schemas.common import ListResponse
 from app.schemas.file_upload import FileUploadRead
+from app.services.common import require_uuid
 from app.services.file_upload import FileUploadService
 
 router = APIRouter(prefix="/file-uploads", tags=["file-uploads"])
@@ -18,17 +28,26 @@ async def upload_file(
     entity_type: str | None = Form(default=None),
     entity_id: str | None = Form(default=None),
     db: Session = Depends(get_db),
+    auth: dict = Depends(require_user_auth),
 ) -> FileUploadRead:
     content = await file.read()
     svc = FileUploadService(db)
-    record = svc.upload(
-        content=content,
-        filename=file.filename or "unknown",
-        content_type=file.content_type or "application/octet-stream",
-        category=category,
-        entity_type=entity_type,
-        entity_id=entity_id,
-    )
+    actor_id = require_uuid(auth["person_id"])
+    try:
+        record = svc.upload(
+            content=content,
+            filename=file.filename or "unknown",
+            content_type=file.content_type or "application/octet-stream",
+            uploaded_by=actor_id,
+            category=category,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            actor_id=actor_id,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
     return FileUploadRead.model_validate(record)
 
@@ -38,8 +57,6 @@ def get_file_upload(file_id: UUID, db: Session = Depends(get_db)) -> FileUploadR
     svc = FileUploadService(db)
     record = svc.get_by_id(file_id)
     if not record or not record.is_active:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="File upload not found")
     return FileUploadRead.model_validate(record)
 
@@ -72,7 +89,21 @@ def list_file_uploads(
 
 
 @router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_file_upload(file_id: UUID, db: Session = Depends(get_db)) -> None:
+def delete_file_upload(
+    file_id: UUID,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_user_auth),
+) -> None:
     svc = FileUploadService(db)
-    svc.delete(file_id)
+    actor_id = require_uuid(auth["person_id"])
+    try:
+        svc.delete(
+            file_id,
+            actor_id=actor_id,
+            roles=auth.get("roles"),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     db.commit()

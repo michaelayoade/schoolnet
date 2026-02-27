@@ -1,10 +1,12 @@
 """Tests for file upload service."""
+
 import shutil
 from pathlib import Path
 
 import pytest
 
-from app.models.file_upload import FileUpload, FileUploadStatus
+from app.models.file_upload import FileUploadStatus
+from app.models.school import Application
 from app.services.file_upload import FileUploadService
 from app.services.storage import LocalStorage
 
@@ -81,6 +83,7 @@ class TestFileUploadService:
 
     def test_get_by_id_not_found(self, upload_service):
         import uuid
+
         result = upload_service.get_by_id(uuid.uuid4())
         assert result is None
 
@@ -97,16 +100,17 @@ class TestFileUploadService:
         assert all(f.category == "document" for f in docs)
         assert all(f.category == "avatar" for f in avatars)
 
-    def test_delete_soft_deletes(self, upload_service, db_session, storage_dir):
+    def test_delete_soft_deletes(self, upload_service, db_session, person):
         record = upload_service.upload(
             content=b"delete me",
             filename="delete.txt",
             content_type="text/plain",
+            uploaded_by=person.id,
         )
         db_session.commit()
         file_id = record.id
 
-        upload_service.delete(file_id)
+        upload_service.delete(file_id, actor_id=person.id)
         db_session.commit()
 
         found = upload_service.get_by_id(file_id)
@@ -116,23 +120,114 @@ class TestFileUploadService:
 
     def test_delete_not_found_raises(self, upload_service):
         import uuid
-        with pytest.raises(ValueError, match="not found"):
-            upload_service.delete(uuid.uuid4())
 
-    def test_upload_with_metadata(self, upload_service, db_session):
+        with pytest.raises(ValueError, match="not found"):
+            upload_service.delete(uuid.uuid4(), actor_id=uuid.uuid4())
+
+    def test_delete_forbidden_for_non_owner(
+        self, upload_service, person, parent_person
+    ):
+        record = upload_service.upload(
+            content=b"owner-only",
+            filename="owner.txt",
+            content_type="text/plain",
+            uploaded_by=person.id,
+        )
+
+        with pytest.raises(PermissionError, match="Not allowed"):
+            upload_service.delete(record.id, actor_id=parent_person.id)
+
+    def test_delete_allows_admin_role(self, upload_service, person, parent_person):
+        record = upload_service.upload(
+            content=b"admin-delete",
+            filename="admin.txt",
+            content_type="text/plain",
+            uploaded_by=person.id,
+        )
+
+        upload_service.delete(record.id, actor_id=parent_person.id, roles=["admin"])
+        found = upload_service.get_by_id(record.id)
+        assert found is not None
+        assert found.is_active is False
+
+    def test_upload_with_metadata(self, upload_service, db_session, person):
         record = upload_service.upload(
             content=b"meta",
             filename="meta.txt",
             content_type="text/plain",
             category="document",
-            entity_type="person",
-            entity_id="123",
+            entity_type="user",
+            entity_id=str(person.id),
             metadata_={"description": "test file"},
+            actor_id=person.id,
+            uploaded_by=person.id,
         )
         db_session.commit()
-        assert record.entity_type == "person"
-        assert record.entity_id == "123"
+        assert record.entity_type == "user"
+        assert record.entity_id == str(person.id)
         assert record.metadata_ == {"description": "test file"}
+
+    def test_upload_rejects_unsupported_entity_type(self, upload_service, person):
+        with pytest.raises(ValueError, match="Unsupported entity_type"):
+            upload_service.upload(
+                content=b"bad-entity-type",
+                filename="bad.txt",
+                content_type="text/plain",
+                entity_type="unknown",
+                entity_id=str(person.id),
+                actor_id=person.id,
+            )
+
+    def test_upload_rejects_unowned_school_entity(self, upload_service, school, person):
+        with pytest.raises(PermissionError, match="Not allowed"):
+            upload_service.upload(
+                content=b"school-doc",
+                filename="school.txt",
+                content_type="text/plain",
+                entity_type="school",
+                entity_id=str(school.id),
+                actor_id=person.id,
+                uploaded_by=person.id,
+            )
+
+    def test_upload_allows_owned_school_entity(
+        self, upload_service, school, school_owner
+    ):
+        record = upload_service.upload(
+            content=b"school-doc",
+            filename="school.txt",
+            content_type="text/plain",
+            entity_type="school",
+            entity_id=str(school.id),
+            actor_id=school_owner.id,
+            uploaded_by=school_owner.id,
+        )
+        assert record.entity_type == "school"
+        assert record.entity_id == str(school.id)
+
+    def test_upload_allows_owned_application_entity(
+        self, upload_service, db_session, admission_form_with_price, parent_person
+    ):
+        application = Application(
+            admission_form_id=admission_form_with_price.id,
+            parent_id=parent_person.id,
+            application_number="APP-TEST-0001",
+        )
+        db_session.add(application)
+        db_session.commit()
+        db_session.refresh(application)
+
+        record = upload_service.upload(
+            content=b"application-doc",
+            filename="application.txt",
+            content_type="text/plain",
+            entity_type="application",
+            entity_id=str(application.id),
+            actor_id=parent_person.id,
+            uploaded_by=parent_person.id,
+        )
+        assert record.entity_type == "application"
+        assert record.entity_id == str(application.id)
 
     def test_count(self, upload_service, db_session):
         initial = upload_service.count()
