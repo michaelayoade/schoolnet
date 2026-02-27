@@ -51,8 +51,8 @@ class TestRateLimitMiddleware:
         assert resp.status_code == 200
 
     @patch("app.middleware.rate_limit._get_redis", return_value=None)
-    def test_allows_when_redis_unavailable(self, mock_redis: MagicMock) -> None:
-        """Fail-open: if Redis is unavailable, requests are allowed."""
+    def test_fallback_limits_when_redis_unavailable(self, mock_redis: MagicMock) -> None:
+        """When Redis is unavailable, in-memory fallback blocks the 6th request."""
         # Create a fresh app so the middleware hasn't cached Redis yet
         fresh_app = FastAPI()
         fresh_app.add_middleware(RateLimitMiddleware)
@@ -62,8 +62,36 @@ class TestRateLimitMiddleware:
             return {"token": "abc"}
 
         with TestClient(fresh_app) as c:
-            resp = c.post("/auth/login")
-        assert resp.status_code == 200
+            responses = [c.post("/auth/login") for _ in range(6)]
+        assert [resp.status_code for resp in responses[:5]] == [200] * 5
+        assert responses[5].status_code == 429
+        assert responses[5].json()["code"] == "rate_limit_exceeded"
+
+    @patch("app.middleware.rate_limit._get_redis")
+    def test_fallback_limits_when_redis_connection_errors(
+        self, mock_redis: MagicMock
+    ) -> None:
+        """If Redis operations fail, in-memory fallback blocks the 6th request."""
+        from redis.exceptions import ConnectionError as RedisConnectionError
+
+        mock_r = MagicMock()
+        mock_pipe = MagicMock()
+        mock_pipe.execute.side_effect = RedisConnectionError("redis down")
+        mock_r.pipeline.return_value = mock_pipe
+        mock_redis.return_value = mock_r
+
+        fresh_app = FastAPI()
+        fresh_app.add_middleware(RateLimitMiddleware)
+
+        @fresh_app.post("/auth/login")
+        def login():
+            return {"token": "abc"}
+
+        with TestClient(fresh_app) as c:
+            responses = [c.post("/auth/login") for _ in range(6)]
+        assert [resp.status_code for resp in responses[:5]] == [200] * 5
+        assert responses[5].status_code == 429
+        assert responses[5].json()["code"] == "rate_limit_exceeded"
 
     @patch("app.middleware.rate_limit._get_redis")
     def test_rate_limit_headers_present(self, mock_redis: MagicMock) -> None:
@@ -88,7 +116,6 @@ class TestRateLimitMiddleware:
 
     def test_429_response_format(self) -> None:
         """429 responses have standard error format."""
-        from app.middleware.rate_limit import RateLimitMiddleware
         from starlette.responses import JSONResponse
 
         # Verify the response structure matches our error envelope
