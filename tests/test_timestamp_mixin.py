@@ -1,7 +1,8 @@
 """Tests for TimestampMixin and database base classes."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 from sqlalchemy import Integer, String, create_engine

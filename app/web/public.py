@@ -43,8 +43,14 @@ def school_search(
     offset = (page - 1) * limit
     svc = SchoolService(db)
     schools, total = svc.search(
-        query=q, state=state, city=city, school_type=school_type,
-        category=category, gender=gender, limit=limit, offset=offset,
+        query=q,
+        state=state,
+        city=city,
+        school_type=school_type,
+        category=category,
+        gender=gender,
+        limit=limit,
+        offset=offset,
     )
     total_pages = (total + limit - 1) // limit if total else 1
     return templates.TemplateResponse(
@@ -66,15 +72,28 @@ def school_search(
 
 
 @router.get("/schools/{slug}")
-def school_profile(request: Request, slug: str, db: Session = Depends(get_db)) -> Response:
+def school_profile(
+    request: Request, slug: str, db: Session = Depends(get_db)
+) -> Response:
     svc = SchoolService(db)
     school = svc.get_by_slug(slug)
     if not school:
         return templates.TemplateResponse(
             "public/schools/search.html",
-            {"request": request, "schools": [], "total": 0, "page": 1, "total_pages": 1,
-             "q": "", "state": "", "city": "", "school_type": "", "category": "", "gender": "",
-             "error_message": "School not found"},
+            {
+                "request": request,
+                "schools": [],
+                "total": 0,
+                "page": 1,
+                "total_pages": 1,
+                "q": "",
+                "state": "",
+                "city": "",
+                "school_type": "",
+                "category": "",
+                "gender": "",
+                "error_message": "School not found",
+            },
         )
 
     avg_rating = svc.get_average_rating(school.id)
@@ -98,6 +117,7 @@ def school_profile(request: Request, slug: str, db: Session = Depends(get_db)) -
 
 
 # ── Auth routes (register + login) ──────────────────────
+
 
 @router.get("/register")
 def register_choice(request: Request) -> Response:
@@ -197,9 +217,7 @@ def register_school_submit(
 
 @router.get("/login")
 def login_form(request: Request) -> Response:
-    return templates.TemplateResponse(
-        "public/auth/login.html", {"request": request}
-    )
+    return templates.TemplateResponse("public/auth/login.html", {"request": request})
 
 
 @router.post("/login")
@@ -221,7 +239,10 @@ def login_submit(
     if result.get("mfa_required"):
         return templates.TemplateResponse(
             "public/auth/login.html",
-            {"request": request, "error_message": "MFA is not supported in web login yet"},
+            {
+                "request": request,
+                "error_message": "MFA is not supported in web login yet",
+            },
         )
 
     access_token = result.get("access_token", "")

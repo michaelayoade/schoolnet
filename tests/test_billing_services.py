@@ -35,7 +35,6 @@ from app.schemas.billing import (
 )
 from app.services import billing as billing_service
 
-
 # ── Products ─────────────────────────────────────────────
 
 
@@ -65,8 +64,12 @@ def test_list_products(db_session):
     billing_service.products.create(db_session, ProductCreate(name="List P1"))
     billing_service.products.create(db_session, ProductCreate(name="List P2"))
     items, total = billing_service.products.list(
-        db_session, is_active=None, order_by="created_at", order_dir="asc",
-        limit=50, offset=0,
+        db_session,
+        is_active=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 2
     assert total >= 2
@@ -121,8 +124,13 @@ def test_list_prices_filter_product(db_session, billing_product):
     items, total = billing_service.prices.list(
         db_session,
         product_id=str(billing_product.id),
-        type=None, currency=None, is_active=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        type=None,
+        currency=None,
+        is_active=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -133,8 +141,10 @@ def test_update_price(db_session, billing_product):
     price = billing_service.prices.create(
         db_session,
         PriceCreate(
-            product_id=billing_product.id, currency="usd",
-            unit_amount=500, type="one_time",
+            product_id=billing_product.id,
+            currency="usd",
+            unit_amount=500,
+            type="one_time",
         ),
     )
     updated = billing_service.prices.update(
@@ -162,8 +172,13 @@ def test_list_customers_filter_email(db_session):
     )
     items, total = billing_service.customers.list(
         db_session,
-        person_id=None, email=email, is_active=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        person_id=None,
+        email=email,
+        is_active=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) == 1
     assert total == 1
@@ -208,8 +223,13 @@ def test_list_subscriptions_filter_status(db_session, billing_customer):
     )
     items, total = billing_service.subscriptions.list(
         db_session,
-        customer_id=str(billing_customer.id), status="active", is_active=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        customer_id=str(billing_customer.id),
+        status="active",
+        is_active=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -221,7 +241,8 @@ def test_update_subscription(db_session, billing_customer):
         SubscriptionCreate(customer_id=billing_customer.id),
     )
     updated = billing_service.subscriptions.update(
-        db_session, str(sub.id),
+        db_session,
+        str(sub.id),
         SubscriptionUpdate(status="active"),
     )
     assert updated.status.value == "active"
@@ -244,7 +265,8 @@ def test_create_subscription_item(db_session, billing_subscription, billing_pric
 
 def test_update_subscription_item(db_session, billing_subscription_item):
     updated = billing_service.subscription_items.update(
-        db_session, str(billing_subscription_item.id),
+        db_session,
+        str(billing_subscription_item.id),
         SubscriptionItemUpdate(quantity=10),
     )
     assert updated.quantity == 10
@@ -279,8 +301,13 @@ def test_list_invoices_filter_status(db_session, billing_customer):
     )
     results = billing_service.invoices.list(
         db_session,
-        customer_id=None, subscription_id=None, status="open",
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        customer_id=None,
+        subscription_id=None,
+        status="open",
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(results) >= 1
 
@@ -361,13 +388,19 @@ def test_list_payment_methods_filter_type(db_session, billing_customer):
     billing_service.payment_methods.create(
         db_session,
         PaymentMethodCreate(
-            customer_id=billing_customer.id, type="card",
+            customer_id=billing_customer.id,
+            type="card",
         ),
     )
     items, total = billing_service.payment_methods.list(
         db_session,
-        customer_id=str(billing_customer.id), type="card", is_active=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        customer_id=str(billing_customer.id),
+        type="card",
+        is_active=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -442,7 +475,10 @@ def test_list_usage_records(db_session, billing_subscription_item):
     items, total = billing_service.usage_records.list(
         db_session,
         subscription_item_id=str(billing_subscription_item.id),
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -477,8 +513,12 @@ def test_list_coupons_filter_valid(db_session):
     )
     items, total = billing_service.coupons.list(
         db_session,
-        valid=True, code=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        valid=True,
+        code=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -540,8 +580,13 @@ def test_list_discounts(db_session, billing_coupon, billing_customer):
     )
     items, total = billing_service.discounts.list(
         db_session,
-        customer_id=str(billing_customer.id), subscription_id=None, coupon_id=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        customer_id=str(billing_customer.id),
+        subscription_id=None,
+        coupon_id=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -587,8 +632,12 @@ def test_list_entitlements_filter_product(db_session, billing_product):
     )
     items, total = billing_service.entitlements.list(
         db_session,
-        product_id=str(billing_product.id), feature_key=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        product_id=str(billing_product.id),
+        feature_key=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1
@@ -667,8 +716,13 @@ def test_list_webhook_events_filter_provider(db_session):
     )
     items, total = billing_service.webhook_events.list(
         db_session,
-        provider="manual", event_type=None, status=None,
-        order_by="created_at", order_dir="asc", limit=50, offset=0,
+        provider="manual",
+        event_type=None,
+        status=None,
+        order_by="created_at",
+        order_dir="asc",
+        limit=50,
+        offset=0,
     )
     assert len(items) >= 1
     assert total >= 1

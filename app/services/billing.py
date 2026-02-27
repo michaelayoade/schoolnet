@@ -518,9 +518,7 @@ class InvoiceItems(ListResponseMixin):
         if payload.subscription_item_id and not db.get(
             SubscriptionItem, coerce_uuid(payload.subscription_item_id)
         ):
-            raise HTTPException(
-                status_code=404, detail="Subscription item not found"
-            )
+            raise HTTPException(status_code=404, detail="Subscription item not found")
         item = InvoiceItem(**payload.model_dump())
         db.add(item)
         db.commit()
@@ -664,9 +662,7 @@ class PaymentIntents(ListResponseMixin):
     def create(db: Session, payload: PaymentIntentCreate) -> PaymentIntent:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
             raise HTTPException(status_code=404, detail="Customer not found")
-        if payload.invoice_id and not db.get(
-            Invoice, coerce_uuid(payload.invoice_id)
-        ):
+        if payload.invoice_id and not db.get(Invoice, coerce_uuid(payload.invoice_id)):
             raise HTTPException(status_code=404, detail="Invoice not found")
         if payload.payment_method_id and not db.get(
             PaymentMethod, coerce_uuid(payload.payment_method_id)
@@ -739,9 +735,7 @@ class UsageRecords(ListResponseMixin):
     @staticmethod
     def create(db: Session, payload: UsageRecordCreate) -> UsageRecord:
         if not db.get(SubscriptionItem, coerce_uuid(payload.subscription_item_id)):
-            raise HTTPException(
-                status_code=404, detail="Subscription item not found"
-            )
+            raise HTTPException(status_code=404, detail="Subscription item not found")
         item = UsageRecord(**payload.model_dump())
         db.add(item)
         db.commit()

@@ -1,4 +1,5 @@
 """Admin web routes for Coupon management."""
+
 from __future__ import annotations
 
 import logging
@@ -124,8 +125,12 @@ async def create_coupon_submit(
             amount_off=int(data["amount_off"]) if data.get("amount_off") else None,
             currency=str(data["currency"]) if data.get("currency") else None,
             duration=str(data.get("duration", "once")),  # type: ignore[arg-type]
-            duration_in_months=int(data["duration_in_months"]) if data.get("duration_in_months") else None,
-            max_redemptions=int(data["max_redemptions"]) if data.get("max_redemptions") else None,
+            duration_in_months=int(data["duration_in_months"])
+            if data.get("duration_in_months")
+            else None,
+            max_redemptions=int(data["max_redemptions"])
+            if data.get("max_redemptions")
+            else None,
             valid=data.get("valid") == "on",
             redeem_by=redeem_by_val,
         )
@@ -155,9 +160,7 @@ def coupon_detail(
 ) -> HTMLResponse:
     """Show coupon detail view."""
     item = billing_service.coupons.get(db, str(item_id))
-    ctx = _base_context(
-        request, db, auth, title=item.name, page_title="Coupon Detail"
-    )
+    ctx = _base_context(request, db, auth, title=item.name, page_title="Coupon Detail")
     ctx["coupon"] = item
     ctx["success"] = request.query_params.get("success")
     ctx["error"] = request.query_params.get("error")
@@ -204,8 +207,12 @@ async def edit_coupon_submit(
             amount_off=int(data["amount_off"]) if data.get("amount_off") else None,
             currency=str(data["currency"]) if data.get("currency") else None,
             duration=str(data["duration"]) if data.get("duration") else None,  # type: ignore[arg-type]
-            duration_in_months=int(data["duration_in_months"]) if data.get("duration_in_months") else None,
-            max_redemptions=int(data["max_redemptions"]) if data.get("max_redemptions") else None,
+            duration_in_months=int(data["duration_in_months"])
+            if data.get("duration_in_months")
+            else None,
+            max_redemptions=int(data["max_redemptions"])
+            if data.get("max_redemptions")
+            else None,
             valid="valid" in data,
             redeem_by=redeem_by_val,
         )

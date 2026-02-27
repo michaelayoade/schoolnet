@@ -1,4 +1,5 @@
 """WebSocket connection manager for real-time notifications."""
+
 from __future__ import annotations
 
 import json

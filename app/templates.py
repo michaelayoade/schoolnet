@@ -3,6 +3,7 @@
 All template rendering should use this module's ``templates`` object
 instead of creating ad-hoc ``Jinja2Templates`` instances.
 """
+
 from __future__ import annotations
 
 import html
@@ -45,9 +46,7 @@ def _format_date(value: date | datetime | None, fmt: str = "%d %b %Y") -> str:
     return str(value)
 
 
-def _format_datetime(
-    value: datetime | None, fmt: str = "%d %b %Y %H:%M"
-) -> str:
+def _format_datetime(value: datetime | None, fmt: str = "%d %b %Y %H:%M") -> str:
     """Format a datetime with time component."""
     if value is None:
         return ""

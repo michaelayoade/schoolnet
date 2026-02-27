@@ -33,8 +33,13 @@ def school_dashboard(
     if not school:
         return templates.TemplateResponse(
             "school/dashboard.html",
-            {"request": request, "auth": auth, "school": None, "stats": None,
-             "error_message": "No school found. Please register a school."},
+            {
+                "request": request,
+                "auth": auth,
+                "school": None,
+                "stats": None,
+                "error_message": "No school found. Please register a school.",
+            },
         )
 
     svc = SchoolService(db)
@@ -79,7 +84,9 @@ def school_profile_update(
 ) -> Response:
     school = _get_school(db, auth)
     if not school:
-        return RedirectResponse(url="/school/profile?error=School+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/profile?error=School+not+found", status_code=303
+        )
 
     svc = SchoolService(db)
     payload = SchoolUpdate(
@@ -98,4 +105,6 @@ def school_profile_update(
     )
     svc.update(school, payload)
     db.commit()
-    return RedirectResponse(url="/school/profile?success=Profile+updated", status_code=303)
+    return RedirectResponse(
+        url="/school/profile?success=Profile+updated", status_code=303
+    )

@@ -30,7 +30,9 @@ def parent_dashboard(
 
     total = len(applications)
     drafts = sum(1 for a in applications if a.status.value == "draft")
-    submitted = sum(1 for a in applications if a.status.value in ("submitted", "under_review"))
+    submitted = sum(
+        1 for a in applications if a.status.value in ("submitted", "under_review")
+    )
     accepted = sum(1 for a in applications if a.status.value == "accepted")
 
     return templates.TemplateResponse(
@@ -105,4 +107,6 @@ def profile_update(
         person.last_name = last_name
         person.phone = phone if phone else None
         db.commit()
-    return RedirectResponse(url="/parent/profile?success=Profile+updated", status_code=303)
+    return RedirectResponse(
+        url="/parent/profile?success=Profile+updated", status_code=303
+    )

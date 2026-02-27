@@ -82,11 +82,7 @@ setup_otel(app)
 register_error_handlers(app)
 
 # CORS — must be added before other middleware
-cors_origins = [
-    o.strip()
-    for o in settings.cors_origins.split(",")
-    if o.strip()
-]
+cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 if cors_origins:
     app.add_middleware(
         CORSMiddleware,
@@ -340,6 +336,7 @@ async def web_auth_redirect_handler(request: Request, exc: WebAuthRedirect) -> R
 
     next_url = sanitize_next_url(exc.next_url or request.url.path)
     return RedirectResponse(url=f"/admin/login?next={next_url}", status_code=302)
+
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

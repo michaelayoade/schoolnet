@@ -1,11 +1,10 @@
 """Tests for gunicorn configuration."""
+
 from __future__ import annotations
 
 import importlib
 import os
 from unittest.mock import patch
-
-import pytest
 
 
 class TestGunicornConfig:

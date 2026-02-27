@@ -29,7 +29,9 @@ def test_branding_context_from_saved_values(db_session) -> None:
             "font_family_body": "Inter",
         },
     )
-    context = branding_context_from_values(load_branding_context(db_session)["branding"])
+    context = branding_context_from_values(
+        load_branding_context(db_session)["branding"]
+    )
     assert context["brand"]["name"] == "Acme Ops"
     assert context["brand"]["mark"] == "AO"
     assert "--brand-primary: #224466;" in context["org_branding"]["css"]

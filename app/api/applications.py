@@ -145,7 +145,9 @@ def review_application(
     form = db.get(AdmissionForm, application.admission_form_id)
     school = db.get(School, form.school_id) if form else None
     roles = set(auth.get("roles") or [])
-    if not school or (str(school.owner_id) != auth["person_id"] and "admin" not in roles):
+    if not school or (
+        str(school.owner_id) != auth["person_id"] and "admin" not in roles
+    ):
         raise HTTPException(status_code=403, detail="Forbidden")
     application = svc.review(
         application,

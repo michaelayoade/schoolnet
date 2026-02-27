@@ -1,4 +1,5 @@
 """Admin dashboard with summary stats."""
+
 from __future__ import annotations
 
 import logging
@@ -36,22 +37,35 @@ def dashboard(
 
     people_count = db.execute(select(func.count()).select_from(Person)).scalar() or 0
     roles_count = db.execute(select(func.count()).select_from(Role)).scalar() or 0
-    tasks_count = db.execute(
-        select(func.count()).select_from(ScheduledTask).where(ScheduledTask.enabled.is_(True))
-    ).scalar() or 0
-    uploads_count = db.execute(
-        select(func.count()).select_from(FileUpload).where(
-            FileUpload.status == FileUploadStatus.active
-        )
-    ).scalar() or 0
+    tasks_count = (
+        db.execute(
+            select(func.count())
+            .select_from(ScheduledTask)
+            .where(ScheduledTask.enabled.is_(True))
+        ).scalar()
+        or 0
+    )
+    uploads_count = (
+        db.execute(
+            select(func.count())
+            .select_from(FileUpload)
+            .where(FileUpload.status == FileUploadStatus.active)
+        ).scalar()
+        or 0
+    )
     audit_count = db.execute(select(func.count()).select_from(AuditEvent)).scalar() or 0
-    unread_notifications = db.execute(
-        select(func.count()).select_from(Notification).where(
-            Notification.recipient_id == person.id,
-            Notification.is_read.is_(False),
-            Notification.is_active.is_(True),
-        )
-    ).scalar() or 0
+    unread_notifications = (
+        db.execute(
+            select(func.count())
+            .select_from(Notification)
+            .where(
+                Notification.recipient_id == person.id,
+                Notification.is_read.is_(False),
+                Notification.is_active.is_(True),
+            )
+        ).scalar()
+        or 0
+    )
 
     return templates.TemplateResponse(
         "admin/dashboard.html",

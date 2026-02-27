@@ -34,8 +34,13 @@ def list_forms(
     if not school:
         return templates.TemplateResponse(
             "school/forms/list.html",
-            {"request": request, "auth": auth, "forms": [], "school": None,
-             "error_message": "No school found. Please register a school first."},
+            {
+                "request": request,
+                "auth": auth,
+                "forms": [],
+                "school": None,
+                "error_message": "No school found. Please register a school first.",
+            },
         )
     svc = AdmissionFormService(db)
     forms = svc.list_for_school(school.id)
@@ -58,7 +63,9 @@ def create_form_page(
 ) -> Response:
     school = _get_school_for_admin(db, auth)
     if not school:
-        return RedirectResponse(url="/school/forms?error=No+school+found", status_code=303)
+        return RedirectResponse(
+            url="/school/forms?error=No+school+found", status_code=303
+        )
     return templates.TemplateResponse(
         "school/forms/create.html",
         {"request": request, "auth": auth, "school": school},
@@ -78,7 +85,9 @@ def create_form_submit(
 ) -> Response:
     school = _get_school_for_admin(db, auth)
     if not school:
-        return RedirectResponse(url="/school/forms?error=No+school+found", status_code=303)
+        return RedirectResponse(
+            url="/school/forms?error=No+school+found", status_code=303
+        )
 
     from app.schemas.school import AdmissionFormCreate
 
@@ -93,7 +102,9 @@ def create_form_submit(
     svc = AdmissionFormService(db)
     svc.create(payload)
     db.commit()
-    return RedirectResponse(url="/school/forms?success=Form+created+successfully", status_code=303)
+    return RedirectResponse(
+        url="/school/forms?success=Form+created+successfully", status_code=303
+    )
 
 
 @router.get("/{form_id}/edit")
@@ -106,7 +117,9 @@ def edit_form_page(
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
-        return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/forms?error=Form+not+found", status_code=303
+        )
     price_amount = svc.get_price_amount(form)
     return templates.TemplateResponse(
         "school/forms/edit.html",
@@ -128,7 +141,9 @@ def edit_form_submit(
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
-        return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/forms?error=Form+not+found", status_code=303
+        )
 
     from app.schemas.school import AdmissionFormUpdate
 
@@ -153,7 +168,9 @@ def activate_form(
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
-        return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/forms?error=Form+not+found", status_code=303
+        )
     svc.activate(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+activated", status_code=303)
@@ -169,7 +186,9 @@ def close_form(
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
-        return RedirectResponse(url="/school/forms?error=Form+not+found", status_code=303)
+        return RedirectResponse(
+            url="/school/forms?error=Form+not+found", status_code=303
+        )
     svc.close(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+closed", status_code=303)

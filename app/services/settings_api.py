@@ -31,14 +31,14 @@ def _normalize_spec_setting(
         coerced = coerced.strip().lower()
     if spec.allowed and coerced not in spec.allowed:
         allowed = ", ".join(sorted(spec.allowed))
-        raise HTTPException(
-            status_code=400, detail=f"Value must be one of: {allowed}"
-        )
+        raise HTTPException(status_code=400, detail=f"Value must be one of: {allowed}")
     if spec.value_type == SettingValueType.integer:
         try:
             parsed = int(coerced)
         except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail="Value must be an integer") from exc
+            raise HTTPException(
+                status_code=400, detail="Value must be an integer"
+            ) from exc
         if spec.min_value is not None and parsed < spec.min_value:
             raise HTTPException(
                 status_code=400, detail=f"Value must be >= {spec.min_value}"
@@ -82,7 +82,9 @@ def _list_domain_settings_response(
     limit: int,
     offset: int,
 ):
-    items = _list_domain_settings(db, domain, is_active, order_by, order_dir, limit, offset)
+    items = _list_domain_settings(
+        db, domain, is_active, order_by, order_dir, limit, offset
+    )
     return list_response(items, limit, offset)
 
 

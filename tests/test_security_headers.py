@@ -1,4 +1,5 @@
 """Tests for SecurityHeadersMiddleware."""
+
 from __future__ import annotations
 
 import pytest
@@ -71,6 +72,7 @@ class TestSecurityHeaders:
         @app.get("/custom-csp")
         def custom_csp():
             from starlette.responses import JSONResponse
+
             resp = JSONResponse({"ok": True})
             resp.headers["Content-Security-Policy"] = "default-src 'none'"
             return resp

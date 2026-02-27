@@ -159,6 +159,7 @@ class ApplicationCreate(BaseModel):
 
 class ApplicationSubmit(ApplicationBase):
     """Used when parent fills and submits the application."""
+
     ward_first_name: str = Field(min_length=1, max_length=80)
     ward_last_name: str = Field(min_length=1, max_length=80)
     ward_date_of_birth: date
