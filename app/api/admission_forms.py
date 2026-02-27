@@ -39,15 +39,14 @@ def create_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("admission_forms:write")),
 ) -> AdmissionFormRead:
-    from app.models.school import School
-
-    school = db.get(School, payload.school_id)
-    if not school:
-        raise HTTPException(status_code=404, detail="School not found")
-    roles = set(auth.get("roles") or [])
-    if str(school.owner_id) != auth["person_id"] and "admin" not in roles:
-        raise HTTPException(status_code=403, detail="Not your school")
     svc = AdmissionFormService(db)
+    try:
+        svc.assert_school_owner(payload.school_id, UUID(auth["person_id"]))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="School not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="Not your school") from exc
+
     form = svc.create(payload)
     db.commit()
     return form  # type: ignore[return-value]
@@ -60,16 +59,18 @@ def update_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("admission_forms:write")),
 ) -> AdmissionFormRead:
-    from app.models.school import School
-
     svc = AdmissionFormService(db)
     form = svc.get_by_id(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Admission form not found")
-    school = db.get(School, form.school_id)
-    roles = set(auth.get("roles") or [])
-    if not school or (str(school.owner_id) != auth["person_id"] and "admin" not in roles):
-        raise HTTPException(status_code=403, detail="Not your school")
+
+    try:
+        svc.assert_school_owner(form.school_id, UUID(auth["person_id"]))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="School not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="Not your school") from exc
+
     form = svc.update(form, payload)
     db.commit()
     return form  # type: ignore[return-value]
@@ -81,16 +82,18 @@ def close_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("admission_forms:write")),
 ) -> AdmissionFormRead:
-    from app.models.school import School
-
     svc = AdmissionFormService(db)
     form = svc.get_by_id(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Admission form not found")
-    school = db.get(School, form.school_id)
-    roles = set(auth.get("roles") or [])
-    if not school or (str(school.owner_id) != auth["person_id"] and "admin" not in roles):
-        raise HTTPException(status_code=403, detail="Not your school")
+
+    try:
+        svc.assert_school_owner(form.school_id, UUID(auth["person_id"]))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="School not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="Not your school") from exc
+
     form = svc.close(form)
     db.commit()
     return form  # type: ignore[return-value]

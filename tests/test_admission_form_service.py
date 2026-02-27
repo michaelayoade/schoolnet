@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from app.models.school import AdmissionForm, AdmissionFormStatus
+from app.models.school import AdmissionFormStatus
 from app.schemas.school import AdmissionFormCreate, AdmissionFormUpdate
 from app.services.admission_form import AdmissionFormService
 
@@ -37,6 +37,22 @@ class TestAdmissionFormCreate:
         )
         with pytest.raises(ValueError, match="School not found"):
             svc.create(payload)
+
+
+class TestAdmissionFormOwnership:
+    def test_assert_school_owner_allows_owner(self, db_session, school, school_owner):
+        svc = AdmissionFormService(db_session)
+        svc.assert_school_owner(school.id, school_owner.id)
+
+    def test_assert_school_owner_rejects_non_owner(self, db_session, school, person):
+        svc = AdmissionFormService(db_session)
+        with pytest.raises(PermissionError, match="Not your school"):
+            svc.assert_school_owner(school.id, person.id)
+
+    def test_assert_school_owner_school_not_found(self, db_session, person):
+        svc = AdmissionFormService(db_session)
+        with pytest.raises(ValueError, match="School not found"):
+            svc.assert_school_owner(uuid.uuid4(), person.id)
 
 
 class TestAdmissionFormGet:

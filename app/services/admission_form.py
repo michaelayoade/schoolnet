@@ -18,6 +18,13 @@ class AdmissionFormService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
+    def assert_school_owner(self, school_id: UUID, person_id: UUID) -> None:
+        school = self.db.get(School, school_id)
+        if not school:
+            raise ValueError("School not found")
+        if school.owner_id != person_id:
+            raise PermissionError("Not your school")
+
     def create(self, payload: AdmissionFormCreate) -> AdmissionForm:
         school = self.db.get(School, payload.school_id)
         if not school:
