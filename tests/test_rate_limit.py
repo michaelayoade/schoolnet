@@ -67,6 +67,26 @@ class TestRateLimitMiddleware:
         assert responses[5].status_code == 429
         assert responses[5].json()["code"] == "rate_limit_exceeded"
 
+    @patch("app.middleware.rate_limit._get_redis", return_value=None)
+    def test_fallback_isolated_per_path(self, mock_redis: MagicMock) -> None:
+        """Fallback counters are isolated by path and do not leak across endpoints."""
+        fresh_app = FastAPI()
+        fresh_app.add_middleware(RateLimitMiddleware)
+
+        @fresh_app.post("/auth/login")
+        def login():
+            return {"token": "abc"}
+
+        @fresh_app.post("/auth/password-reset")
+        def password_reset():
+            return {"sent": True}
+
+        with TestClient(fresh_app) as c:
+            login_responses = [c.post("/auth/login") for _ in range(5)]
+            reset_response = c.post("/auth/password-reset")
+        assert [resp.status_code for resp in login_responses] == [200] * 5
+        assert reset_response.status_code == 200
+
     @patch("app.middleware.rate_limit._get_redis")
     def test_fallback_limits_when_redis_connection_errors(
         self, mock_redis: MagicMock

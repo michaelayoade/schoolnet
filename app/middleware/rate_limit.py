@@ -79,10 +79,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             headers={"Retry-After": str(retry_after)},
         )
 
-    def _check_fallback_limit(self, client_ip: str, now: float) -> tuple[bool, int, int]:
+    def _check_fallback_limit(
+        self, client_ip: str, clean_path: str, now: float
+    ) -> tuple[bool, int, int]:
         """Fallback in-memory sliding window: (allowed, remaining, reset_or_retry)."""
         max_requests, window_seconds = _FALLBACK_LIMIT
-        key = f"rate_limit:fallback:{client_ip}"
+        key = f"rate_limit:fallback:{clean_path}:{client_ip}"
 
         with self._fallback_lock:
             window = self._fallback_cache.get(key)
@@ -112,7 +114,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         clean_path: str,
         now: float,
     ) -> Response:
-        allowed, remaining, reset_or_retry = self._check_fallback_limit(client_ip, now)
+        allowed, remaining, reset_or_retry = self._check_fallback_limit(
+            client_ip, clean_path, now
+        )
         if not allowed:
             logger.warning(
                 "Rate limit exceeded (fallback): %s on %s (%d/%d)",
