@@ -30,6 +30,10 @@ python-jose = {version = "3.3.0", extras = ["cryptography"]}
 passlib = {version = "1.7.4", extras = ["bcrypt"]}
 pyotp = "2.9.0"
 cryptography = ">=44.0.1"
+boto3 = {version = ">=1.34,<2", optional = true}
+
+[tool.poetry.extras]
+s3 = ["boto3"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "8.2.2"

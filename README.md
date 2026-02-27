@@ -104,6 +104,9 @@ A production-ready FastAPI starter template with enterprise-grade features inclu
 
    # Or using pip
    pip install -r requirements.txt
+
+   # For S3 storage backend support
+   pip install .[s3]
    ```
 
 ### Running with Docker (Recommended)
