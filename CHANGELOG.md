@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- [Security] Upgrade `python-jose` to `PyJWT>=2.8.0` — resolves CVE-2024-33663 and CVE-2024-33664 (JWT algorithm confusion allowing signature bypass); `jwt.encode()` / `jwt.decode()` updated to PyJWT 2.x API; `JWTError` replaced with `jwt.exceptions.InvalidTokenError` (`app/services/auth_flow.py`, `pyproject.toml`) (PR #46)
+- [Security] SVG sanitizer extended to block additional XSS vectors — `<use>`, `<animate>`, `<animateTransform>`, `<animateMotion>`, `<set>`, `<foreignObject>`, `<script>`, and `<iframe>` elements now blocked; `href` and `xlink:href` attributes stripped from all elements (SVG use-href XSS); CSS `url()` expressions stripped from `style` attributes (`app/services/branding_assets.py`) (PR #45)
+- [Security] Payment callback endpoint now verifies transaction with Paystack before marking as paid — `/payments/callback` calls `gateway.verify_transaction(reference)` before `handle_payment_success()`; non-success or unverified transactions rejected with HTTP 400, preventing payment bypass without paying (`app/api/payments.py`) (PR #43)
+- [Security] Form purchase endpoint restricted to `parent` role — `require_role('parent')` dependency added to the purchase route in `app/api/applications.py`; other authenticated roles can no longer initiate purchases (PR #41)
+- [Security] CSRF cookie `httponly` flag corrected to `False` — the double-submit CSRF pattern requires the cookie to be JS-readable; the previous `httponly=True` silently broke the auto-injection mechanism in `base.html` (`app/middleware/csrf.py`) (PR #41)
+- [Security] `ward_gender` parameter now validated against `Literal['male', 'female', 'other']` — invalid values return HTTP 400 instead of being passed through unchecked (`app/web/parent/applications.py`) (PR #41)
+- [Security] Hardcoded `postgresql://postgres:postgres@localhost/starter` default removed from `DATABASE_URL` — application now raises `ValueError` at startup if the environment variable is absent, preventing accidental use of development credentials in production (`app/config.py`) (PR #41)
 - [Security] `SchoolPublicRead` schema introduced — bank account number, bank code, Paystack subaccount code, and commission rate excluded from public school API responses (`GET /schools`, `GET /schools/{id}`); admin-only endpoints retain full `SchoolRead` (`app/schemas/school.py`) (PR #33)
 - [Security] School admin cross-school IDOR on applications fixed — detail and review handlers in `app/web/school/applications.py` now verify the application's `school_id` matches the authenticated admin's school; mismatched school returns 403 (PR #34)
 - [Security] `password_hash` field removed from `UserCredentialCreate` and `UserCredentialUpdate` schemas — replaced with a plaintext `password` field hashed in the service layer before storage, preventing a compromised admin from injecting a known hash directly (`app/schemas/auth.py`) (PR #35)
@@ -43,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Security] Upgrade `jinja2` to `>=3.1.6` — resolves CVE-2024-56201 (sandbox escape via crafted filenames) and CVE-2024-56326 (sandbox bypass via `__init__` override) (PR #1)
 
 ### Fixed
+- [Fixed] Application number generation now retries on unique key collision — `_generate_application_number()` in `app/services/application.py` attempts up to 5 new tokens on `IntegrityError`; raises `RuntimeError` after 5 consecutive failures, preventing silent data corruption under high load (PR #42)
 - [Fixed] `boto3` declared as optional dependency under `[tool.poetry.extras] s3 = ["boto3"]` — deployments with `STORAGE_BACKEND=s3` no longer crash with `ImportError` on startup; install with `pip install .[s3]` or `poetry install -E s3` (`pyproject.toml`) (PR #25)
 - [Fixed] `app/api/__init__.py` and `app/schemas/__init__.py` added — both subdirectories were missing `__init__.py` unlike all other `app/` sub-packages, causing inconsistent namespace package behaviour (PR #26)
 - [Fixed] `S3Storage.exists()` now catches `botocore.ClientError` specifically — 404/NoSuchKey returns `False`; all other `ClientError` variants log a warning and re-raise so misconfigurations and permission errors surface (`app/services/storage.py`) (PR #20)
@@ -78,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] Replaced abandoned `passlib` with direct `bcrypt>=4.0.0` — `passlib` is unmaintained and incompatible with `bcrypt 5.0.0`; password hashing now uses `bcrypt.hashpw()` / `bcrypt.checkpw()` directly; `_hash_password()` and `_verify_password()` updated accordingly (`app/services/auth_flow.py`, `pyproject.toml`) (PR #44)
 - [Changed] Global `ignore_missing_imports = true` in `[tool.mypy]` replaced with per-module `[[tool.mypy.overrides]]` sections for stub-less packages (`boto3`, `botocore`, `cachetools`, `redis`, `jose`) — narrows suppression scope so type errors in unrelated packages are no longer silently hidden (`pyproject.toml`) (PR #27)
 - [Changed] `types-cachetools` and `types-redis` added to dev dependencies — enables mypy to type-check `cachetools.TTLCache` (rate limiter) and Redis client calls without `ignore_missing_imports` workarounds (`pyproject.toml`) (PR #26)
 - [Changed] OpenTelemetry instrumentation packages (`opentelemetry-instrumentation-fastapi`, `-sqlalchemy`, `-celery`) upgraded from pre-release `0.47b0` to stable release (`pyproject.toml`) (PR #26)
