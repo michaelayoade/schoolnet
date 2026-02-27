@@ -10,6 +10,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -347,24 +348,19 @@ def revoke_sessions_for_person(
     exclude_session_id: str | None = None,
 ) -> int:
     person_uuid = coerce_uuid(person_id)
-    query = (
-        db.query(AuthSession)
-        .filter(AuthSession.person_id == person_uuid)
-        .filter(AuthSession.status == SessionStatus.active)
-        .filter(AuthSession.revoked_at.is_(None))
+    statement = (
+        update(AuthSession)
+        .where(
+            AuthSession.person_id == person_uuid,
+            AuthSession.status == SessionStatus.active,
+        )
+        .values(status=SessionStatus.revoked, revoked_at=datetime.utcnow())
     )
     if exclude_session_id:
-        query = query.filter(AuthSession.id != coerce_uuid(exclude_session_id))
+        statement = statement.where(AuthSession.id != coerce_uuid(exclude_session_id))
 
-    sessions = query.all()
-    if not sessions:
-        return 0
-
-    now = _now()
-    for session in sessions:
-        session.status = SessionStatus.revoked
-        session.revoked_at = now
-    return len(sessions)
+    result = db.execute(statement)
+    return int(getattr(result, "rowcount", 0) or 0)
 
 
 class AuthFlow(ListResponseMixin):

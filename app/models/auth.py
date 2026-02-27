@@ -115,6 +115,7 @@ class MFAMethod(Base):
 class Session(Base):
     __tablename__ = "sessions"
     __table_args__ = (
+        Index("ix_sessions_person_id", "person_id"),
         Index("ix_sessions_token_hash", "token_hash"),
         Index("ix_sessions_previous_token_hash", "previous_token_hash"),
     )
