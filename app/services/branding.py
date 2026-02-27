@@ -11,6 +11,8 @@ from app.models.domain_settings import DomainSetting, SettingDomain, SettingValu
 
 _SETTING_KEY = "ui_branding"
 _HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_HEX_COLOR_CSS = re.compile(r"^#[0-9a-fA-F]{3,6}$")
+_CSS_FONT_SAFE = re.compile(r"[^A-Za-z0-9 _-]")
 
 
 def _normalize_hex(value: str | None, fallback: str) -> str:
@@ -20,6 +22,17 @@ def _normalize_hex(value: str | None, fallback: str) -> str:
     if not value.startswith("#"):
         value = f"#{value}"
     return value.upper() if _HEX_COLOR.match(value) else fallback
+
+
+def _safe_css_hex(value: Any, fallback: str) -> str:
+    candidate = str(value or "").strip()
+    if not _HEX_COLOR_CSS.match(candidate):
+        return fallback
+    if len(candidate) == 4:
+        candidate = "#" + "".join(ch * 2 for ch in candidate[1:])
+    if len(candidate) != 7:
+        return fallback
+    return candidate.upper()
 
 
 def _brand_mark(name: str) -> str:
@@ -121,12 +134,16 @@ def google_fonts_url(branding: dict[str, Any]) -> str | None:
 
 
 def generate_css(branding: dict[str, Any]) -> str:
-    primary = _normalize_hex(branding.get("primary_color"), "#06B6D4")
-    accent = _normalize_hex(branding.get("accent_color"), "#F97316")
+    primary = _safe_css_hex(branding.get("primary_color"), "#06B6D4")
+    accent = _safe_css_hex(branding.get("accent_color"), "#F97316")
     primary_dark = _shift_lightness(primary, 0.78)
     accent_dark = _shift_lightness(accent, 0.78)
-    display_font = (branding.get("font_family_display") or "Outfit").strip()
-    body_font = (branding.get("font_family_body") or "Plus Jakarta Sans").strip()
+    display_font = _CSS_FONT_SAFE.sub(
+        "", (branding.get("font_family_display") or "Outfit")
+    ).strip() or "Outfit"
+    body_font = _CSS_FONT_SAFE.sub(
+        "", (branding.get("font_family_body") or "Plus Jakarta Sans")
+    ).strip() or "Plus Jakarta Sans"
     custom_css = (branding.get("custom_css") or "").strip()
 
     lines = [
