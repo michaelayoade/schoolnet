@@ -181,6 +181,9 @@ Services:
 | `JWT_REFRESH_TTL_DAYS` | Refresh token TTL | `30` |
 | `TOTP_ISSUER` | TOTP issuer name | `starter_template` |
 | `TOTP_ENCRYPTION_KEY` | TOTP secret encryption key | Required |
+| `REFRESH_COOKIE_SECURE` | Set auth cookies with `Secure` flag (`true`/`1`/`yes`) | `false` |
+| `TRUSTED_PROXIES` | Comma-separated IPs/CIDRs trusted to set `X-Forwarded-For` | `` (empty = none) |
+| `METRICS_TOKEN` | Bearer token required to access `/metrics` endpoint | Required |
 | `OTEL_ENABLED` | Enable OpenTelemetry | `false` |
 | `OTEL_SERVICE_NAME` | Service name for tracing | `starter_template` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | - |

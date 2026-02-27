@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- [Security] HTML injection in password reset email fixed — `html.escape()` applied to `person_name` and `reset_link` before interpolation into the HTML body, preventing XSS via a malicious first name (PR #14)
+- [Security] Rate limiter now validates `X-Forwarded-For` against a `TRUSTED_PROXIES` env var (comma-separated IP/CIDR list; default empty = no proxy headers trusted) — prevents header spoofing to bypass rate limits (`app/middleware/rate_limit.py`) (PR #11)
+- [Security] `/metrics` endpoint now requires a `Bearer` token matching `METRICS_TOKEN` env var; returns 403 if absent or incorrect (PR #12)
+- [Security] `/health/ready` endpoint no longer leaks raw exception messages — catches errors and returns a generic "Service unavailable" response (PR #12)
+- [Security] Login failure handler no longer logs the user's email address (PII removed from `app/web/public.py`) (PR #12)
+- [Security] `/register/parent` and `/register/school` paths added to the rate-limited route list alongside existing `/auth/` paths (PR #12)
+- [Security] `change_password` endpoint now enforces minimum password strength via `_validate_password_strength()` — prevents weak passwords being set through the API (`app/api/auth_flow.py`) (PR #10)
 - [Security] Login cookie `secure` flag now driven by `REFRESH_COOKIE_SECURE` env var — `_refresh_cookie_secure()` in `app/services/auth_flow.py` reads the variable and returns `True` for values `true`/`1`/`yes` (case-insensitive); both web login handlers (`app/web/auth.py`, `app/web/public.py`) now pass `secure=_refresh_cookie_secure(db)` to every `set_cookie()` call for `access_token` and `refresh_token` (PR #9)
 - [Security] Password minimum length of 8 characters now enforced in `register_parent`, `register_school_admin`, and password-change service methods via `_validate_password_strength()` helper; raises `ValueError` on violation (PR #5)
 - [Security] Rate limiter now fails **closed** on Redis outage — an in-memory sliding-window fallback (5 req / 60 s per IP, using `collections.deque`) enforces brute-force limits on login, MFA, and registration even when Redis is unavailable (PR #7)
