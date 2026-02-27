@@ -1,6 +1,7 @@
 import logging
 import os
 import smtplib
+from html import escape
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -91,9 +92,12 @@ def send_password_reset_email(
     reset_token: str,
     person_name: str | None = None,
 ) -> bool:
-    name = person_name or "there"
+    name = escape(person_name or "there")
     app_url = _env_value("APP_URL") or "http://localhost:8000"
-    reset_link = f"{app_url.rstrip('/')}/auth/reset-password?token={reset_token}"
+    reset_link = escape(
+        f"{app_url.rstrip('/')}/auth/reset-password?token={reset_token}",
+        quote=True,
+    )
     subject = "Reset your password"
     body_html = (
         f"<p>Hi {name},</p>"

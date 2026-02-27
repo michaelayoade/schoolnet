@@ -1,7 +1,7 @@
 """003 – file_uploads table
 
 Revision ID: 003_file_uploads
-Revises: 002_billing_schema
+Revises: 002_billing
 Create Date: 2026-02-16
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "003_file_uploads"
-down_revision = "002_billing_schema"
+down_revision = "002_billing"
 branch_labels = None
 depends_on = None
 
