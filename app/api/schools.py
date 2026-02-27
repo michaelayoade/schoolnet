@@ -11,6 +11,7 @@ from app.schemas.school import (
     RatingCreate,
     RatingRead,
     SchoolCreate,
+    SchoolPublicRead,
     SchoolRead,
     SchoolUpdate,
 )
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/schools", tags=["schools"])
 
 
-@router.get("/search", response_model=list[SchoolRead])
+@router.get("/search", response_model=list[SchoolPublicRead])
 def search_schools(
     q: str | None = None,
     state: str | None = None,
@@ -33,7 +34,7 @@ def search_schools(
     limit: int = Query(default=20, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-) -> list:
+) -> list[SchoolPublicRead]:
     svc = SchoolService(db)
     schools, _ = svc.search(
         query=q, state=state, city=city, school_type=school_type,
@@ -43,8 +44,8 @@ def search_schools(
     return schools
 
 
-@router.get("/{school_id}", response_model=SchoolRead)
-def get_school(school_id: UUID, db: Session = Depends(get_db)) -> SchoolRead:
+@router.get("/{school_id}", response_model=SchoolPublicRead)
+def get_school(school_id: UUID, db: Session = Depends(get_db)) -> SchoolPublicRead:
     svc = SchoolService(db)
     school = svc.get_by_id(school_id)
     if not school:

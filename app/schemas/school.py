@@ -77,6 +77,23 @@ class SchoolRead(SchoolBase):
     updated_at: datetime
 
 
+class SchoolPublicRead(SchoolBase):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    id: UUID
+    slug: str
+    owner_id: UUID
+    logo_url: str | None = None
+    cover_image_url: str | None = None
+    status: str
+    verified_at: datetime | None = None
+    bank_name: str | None = None
+    account_name: str | None = None
+    settlement_bank_verified: bool = False
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
+
+
 class SchoolSearchResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
