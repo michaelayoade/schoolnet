@@ -285,12 +285,12 @@ from app.web.settings import router as web_settings_router  # noqa: E402
 
 _include_api_router(auth_router, dependencies=[Depends(require_role("admin"))])
 _include_api_router(auth_flow_router)
-_include_api_router(rbac_router, dependencies=[Depends(require_user_auth)])
+_include_api_router(rbac_router, dependencies=[Depends(require_role("admin"))])
 _include_api_router(people_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(audit_router)
 _include_api_router(settings_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(scheduler_router, dependencies=[Depends(require_user_auth)])
-_include_api_router(billing_router, dependencies=[Depends(require_user_auth)])
+_include_api_router(billing_router, dependencies=[Depends(require_role("admin"))])
 _include_api_router(file_uploads_router, dependencies=[Depends(require_user_auth)])
 _include_api_router(notifications_router, dependencies=[Depends(require_user_auth)])
 
