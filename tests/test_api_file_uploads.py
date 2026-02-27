@@ -1,8 +1,6 @@
 """Tests for file upload API endpoints."""
 import io
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 def _csrf_headers(client) -> dict[str, str]:

@@ -1,7 +1,5 @@
 """Tests for billing admin web pages."""
-import uuid
 
-import pytest
 
 
 class TestWebBillingProducts:

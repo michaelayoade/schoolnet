@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from app.models.school import AdmissionForm, AdmissionFormStatus
+from app.models.school import AdmissionFormStatus
 from app.schemas.school import AdmissionFormCreate, AdmissionFormUpdate
 from app.services.admission_form import AdmissionFormService
 
