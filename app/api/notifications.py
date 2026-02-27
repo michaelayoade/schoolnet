@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_user_auth
@@ -68,7 +68,6 @@ def mark_notification_read(
     svc = NotificationService(db)
     record = svc.mark_read(notification_id, person_id)
     if not record:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Notification not found")
     db.commit()
     return NotificationRead.model_validate(record)

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_permission
+from app.models.school import School
 from app.schemas.school import (
     AdmissionFormCreate,
     AdmissionFormRead,
@@ -39,8 +40,6 @@ def create_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("admission_forms:write")),
 ) -> AdmissionFormRead:
-    from app.models.school import School
-
     school = db.get(School, payload.school_id)
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
@@ -60,8 +59,6 @@ def update_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("admission_forms:write")),
 ) -> AdmissionFormRead:
-    from app.models.school import School
-
     svc = AdmissionFormService(db)
     form = svc.get_by_id(form_id)
     if not form:
@@ -81,8 +78,6 @@ def close_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("admission_forms:write")),
 ) -> AdmissionFormRead:
-    from app.models.school import School
-
     svc = AdmissionFormService(db)
     form = svc.get_by_id(form_id)
     if not form:

@@ -14,6 +14,8 @@ from app.schemas.school import (
     SchoolRead,
     SchoolUpdate,
 )
+from app.services.common import require_uuid
+from app.services.rating import RatingService
 from app.services.school import SchoolService
 
 logger = logging.getLogger(__name__)
@@ -30,7 +32,7 @@ def search_schools(
     gender: str | None = None,
     fee_min: int | None = None,
     fee_max: int | None = None,
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> list:
@@ -58,8 +60,6 @@ def create_school(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("schools:write")),
 ) -> SchoolRead:
-    from app.services.common import require_uuid
-
     svc = SchoolService(db)
     school = svc.create(payload, owner_id=require_uuid(auth["person_id"]))
     db.commit()
@@ -90,8 +90,6 @@ def my_schools(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("schools:write")),
 ) -> list:
-    from app.services.common import require_uuid
-
     svc = SchoolService(db)
     return svc.get_schools_for_owner(require_uuid(auth["person_id"]))
 
@@ -103,10 +101,7 @@ def create_rating(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_user_auth),
 ) -> RatingRead:
-    from app.services.rating import RatingService
-
     svc = RatingService(db)
-    from app.services.common import require_uuid
 
     rating = svc.create(
         school_id=school_id,

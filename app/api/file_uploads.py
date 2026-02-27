@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -38,8 +38,6 @@ def get_file_upload(file_id: UUID, db: Session = Depends(get_db)) -> FileUploadR
     svc = FileUploadService(db)
     record = svc.get_by_id(file_id)
     if not record or not record.is_active:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="File upload not found")
     return FileUploadRead.model_validate(record)
 
