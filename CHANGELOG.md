@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dockerignore` for optimized Docker builds
 
 ### Changed
+- [Changed] Global `ignore_missing_imports = true` in `[tool.mypy]` replaced with per-module `[[tool.mypy.overrides]]` sections for stub-less packages (`boto3`, `botocore`, `cachetools`, `redis`, `jose`) — narrows suppression scope so type errors in unrelated packages are no longer silently hidden (`pyproject.toml`) (PR #27)
 - [Changed] `types-cachetools` and `types-redis` added to dev dependencies — enables mypy to type-check `cachetools.TTLCache` (rate limiter) and Redis client calls without `ignore_missing_imports` workarounds (`pyproject.toml`) (PR #26)
 - [Changed] OpenTelemetry instrumentation packages (`opentelemetry-instrumentation-fastapi`, `-sqlalchemy`, `-celery`) upgraded from pre-release `0.47b0` to stable release (`pyproject.toml`) (PR #26)
 - [Changed] Refactored `seed_auth_settings()` in `app/services/settings_seed.py` — extracted 2–3 private setting-group builder helpers to reduce function body below 80 lines (PR #21)
