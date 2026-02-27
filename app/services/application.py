@@ -268,6 +268,38 @@ class ApplicationService:
         application: Application | None = self.db.get(Application, app_id)
         return application
 
+    def assert_viewer_access(
+        self,
+        application: Application,
+        person_id: UUID,
+        roles: set[str] | list[str] | None = None,
+    ) -> None:
+        """Assert caller can view an application."""
+        role_set = set(roles or [])
+        if application.parent_id == person_id or "admin" in role_set:
+            return
+
+        form = self.db.get(AdmissionForm, application.admission_form_id)
+        school = self.db.get(School, form.school_id) if form else None
+        if not school or school.owner_id != person_id:
+            raise PermissionError("Forbidden")
+
+    def assert_reviewer_access(
+        self,
+        application: Application,
+        person_id: UUID,
+        roles: set[str] | list[str] | None = None,
+    ) -> None:
+        """Assert caller can review an application."""
+        role_set = set(roles or [])
+        if "admin" in role_set:
+            return
+
+        form = self.db.get(AdmissionForm, application.admission_form_id)
+        school = self.db.get(School, form.school_id) if form else None
+        if not school or school.owner_id != person_id:
+            raise PermissionError("Forbidden")
+
     def submit(
         self,
         application: Application,

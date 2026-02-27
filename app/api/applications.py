@@ -55,14 +55,12 @@ def get_application(
     application = svc.get_by_id(app_id)
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    # Parents can view their own; school admins checked via roles/permissions
-    if str(application.parent_id) != auth["person_id"]:
-        from app.models.school import AdmissionForm, School
-
-        form = db.get(AdmissionForm, application.admission_form_id)
-        school = db.get(School, form.school_id) if form else None
-        if not school or str(school.owner_id) != auth["person_id"]:
-            raise HTTPException(status_code=403, detail="Forbidden")
+    person_id = require_uuid(auth["person_id"])
+    roles = set(auth.get("roles") or [])
+    try:
+        svc.assert_viewer_access(application, person_id=person_id, roles=roles)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Forbidden") from e
     return application  # type: ignore[return-value]
 
 
@@ -139,18 +137,16 @@ def review_application(
     application = svc.get_by_id(app_id)
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    # Verify reviewer owns the school this application belongs to
-    from app.models.school import AdmissionForm, School
-
-    form = db.get(AdmissionForm, application.admission_form_id)
-    school = db.get(School, form.school_id) if form else None
+    person_id = require_uuid(auth["person_id"])
     roles = set(auth.get("roles") or [])
-    if not school or (str(school.owner_id) != auth["person_id"] and "admin" not in roles):
-        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        svc.assert_reviewer_access(application, person_id=person_id, roles=roles)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Forbidden") from e
     application = svc.review(
         application,
         decision=payload.decision,
-        reviewer_id=require_uuid(auth["person_id"]),
+        reviewer_id=person_id,
         review_notes=payload.review_notes,
     )
     db.commit()

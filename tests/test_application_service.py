@@ -300,3 +300,72 @@ class TestApplicationQueries:
 
         apps = svc.list_for_school(school.id)
         assert len(apps) >= 1
+
+
+class TestApplicationAccessChecks:
+    def _create_draft_app(self, db_session, parent_person, admission_form_with_price):
+        svc = ApplicationService(db_session)
+        result = svc.initiate_purchase(
+            parent_id=parent_person.id,
+            admission_form_id=admission_form_with_price.id,
+            callback_url="/callback",
+        )
+        db_session.commit()
+        app_id = result["authorization_url"].split("/")[-1].split("?")[0]
+        return svc.get_by_id(uuid.UUID(app_id))
+
+    def test_assert_viewer_access_allows_parent(
+        self, db_session, parent_person, admission_form_with_price
+    ):
+        app = self._create_draft_app(
+            db_session, parent_person, admission_form_with_price
+        )
+        svc = ApplicationService(db_session)
+        svc.assert_viewer_access(app, person_id=parent_person.id, roles=set())
+
+    def test_assert_viewer_access_allows_school_owner(
+        self, db_session, parent_person, admission_form_with_price, school_owner
+    ):
+        app = self._create_draft_app(
+            db_session, parent_person, admission_form_with_price
+        )
+        svc = ApplicationService(db_session)
+        svc.assert_viewer_access(app, person_id=school_owner.id, roles=set())
+
+    def test_assert_viewer_access_denies_unrelated_user(
+        self, db_session, parent_person, admission_form_with_price, person
+    ):
+        app = self._create_draft_app(
+            db_session, parent_person, admission_form_with_price
+        )
+        svc = ApplicationService(db_session)
+        with pytest.raises(PermissionError, match="Forbidden"):
+            svc.assert_viewer_access(app, person_id=person.id, roles=set())
+
+    def test_assert_reviewer_access_allows_school_owner(
+        self, db_session, parent_person, admission_form_with_price, school_owner
+    ):
+        app = self._create_draft_app(
+            db_session, parent_person, admission_form_with_price
+        )
+        svc = ApplicationService(db_session)
+        svc.assert_reviewer_access(app, person_id=school_owner.id, roles=set())
+
+    def test_assert_reviewer_access_allows_admin(
+        self, db_session, parent_person, admission_form_with_price, person
+    ):
+        app = self._create_draft_app(
+            db_session, parent_person, admission_form_with_price
+        )
+        svc = ApplicationService(db_session)
+        svc.assert_reviewer_access(app, person_id=person.id, roles={"admin"})
+
+    def test_assert_reviewer_access_denies_unrelated_user(
+        self, db_session, parent_person, admission_form_with_price, person
+    ):
+        app = self._create_draft_app(
+            db_session, parent_person, admission_form_with_price
+        )
+        svc = ApplicationService(db_session)
+        with pytest.raises(PermissionError, match="Forbidden"):
+            svc.assert_reviewer_access(app, person_id=person.id, roles=set())
