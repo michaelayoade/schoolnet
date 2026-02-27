@@ -264,7 +264,7 @@ from app.web.billing.webhook_events import (  # noqa: E402
     router as web_billing_webhook_events_router,
 )
 from app.web.dashboard import router as web_dashboard_router  # noqa: E402
-from app.web.deps import WebAuthRedirect  # noqa: E402
+from app.web.deps import WebAuthRedirect, sanitize_next_url  # noqa: E402
 from app.web.file_uploads import router as web_file_uploads_router  # noqa: E402
 from app.web.notifications import router as web_notifications_router  # noqa: E402
 from app.web.parent.applications import (  # noqa: E402
@@ -338,7 +338,7 @@ async def web_auth_redirect_handler(request: Request, exc: WebAuthRedirect) -> R
     """Redirect to login page when web auth fails."""
     from starlette.responses import RedirectResponse
 
-    next_url = exc.next_url or request.url.path
+    next_url = sanitize_next_url(exc.next_url or request.url.path)
     return RedirectResponse(url=f"/admin/login?next={next_url}", status_code=302)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
