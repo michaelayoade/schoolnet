@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_permission, require_user_auth
@@ -38,11 +38,13 @@ def purchase_form(
 
 @router.get("/my", response_model=list[ApplicationRead])
 def my_applications(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_user_auth),
 ) -> list:
     svc = ApplicationService(db)
-    return svc.list_for_parent(require_uuid(auth["person_id"]))
+    return svc.list_for_parent(require_uuid(auth["person_id"]), limit=limit, offset=offset)
 
 
 @router.get("/{app_id}", response_model=ApplicationRead)
@@ -112,6 +114,8 @@ def withdraw_application(
 @router.get("/school/{school_id}", response_model=list[ApplicationRead])
 def school_applications(
     school_id: UUID,
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("applications:review")),
 ) -> list:
@@ -125,7 +129,7 @@ def school_applications(
     if str(school.owner_id) != auth["person_id"] and "admin" not in roles:
         raise HTTPException(status_code=403, detail="Forbidden")
     svc = ApplicationService(db)
-    return svc.list_for_school(school_id)
+    return svc.list_for_school(school_id, limit=limit, offset=offset)
 
 
 @router.post("/{app_id}/review", response_model=ApplicationRead)

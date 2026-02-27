@@ -336,15 +336,17 @@ class ApplicationService:
 
     # ── Queries ──────────────────────────────────────────
 
-    def list_for_parent(self, parent_id: UUID) -> list[Application]:
+    def list_for_parent(self, parent_id: UUID, limit: int = 50, offset: int = 0) -> list[Application]:
         stmt = (
             select(Application)
             .where(Application.parent_id == parent_id, Application.is_active.is_(True))
             .order_by(Application.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(self.db.scalars(stmt).all())
 
-    def list_for_school(self, school_id: UUID) -> list[Application]:
+    def list_for_school(self, school_id: UUID, limit: int = 100, offset: int = 0) -> list[Application]:
         form_ids_stmt = select(AdmissionForm.id).where(AdmissionForm.school_id == school_id)
         stmt = (
             select(Application)
@@ -353,6 +355,8 @@ class ApplicationService:
                 Application.is_active.is_(True),
             )
             .order_by(Application.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(self.db.scalars(stmt).all())
 
