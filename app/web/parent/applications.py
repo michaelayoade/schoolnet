@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
+from app.models.school import AdmissionFormStatus
 from app.services.admission_form import AdmissionFormService
 from app.services.application import ApplicationService
 from app.services.common import require_uuid
@@ -60,6 +61,8 @@ def purchase_page(
     form = form_svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(url="/schools?error=Form+not+found", status_code=303)
+    if form.status != AdmissionFormStatus.active:
+        return RedirectResponse(url="/schools?error=Form+not+available", status_code=303)
 
     price_amount = form_svc.get_price_amount(form)
     school_svc = SchoolService(db)
@@ -84,11 +87,19 @@ def purchase_submit(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
 ) -> Response:
+    form_uuid = require_uuid(form_id)
+    form_svc = AdmissionFormService(db)
+    form = form_svc.get_by_id(form_uuid)
+    if not form:
+        return RedirectResponse(url="/schools?error=Form+not+found", status_code=303)
+    if form.status != AdmissionFormStatus.active:
+        return RedirectResponse(url="/schools?error=Form+not+available", status_code=303)
+
     svc = ApplicationService(db)
     try:
         result = svc.initiate_purchase(
             parent_id=require_uuid(auth["person_id"]),
-            admission_form_id=require_uuid(form_id),
+            admission_form_id=form_uuid,
             callback_url=str(request.url_for("payment_callback")),
         )
         db.commit()
@@ -193,6 +204,14 @@ def application_detail(
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
         return RedirectResponse(url="/parent/applications?error=Application+not+found", status_code=303)
+    if str(application.parent_id) != auth["person_id"]:
+        logger.warning(
+            "IDOR attempt: parent %s tried to access application %s owned by parent %s",
+            auth["person_id"],
+            app_id,
+            application.parent_id,
+        )
+        return RedirectResponse(url="/parent/applications?error=Not+your+application", status_code=303)
 
     form = application.admission_form
     school = form.school if form else None
