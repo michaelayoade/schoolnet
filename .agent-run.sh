@@ -3,14 +3,14 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
 # ---- Injected at spawn time ----
-WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-5
+WORKTREE_DIR=/home/dotmac/projects/schoolnet/.worktrees/fix-security-c1-3
 PROJECT_DIR=/home/dotmac/projects/schoolnet
 SCRIPT_DIR=/home/dotmac/projects/schoolnet/scripts
 ACTIVE_FILE=/home/dotmac/projects/schoolnet/.seabone/active-tasks.json
-LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-5.log
-TASK_ID=fix-security-c1-5
-DESCRIPTION=app/api/ws.py\ line\ 38:\ JWT\ access\ token\ is\ passed\ as\ a\ URL\ query\ parameter\ \(\?token=...\)\,\ appearing\ in\ server\ access\ logs\,\ browser\ history\,\ and\ Referer\ headers.\ Fix:\ accept\ the\ token\ via\ the\ Sec-WebSocket-Protocol\ subprotocol\ header\ instead\ \(client\ sends\ token\ as\ a\ subprotocol\ value\,\ server\ extracts\ and\ validates\ it\).\ If\ the\ existing\ JS\ client\ code\ passes\ the\ token\ as\ a\ query\ param\,\ update\ the\ client-side\ WebSocket\ constructor\ too.\ Remove\ the\ query\ param\ fallback\ entirely.
-BRANCH=agent/fix-security-c1-5
+LOG_FILE=/home/dotmac/projects/schoolnet/.seabone/logs/fix-security-c1-3.log
+TASK_ID=fix-security-c1-3
+DESCRIPTION=app/middleware/rate_limit.py\ line\ 77:\ Rate\ limiter\ fails\ open\ when\ Redis\ is\ unavailable\,\ removing\ all\ brute-force\ protection\ from\ login/MFA/registration.\ Fix:\ add\ an\ in-memory\ sliding-window\ fallback\ using\ cachetools.TTLCache\ \(or\ equivalent\ stdlib\ collections.deque\)\ that\ enforces\ a\ conservative\ limit\ \(e.g.\ 5\ req/60s\ per\ IP\)\ when\ Redis\ raises\ ConnectionError.\ Add\ cachetools\ to\ pyproject.toml\ if\ not\ present.\ Test:\ verify\ that\ with\ Redis\ down\,\ the\ 6th\ request\ is\ rejected.
+BRANCH=agent/fix-security-c1-3
 ENGINE=codex
 MODEL=gpt-5.3-codex
 EVENT_LOG=/home/dotmac/projects/schoolnet/.seabone/logs/events.log
