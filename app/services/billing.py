@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.billing import (
@@ -89,17 +90,19 @@ class Products(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Product], int]:
-        query = db.query(Product)
+        stmt = select(Product)
+        count_stmt = select(func.count()).select_from(Product)
         if is_active is not None:
-            query = query.filter(Product.is_active == is_active)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(Product.is_active == is_active)
+            count_stmt = count_stmt.where(Product.is_active == is_active)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Product.created_at, "name": Product.name},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -159,23 +162,32 @@ class Prices(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Price], int]:
-        query = db.query(Price)
+        stmt = select(Price)
+        count_stmt = select(func.count()).select_from(Price)
         if product_id:
-            query = query.filter(Price.product_id == coerce_uuid(product_id))
+            condition = Price.product_id == coerce_uuid(product_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if type:
-            query = query.filter(Price.type == validate_enum(type, PriceType, "type"))
+            condition = Price.type == validate_enum(type, PriceType, "type")
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if currency:
-            query = query.filter(Price.currency == currency)
+            condition = Price.currency == currency
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if is_active is not None:
-            query = query.filter(Price.is_active == is_active)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Price.is_active == is_active
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Price.created_at, "unit_amount": Price.unit_amount},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -232,21 +244,28 @@ class Customers(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Customer], int]:
-        query = db.query(Customer)
+        stmt = select(Customer)
+        count_stmt = select(func.count()).select_from(Customer)
         if person_id:
-            query = query.filter(Customer.person_id == coerce_uuid(person_id))
+            condition = Customer.person_id == coerce_uuid(person_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if email:
-            query = query.filter(Customer.email.ilike(f"%{email}%"))
+            condition = Customer.email.ilike(f"%{email}%")
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if is_active is not None:
-            query = query.filter(Customer.is_active == is_active)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Customer.is_active == is_active
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Customer.created_at, "name": Customer.name},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -305,24 +324,30 @@ class Subscriptions(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Subscription], int]:
-        query = db.query(Subscription)
+        stmt = select(Subscription)
+        count_stmt = select(func.count()).select_from(Subscription)
         if customer_id:
-            query = query.filter(Subscription.customer_id == coerce_uuid(customer_id))
+            condition = Subscription.customer_id == coerce_uuid(customer_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if status:
-            query = query.filter(
-                Subscription.status
-                == validate_enum(status, SubscriptionStatus, "status")
+            condition = Subscription.status == validate_enum(
+                status, SubscriptionStatus, "status"
             )
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if is_active is not None:
-            query = query.filter(Subscription.is_active == is_active)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Subscription.is_active == is_active
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Subscription.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -382,21 +407,24 @@ class SubscriptionItems(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[SubscriptionItem], int]:
-        query = db.query(SubscriptionItem)
+        stmt = select(SubscriptionItem)
+        count_stmt = select(func.count()).select_from(SubscriptionItem)
         if subscription_id:
-            query = query.filter(
-                SubscriptionItem.subscription_id == coerce_uuid(subscription_id)
-            )
+            condition = SubscriptionItem.subscription_id == coerce_uuid(subscription_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if price_id:
-            query = query.filter(SubscriptionItem.price_id == coerce_uuid(price_id))
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = SubscriptionItem.price_id == coerce_uuid(price_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": SubscriptionItem.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -461,25 +489,28 @@ class Invoices(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Invoice], int]:
-        query = db.query(Invoice)
+        stmt = select(Invoice)
+        count_stmt = select(func.count()).select_from(Invoice)
         if customer_id:
-            query = query.filter(Invoice.customer_id == coerce_uuid(customer_id))
+            condition = Invoice.customer_id == coerce_uuid(customer_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if subscription_id:
-            query = query.filter(
-                Invoice.subscription_id == coerce_uuid(subscription_id)
-            )
+            condition = Invoice.subscription_id == coerce_uuid(subscription_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if status:
-            query = query.filter(
-                Invoice.status == validate_enum(status, InvoiceStatus, "status")
-            )
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Invoice.status == validate_enum(status, InvoiceStatus, "status")
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Invoice.created_at, "total": Invoice.total},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -544,17 +575,20 @@ class InvoiceItems(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[InvoiceItem], int]:
-        query = db.query(InvoiceItem)
+        stmt = select(InvoiceItem)
+        count_stmt = select(func.count()).select_from(InvoiceItem)
         if invoice_id:
-            query = query.filter(InvoiceItem.invoice_id == coerce_uuid(invoice_id))
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = InvoiceItem.invoice_id == coerce_uuid(invoice_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": InvoiceItem.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -612,23 +646,30 @@ class PaymentMethods(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[PaymentMethod], int]:
-        query = db.query(PaymentMethod)
+        stmt = select(PaymentMethod)
+        count_stmt = select(func.count()).select_from(PaymentMethod)
         if customer_id:
-            query = query.filter(PaymentMethod.customer_id == coerce_uuid(customer_id))
+            condition = PaymentMethod.customer_id == coerce_uuid(customer_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if type:
-            query = query.filter(
-                PaymentMethod.type == validate_enum(type, PaymentMethodType, "type")
+            condition = PaymentMethod.type == validate_enum(
+                type, PaymentMethodType, "type"
             )
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if is_active is not None:
-            query = query.filter(PaymentMethod.is_active == is_active)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = PaymentMethod.is_active == is_active
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": PaymentMethod.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -697,24 +738,30 @@ class PaymentIntents(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[PaymentIntent], int]:
-        query = db.query(PaymentIntent)
+        stmt = select(PaymentIntent)
+        count_stmt = select(func.count()).select_from(PaymentIntent)
         if customer_id:
-            query = query.filter(PaymentIntent.customer_id == coerce_uuid(customer_id))
+            condition = PaymentIntent.customer_id == coerce_uuid(customer_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if invoice_id:
-            query = query.filter(PaymentIntent.invoice_id == coerce_uuid(invoice_id))
+            condition = PaymentIntent.invoice_id == coerce_uuid(invoice_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if status:
-            query = query.filter(
-                PaymentIntent.status
-                == validate_enum(status, PaymentIntentStatus, "status")
+            condition = PaymentIntent.status == validate_enum(
+                status, PaymentIntentStatus, "status"
             )
-        total = query.count()
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": PaymentIntent.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -765,14 +812,17 @@ class UsageRecords(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[UsageRecord], int]:
-        query = db.query(UsageRecord)
+        stmt = select(UsageRecord)
+        count_stmt = select(func.count()).select_from(UsageRecord)
         if subscription_item_id:
-            query = query.filter(
-                UsageRecord.subscription_item_id == coerce_uuid(subscription_item_id)
+            condition = UsageRecord.subscription_item_id == coerce_uuid(
+                subscription_item_id
             )
-        total = query.count()
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -780,7 +830,7 @@ class UsageRecords(ListResponseMixin):
                 "recorded_at": UsageRecord.recorded_at,
             },
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
 
@@ -814,19 +864,24 @@ class Coupons(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Coupon], int]:
-        query = db.query(Coupon)
+        stmt = select(Coupon)
+        count_stmt = select(func.count()).select_from(Coupon)
         if valid is not None:
-            query = query.filter(Coupon.valid == valid)
+            condition = Coupon.valid == valid
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if code:
-            query = query.filter(Coupon.code == code)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Coupon.code == code
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Coupon.created_at, "name": Coupon.name},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -893,23 +948,28 @@ class Discounts(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Discount], int]:
-        query = db.query(Discount)
+        stmt = select(Discount)
+        count_stmt = select(func.count()).select_from(Discount)
         if customer_id:
-            query = query.filter(Discount.customer_id == coerce_uuid(customer_id))
+            condition = Discount.customer_id == coerce_uuid(customer_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if subscription_id:
-            query = query.filter(
-                Discount.subscription_id == coerce_uuid(subscription_id)
-            )
+            condition = Discount.subscription_id == coerce_uuid(subscription_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if coupon_id:
-            query = query.filter(Discount.coupon_id == coerce_uuid(coupon_id))
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Discount.coupon_id == coerce_uuid(coupon_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Discount.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -954,19 +1014,24 @@ class Entitlements(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[Entitlement], int]:
-        query = db.query(Entitlement)
+        stmt = select(Entitlement)
+        count_stmt = select(func.count()).select_from(Entitlement)
         if product_id:
-            query = query.filter(Entitlement.product_id == coerce_uuid(product_id))
+            condition = Entitlement.product_id == coerce_uuid(product_id)
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if feature_key:
-            query = query.filter(Entitlement.feature_key == feature_key)
-        total = query.count()
-        query = apply_ordering(
-            query,
+            condition = Entitlement.feature_key == feature_key
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Entitlement.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod
@@ -1022,24 +1087,30 @@ class WebhookEvents(ListResponseMixin):
         limit: int,
         offset: int,
     ) -> tuple[list[WebhookEvent], int]:
-        query = db.query(WebhookEvent)
+        stmt = select(WebhookEvent)
+        count_stmt = select(func.count()).select_from(WebhookEvent)
         if provider:
-            query = query.filter(WebhookEvent.provider == provider)
+            condition = WebhookEvent.provider == provider
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if event_type:
-            query = query.filter(WebhookEvent.event_type == event_type)
+            condition = WebhookEvent.event_type == event_type
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
         if status:
-            query = query.filter(
-                WebhookEvent.status
-                == validate_enum(status, WebhookEventStatus, "status")
+            condition = WebhookEvent.status == validate_enum(
+                status, WebhookEventStatus, "status"
             )
-        total = query.count()
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        total = db.scalar(count_stmt) or 0
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": WebhookEvent.created_at},
         )
-        items = list(apply_pagination(query, limit, offset).all())
+        items = list(db.scalars(apply_pagination(stmt, limit, offset)).all())
         return items, total
 
     @staticmethod

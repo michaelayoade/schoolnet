@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.scheduler import ScheduledTask, ScheduleType
@@ -46,16 +47,16 @@ class ScheduledTasks(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(ScheduledTask)
+        stmt = select(ScheduledTask)
         if enabled is not None:
-            query = query.filter(ScheduledTask.enabled == enabled)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(ScheduledTask.enabled == enabled)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": ScheduledTask.created_at, "name": ScheduledTask.name},
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     @staticmethod
     def update(db: Session, task_id: str, payload: ScheduledTaskUpdate):

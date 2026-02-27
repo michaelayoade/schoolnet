@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -40,7 +41,9 @@ def home(
         limit=limit,
         offset=offset,
     )
-    total_people = db.query(person_service.Person).count()
+    total_people = (
+        db.scalar(select(func.count()).select_from(person_service.Person)) or 0
+    )
     total_pages = max(1, (total_people + limit - 1) // limit)
 
     branding_ctx = load_branding_context(db)

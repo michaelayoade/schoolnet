@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.domain_settings import DomainSetting, SettingDomain, SettingValueType
@@ -46,21 +47,21 @@ class DomainSettings(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(DomainSetting)
+        stmt = select(DomainSetting)
         effective_domain = self.domain or domain
         if effective_domain:
-            query = query.filter(DomainSetting.domain == effective_domain)
+            stmt = stmt.where(DomainSetting.domain == effective_domain)
         if is_active is None:
-            query = query.filter(DomainSetting.is_active.is_(True))
+            stmt = stmt.where(DomainSetting.is_active.is_(True))
         else:
-            query = query.filter(DomainSetting.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(DomainSetting.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": DomainSetting.created_at, "key": DomainSetting.key},
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     def update(self, db: Session, setting_id: str, payload: DomainSettingUpdate):
         setting = db.get(DomainSetting, coerce_uuid(setting_id))
@@ -78,11 +79,11 @@ class DomainSettings(ListResponseMixin):
     def get_by_key(self, db: Session, key: str):
         if not self.domain:
             raise HTTPException(status_code=400, detail="Setting domain is required")
-        setting = (
-            db.query(DomainSetting)
-            .filter(DomainSetting.domain == self.domain)
-            .filter(DomainSetting.key == key)
-            .first()
+        setting = db.scalar(
+            select(DomainSetting).where(
+                DomainSetting.domain == self.domain,
+                DomainSetting.key == key,
+            )
         )
         if not setting:
             raise HTTPException(status_code=404, detail="Setting not found")
@@ -91,11 +92,11 @@ class DomainSettings(ListResponseMixin):
     def upsert_by_key(self, db: Session, key: str, payload: DomainSettingUpdate):
         if not self.domain:
             raise HTTPException(status_code=400, detail="Setting domain is required")
-        setting = (
-            db.query(DomainSetting)
-            .filter(DomainSetting.domain == self.domain)
-            .filter(DomainSetting.key == key)
-            .first()
+        setting = db.scalar(
+            select(DomainSetting).where(
+                DomainSetting.domain == self.domain,
+                DomainSetting.key == key,
+            )
         )
         if setting:
             data = payload.model_dump(exclude_unset=True)
@@ -128,11 +129,11 @@ class DomainSettings(ListResponseMixin):
     ):
         if not self.domain:
             raise HTTPException(status_code=400, detail="Setting domain is required")
-        existing = (
-            db.query(DomainSetting)
-            .filter(DomainSetting.domain == self.domain)
-            .filter(DomainSetting.key == key)
-            .first()
+        existing = db.scalar(
+            select(DomainSetting).where(
+                DomainSetting.domain == self.domain,
+                DomainSetting.key == key,
+            )
         )
         if existing:
             return existing
