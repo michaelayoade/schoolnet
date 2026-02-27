@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
+<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-medium focus:shadow-lg">Skip to main content</a>
 <div class="flex min-h-screen bg-slate-50 dark:bg-slate-900">
     <!-- Sidebar -->
     {% include "admin/components/sidebar.html" %}
@@ -10,14 +11,14 @@
         {% include "admin/components/topbar.html" %}
 
         <!-- Page content -->
-        <main class="flex-1 p-6">
+        <main id="main-content" class="flex-1 p-6">
             {% if success_message %}
-            <div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">
+            <div role="alert" class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">
                 {{ success_message }}
             </div>
             {% endif %}
             {% if error_message %}
-            <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+            <div role="alert" class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
                 {{ error_message }}
             </div>
             {% endif %}
@@ -31,8 +32,11 @@
      x-on:toggle-sidebar.window="sidebarOpen = !sidebarOpen"
      x-show="sidebarOpen"
      x-cloak
+     role="dialog"
+     aria-modal="true"
+     aria-label="Navigation menu"
      class="lg:hidden fixed inset-0 z-50">
-    <div x-on:click="sidebarOpen = false" class="absolute inset-0 bg-black/50"></div>
+    <div x-on:click="sidebarOpen = false" class="absolute inset-0 bg-black/50" aria-hidden="true"></div>
     <div class="relative w-64 h-full">
         {% include "admin/components/sidebar.html" %}
     </div>

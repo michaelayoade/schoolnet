@@ -12,14 +12,16 @@
     <form method="POST" action="/login" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4">
         {{ request.state.csrf_form | safe }}
         <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
-            <input type="email" name="email" required autofocus class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+            <input type="email" id="email" name="email" required aria-required="true" autofocus autocomplete="email"
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
-            <input type="password" name="password" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+            <input type="password" id="password" name="password" required aria-required="true" autocomplete="current-password"
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
         </div>
-        <button type="submit" class="w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">Log In</button>
+        <button type="submit" class="w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none transition">Log In</button>
     </form>
     <p class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
         Don't have an account? <a href="/register" class="text-primary-600 dark:text-primary-400 font-medium hover:underline">Register</a>

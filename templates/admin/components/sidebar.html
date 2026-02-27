@@ -7,13 +7,14 @@
             <span class="text-lg font-semibold text-slate-900 dark:text-white font-display">Admin</span>
         </a>
     </div>
-    <nav class="px-3 py-4 space-y-1">
+    <nav class="px-3 py-4 space-y-1" aria-label="Admin navigation">
         {% set current_path = request.url.path %}
         {% macro nav_item(label, href, icon_path) %}
         <a href="{{ href }}"
+           {% if current_path.startswith(href) %}aria-current="page"{% endif %}
            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition
                   {{ 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400' if current_path.startswith(href) else 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700/50' }}">
-            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 flex-shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ icon_path }}" />
             </svg>
             {{ label }}
