@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.person import Person
@@ -43,18 +44,18 @@ class Roles(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(Role)
+        stmt = select(Role)
         if is_active is None:
-            query = query.filter(Role.is_active.is_(True))
+            stmt = stmt.where(Role.is_active.is_(True))
         else:
-            query = query.filter(Role.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(Role.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Role.created_at, "name": Role.name},
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     @staticmethod
     def update(db: Session, role_id: str, payload: RoleUpdate):
@@ -101,18 +102,18 @@ class Permissions(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(Permission)
+        stmt = select(Permission)
         if is_active is None:
-            query = query.filter(Permission.is_active.is_(True))
+            stmt = stmt.where(Permission.is_active.is_(True))
         else:
-            query = query.filter(Permission.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(Permission.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": Permission.created_at, "key": Permission.key},
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     @staticmethod
     def update(db: Session, permission_id: str, payload: PermissionUpdate):
@@ -166,18 +167,18 @@ class RolePermissions(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(RolePermission)
+        stmt = select(RolePermission)
         if role_id:
-            query = query.filter(RolePermission.role_id == coerce_uuid(role_id))
+            stmt = stmt.where(RolePermission.role_id == coerce_uuid(role_id))
         if permission_id:
-            query = query.filter(RolePermission.permission_id == coerce_uuid(permission_id))
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(RolePermission.permission_id == coerce_uuid(permission_id))
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"role_id": RolePermission.role_id},
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     @staticmethod
     def update(db: Session, link_id: str, payload: RolePermissionUpdate):
@@ -240,18 +241,18 @@ class PersonRoles(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(PersonRole)
+        stmt = select(PersonRole)
         if person_id:
-            query = query.filter(PersonRole.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(PersonRole.person_id == coerce_uuid(person_id))
         if role_id:
-            query = query.filter(PersonRole.role_id == coerce_uuid(role_id))
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(PersonRole.role_id == coerce_uuid(role_id))
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"assigned_at": PersonRole.assigned_at},
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     @staticmethod
     def update(db: Session, link_id: str, payload: PersonRoleUpdate):

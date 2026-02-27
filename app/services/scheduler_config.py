@@ -2,6 +2,8 @@ import logging
 import os
 from datetime import timedelta
 
+from sqlalchemy import select
+
 from app.db import SessionLocal
 from app.models.domain_settings import DomainSetting, SettingDomain
 from app.models.scheduler import ScheduledTask, ScheduleType
@@ -27,12 +29,11 @@ def _env_int(name: str) -> int | None:
 
 
 def _get_setting_value(db, domain: SettingDomain, key: str) -> str | None:
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == domain)
-        .filter(DomainSetting.key == key)
-        .filter(DomainSetting.is_active.is_(True))
-        .first()
+    setting = db.scalar(
+        select(DomainSetting)
+        .where(DomainSetting.domain == domain)
+        .where(DomainSetting.key == key)
+        .where(DomainSetting.is_active.is_(True))
     )
     if not setting:
         return None
@@ -131,10 +132,10 @@ def build_beat_schedule() -> dict:
     schedule: dict[str, dict] = {}
     session = SessionLocal()
     try:
-        tasks = (
-            session.query(ScheduledTask)
-            .filter(ScheduledTask.enabled.is_(True))
-            .all()
+        tasks = list(
+            session.scalars(
+                select(ScheduledTask).where(ScheduledTask.enabled.is_(True))
+            ).all()
         )
         for task in tasks:
             if task.schedule_type != ScheduleType.interval:

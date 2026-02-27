@@ -10,6 +10,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -78,12 +79,11 @@ def _truncate_user_agent(value: str | None, max_len: int = 512) -> str | None:
 def _setting_value(db: Session | None, key: str) -> str | None:
     if db is None:
         return None
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == SettingDomain.auth)
-        .filter(DomainSetting.key == key)
-        .filter(DomainSetting.is_active.is_(True))
-        .first()
+    setting = db.scalar(
+        select(DomainSetting)
+        .where(DomainSetting.domain == SettingDomain.auth)
+        .where(DomainSetting.key == key)
+        .where(DomainSetting.is_active.is_(True))
     )
     if not setting:
         return None
@@ -286,22 +286,24 @@ def _load_rbac_claims(db: Session, person_id: str):
     if db is None:
         return [], []
     person_uuid = coerce_uuid(person_id)
-    roles = (
-        db.query(Role)
-        .join(PersonRole, PersonRole.role_id == Role.id)
-        .filter(PersonRole.person_id == person_uuid)
-        .filter(Role.is_active.is_(True))
-        .all()
+    roles = list(
+        db.scalars(
+            select(Role)
+            .join(PersonRole, PersonRole.role_id == Role.id)
+            .where(PersonRole.person_id == person_uuid)
+            .where(Role.is_active.is_(True))
+        ).all()
     )
-    permissions = (
-        db.query(Permission)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .join(Role, RolePermission.role_id == Role.id)
-        .join(PersonRole, PersonRole.role_id == Role.id)
-        .filter(PersonRole.person_id == person_uuid)
-        .filter(Role.is_active.is_(True))
-        .filter(Permission.is_active.is_(True))
-        .all()
+    permissions = list(
+        db.scalars(
+            select(Permission)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .join(Role, RolePermission.role_id == Role.id)
+            .join(PersonRole, PersonRole.role_id == Role.id)
+            .where(PersonRole.person_id == person_uuid)
+            .where(Role.is_active.is_(True))
+            .where(Permission.is_active.is_(True))
+        ).all()
     )
     role_names = [role.name for role in roles]
     permission_keys = list({perm.key for perm in permissions})
@@ -309,14 +311,13 @@ def _load_rbac_claims(db: Session, person_id: str):
 
 
 def _primary_totp_method(db: Session, person_id: str) -> MFAMethod | None:
-    return (
-        db.query(MFAMethod)
-        .filter(MFAMethod.person_id == coerce_uuid(person_id))
-        .filter(MFAMethod.method_type == MFAMethodType.totp)
-        .filter(MFAMethod.is_active.is_(True))
-        .filter(MFAMethod.enabled.is_(True))
-        .filter(MFAMethod.is_primary.is_(True))
-        .first()
+    return db.scalar(
+        select(MFAMethod)
+        .where(MFAMethod.person_id == coerce_uuid(person_id))
+        .where(MFAMethod.method_type == MFAMethodType.totp)
+        .where(MFAMethod.is_active.is_(True))
+        .where(MFAMethod.enabled.is_(True))
+        .where(MFAMethod.is_primary.is_(True))
     )
 
 
@@ -347,16 +348,16 @@ def revoke_sessions_for_person(
     exclude_session_id: str | None = None,
 ) -> int:
     person_uuid = coerce_uuid(person_id)
-    query = (
-        db.query(AuthSession)
-        .filter(AuthSession.person_id == person_uuid)
-        .filter(AuthSession.status == SessionStatus.active)
-        .filter(AuthSession.revoked_at.is_(None))
+    stmt = (
+        select(AuthSession)
+        .where(AuthSession.person_id == person_uuid)
+        .where(AuthSession.status == SessionStatus.active)
+        .where(AuthSession.revoked_at.is_(None))
     )
     if exclude_session_id:
-        query = query.filter(AuthSession.id != coerce_uuid(exclude_session_id))
+        stmt = stmt.where(AuthSession.id != coerce_uuid(exclude_session_id))
 
-    sessions = query.all()
+    sessions = list(db.scalars(stmt).all())
     if not sessions:
         return 0
 
@@ -433,12 +434,11 @@ class AuthFlow(ListResponseMixin):
             resolved_provider = AuthProvider(provider_value)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid auth provider") from exc
-        credential = (
-            db.query(UserCredential)
-            .filter(UserCredential.username == username)
-            .filter(UserCredential.provider == resolved_provider)
-            .filter(UserCredential.is_active.is_(True))
-            .first()
+        credential = db.scalar(
+            select(UserCredential)
+            .where(UserCredential.username == username)
+            .where(UserCredential.provider == resolved_provider)
+            .where(UserCredential.is_active.is_(True))
         )
         if not credential:
             raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -480,11 +480,10 @@ class AuthFlow(ListResponseMixin):
     def mfa_setup(db: Session, person_id: str, label: str | None):
         person = _person_or_404(db, person_id)
         username = person.email
-        credential = (
-            db.query(UserCredential)
-            .filter(UserCredential.person_id == person.id)
-            .filter(UserCredential.provider == AuthProvider.local)
-            .first()
+        credential = db.scalar(
+            select(UserCredential)
+            .where(UserCredential.person_id == person.id)
+            .where(UserCredential.provider == AuthProvider.local)
         )
         if credential and credential.username:
             username = credential.username
@@ -531,11 +530,15 @@ class AuthFlow(ListResponseMixin):
         if not totp.verify(code, valid_window=0):
             raise HTTPException(status_code=401, detail="Invalid MFA code")
 
-        db.query(MFAMethod).filter(
-            MFAMethod.person_id == method.person_id,
-            MFAMethod.id != method.id,
-            MFAMethod.is_primary.is_(True),
-        ).update({"is_primary": False})
+        db.execute(
+            update(MFAMethod)
+            .where(
+                MFAMethod.person_id == method.person_id,
+                MFAMethod.id != method.id,
+                MFAMethod.is_primary.is_(True),
+            )
+            .values(is_primary=False)
+        )
 
         method.enabled = True
         method.is_primary = True
@@ -582,20 +585,18 @@ class AuthFlow(ListResponseMixin):
     @staticmethod
     def refresh(db: Session, refresh_token: str, request: Request):
         token_hash = _hash_token(refresh_token)
-        session = (
-            db.query(AuthSession)
-            .filter(AuthSession.token_hash == token_hash)
-            .filter(AuthSession.status == SessionStatus.active)
-            .filter(AuthSession.revoked_at.is_(None))
-            .first()
+        session = db.scalar(
+            select(AuthSession)
+            .where(AuthSession.token_hash == token_hash)
+            .where(AuthSession.status == SessionStatus.active)
+            .where(AuthSession.revoked_at.is_(None))
         )
         if not session:
-            reused = (
-                db.query(AuthSession)
-                .filter(AuthSession.previous_token_hash == token_hash)
-                .filter(AuthSession.status == SessionStatus.active)
-                .filter(AuthSession.revoked_at.is_(None))
-                .first()
+            reused = db.scalar(
+                select(AuthSession)
+                .where(AuthSession.previous_token_hash == token_hash)
+                .where(AuthSession.status == SessionStatus.active)
+                .where(AuthSession.revoked_at.is_(None))
             )
             if reused:
                 reused.status = SessionStatus.revoked
@@ -641,11 +642,10 @@ class AuthFlow(ListResponseMixin):
     @staticmethod
     def logout(db: Session, refresh_token: str):
         token_hash = _hash_token(refresh_token)
-        session = (
-            db.query(AuthSession)
-            .filter(AuthSession.token_hash == token_hash)
-            .filter(AuthSession.revoked_at.is_(None))
-            .first()
+        session = db.scalar(
+            select(AuthSession)
+            .where(AuthSession.token_hash == token_hash)
+            .where(AuthSession.revoked_at.is_(None))
         )
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -714,15 +714,14 @@ def request_password_reset(db: Session, email: str) -> dict | None:
     Returns dict with token and person info if successful, None if email not found.
     Does not raise an error if email doesn't exist (security best practice).
     """
-    person = db.query(Person).filter(Person.email == email).first()
+    person = db.scalar(select(Person).where(Person.email == email))
     if not person:
         return None
 
-    credential = (
-        db.query(UserCredential)
-        .filter(UserCredential.person_id == person.id)
-        .filter(UserCredential.is_active.is_(True))
-        .first()
+    credential = db.scalar(
+        select(UserCredential)
+        .where(UserCredential.person_id == person.id)
+        .where(UserCredential.is_active.is_(True))
     )
     if not credential:
         return None
@@ -751,11 +750,10 @@ def reset_password(db: Session, token: str, new_password: str) -> datetime:
     if not person or person.email != email:
         raise HTTPException(status_code=401, detail="Invalid reset token")
 
-    credential = (
-        db.query(UserCredential)
-        .filter(UserCredential.person_id == person.id)
-        .filter(UserCredential.is_active.is_(True))
-        .first()
+    credential = db.scalar(
+        select(UserCredential)
+        .where(UserCredential.person_id == person.id)
+        .where(UserCredential.is_active.is_(True))
     )
     if not credential:
         raise HTTPException(status_code=404, detail="No credentials found")

@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.person import Person, PersonStatus
@@ -35,17 +36,17 @@ class People(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(Person)
+        stmt = select(Person)
         if email:
-            query = query.filter(Person.email.ilike(f"%{email}%"))
+            stmt = stmt.where(Person.email.ilike(f"%{email}%"))
         if status:
-            query = query.filter(
+            stmt = stmt.where(
                 Person.status == validate_enum(status, PersonStatus, "status")
             )
         if is_active is not None:
-            query = query.filter(Person.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(Person.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -54,7 +55,7 @@ class People(ListResponseMixin):
                 "email": Person.email,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        return list(db.scalars(apply_pagination(stmt, limit, offset)).all())
 
     @staticmethod
     def update(db: Session, person_id: str, payload: PersonUpdate):
