@@ -10,24 +10,20 @@ def list_response(
     }
 
 
-class ListResponseMixin:
-    def list(self, db, *args, **kwargs):
-        raise NotImplementedError
+def service_list_response(service, db, *args, **kwargs):
+    if "limit" in kwargs and "offset" in kwargs:
+        limit = kwargs["limit"]
+        offset = kwargs["offset"]
+        result = service.list(db, *args, **kwargs)
+    else:
+        if len(args) < 2:
+            raise ValueError("limit and offset are required for list responses")
+        *list_args, limit, offset = args
+        result = service.list(db, *list_args, limit=limit, offset=offset, **kwargs)
 
-    def list_response(self, db, *args, **kwargs):
-        if "limit" in kwargs and "offset" in kwargs:
-            limit = kwargs["limit"]
-            offset = kwargs["offset"]
-            result = self.list(db, *args, **kwargs)
-        else:
-            if len(args) < 2:
-                raise ValueError("limit and offset are required for list responses")
-            *list_args, limit, offset = args
-            result = self.list(db, *list_args, limit=limit, offset=offset, **kwargs)
-
-        if isinstance(result, tuple):
-            items, total = result
-        else:
-            items = result
-            total = len(items)
-        return list_response(items, limit, offset, total=total)
+    if isinstance(result, tuple):
+        items, total = result
+    else:
+        items = result
+        total = len(items)
+    return list_response(items, limit, offset, total=total)

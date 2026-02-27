@@ -1,4 +1,5 @@
 """Admin web routes for Customer management."""
+
 from __future__ import annotations
 
 import logging

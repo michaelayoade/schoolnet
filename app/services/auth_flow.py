@@ -28,7 +28,6 @@ from app.models.person import Person
 from app.models.rbac import Permission, PersonRole, Role, RolePermission
 from app.schemas.auth_flow import LoginResponse, LogoutResponse, TokenResponse
 from app.services.common import coerce_uuid
-from app.services.response import ListResponseMixin
 from app.services.secrets import resolve_secret
 
 PASSWORD_CONTEXT = CryptContext(
@@ -133,7 +132,11 @@ def _refresh_ttl_days(db: Session | None) -> int:
 
 
 def _totp_issuer(db: Session | None) -> str:
-    return _env_value("TOTP_ISSUER") or _setting_value(db, "totp_issuer") or "starter_template"
+    return (
+        _env_value("TOTP_ISSUER")
+        or _setting_value(db, "totp_issuer")
+        or "starter_template"
+    )
 
 
 def _refresh_cookie_name(db: Session | None) -> str:
@@ -180,7 +183,9 @@ def _mfa_key(db: Session | None) -> bytes:
     key = _env_value("TOTP_ENCRYPTION_KEY") or _setting_value(db, "totp_encryption_key")
     key = resolve_secret(key)
     if not key:
-        raise HTTPException(status_code=500, detail="TOTP encryption key not configured")
+        raise HTTPException(
+            status_code=500, detail="TOTP encryption key not configured"
+        )
     return key.encode()
 
 
@@ -188,7 +193,9 @@ def _fernet(db: Session | None) -> Fernet:
     try:
         return Fernet(_mfa_key(db))
     except ValueError as exc:
-        raise HTTPException(status_code=500, detail="Invalid TOTP encryption key") from exc
+        raise HTTPException(
+            status_code=500, detail="Invalid TOTP encryption key"
+        ) from exc
 
 
 def _hash_token(token: str) -> str:
@@ -252,7 +259,9 @@ def _issue_password_reset_token(db: Session | None, person_id: str, email: str) 
         "email": email,
         "typ": "password_reset",
         "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=_password_reset_ttl_minutes(db))).timestamp()),
+        "exp": int(
+            (now + timedelta(minutes=_password_reset_ttl_minutes(db))).timestamp()
+        ),
     }
     return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
 
@@ -367,7 +376,7 @@ def revoke_sessions_for_person(
     return len(sessions)
 
 
-class AuthFlow(ListResponseMixin):
+class AuthFlow:
     @staticmethod
     def _response_with_refresh_cookie(
         db: Session | None,
@@ -412,7 +421,11 @@ class AuthFlow(ListResponseMixin):
 
     @staticmethod
     def login_response(
-        db: Session, username: str, password: str, request: Request, provider: str | None
+        db: Session,
+        username: str,
+        password: str,
+        request: Request,
+        provider: str | None,
     ):
         result = AuthFlow.login(db, username, password, request, provider)
         if result.get("refresh_token"):
@@ -423,7 +436,11 @@ class AuthFlow(ListResponseMixin):
 
     @staticmethod
     def login(
-        db: Session, username: str, password: str, request: Request, provider: str | None
+        db: Session,
+        username: str,
+        password: str,
+        request: Request,
+        provider: str | None,
     ):
         if isinstance(provider, AuthProvider):
             provider_value = provider.value
@@ -432,7 +449,9 @@ class AuthFlow(ListResponseMixin):
         try:
             resolved_provider = AuthProvider(provider_value)
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid auth provider") from exc
+            raise HTTPException(
+                status_code=400, detail="Invalid auth provider"
+            ) from exc
         credential = (
             db.query(UserCredential)
             .filter(UserCredential.username == username)
@@ -504,9 +523,7 @@ class AuthFlow(ListResponseMixin):
         db.refresh(method)
 
         totp = pyotp.TOTP(secret)
-        otpauth_uri = totp.provisioning_uri(
-            name=username, issuer_name=_totp_issuer(db)
-        )
+        otpauth_uri = totp.provisioning_uri(name=username, issuer_name=_totp_issuer(db))
         return {"method_id": method.id, "secret": secret, "otpauth_uri": otpauth_uri}
 
     @staticmethod
@@ -665,7 +682,9 @@ class AuthFlow(ListResponseMixin):
         )
 
     @staticmethod
-    def resolve_refresh_token(request: Request, refresh_token: str | None, db: Session | None = None):
+    def resolve_refresh_token(
+        request: Request, refresh_token: str | None, db: Session | None = None
+    ):
         settings = AuthFlow.refresh_cookie_settings(db)
         return refresh_token or request.cookies.get(settings["key"])
 
@@ -701,7 +720,9 @@ class AuthFlow(ListResponseMixin):
         db.commit()
         db.refresh(session)
         roles, permissions = _load_rbac_claims(db, str(person_uuid))
-        access_token = _issue_access_token(db, str(person_uuid), str(session.id), roles, permissions)
+        access_token = _issue_access_token(
+            db, str(person_uuid), str(session.id), roles, permissions
+        )
         return {"access_token": access_token, "refresh_token": refresh_token}
 
 

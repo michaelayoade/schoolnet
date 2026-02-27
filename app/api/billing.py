@@ -46,6 +46,7 @@ from app.schemas.billing import (
 )
 from app.schemas.common import ListResponse
 from app.services import billing as billing_service
+from app.services.response import service_list_response
 
 router = APIRouter(tags=["billing"])
 
@@ -74,8 +75,8 @@ def list_products(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.products.list_response(
-        db, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.products, db, is_active, order_by, order_dir, limit, offset
     )
 
 
@@ -114,8 +115,17 @@ def list_prices(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.prices.list_response(
-        db, product_id, type, currency, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.prices,
+        db,
+        product_id,
+        type,
+        currency,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -155,8 +165,16 @@ def list_customers(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.customers.list_response(
-        db, person_id, email, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.customers,
+        db,
+        person_id,
+        email,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -200,8 +218,16 @@ def list_subscriptions(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.subscriptions.list_response(
-        db, customer_id, status, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.subscriptions,
+        db,
+        customer_id,
+        status,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -246,8 +272,15 @@ def list_subscription_items(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.subscription_items.list_response(
-        db, subscription_id, price_id, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.subscription_items,
+        db,
+        subscription_id,
+        price_id,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -289,8 +322,16 @@ def list_invoices(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.invoices.list_response(
-        db, customer_id, subscription_id, status, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.invoices,
+        db,
+        customer_id,
+        subscription_id,
+        status,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -330,8 +371,14 @@ def list_invoice_items(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.invoice_items.list_response(
-        db, invoice_id, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.invoice_items,
+        db,
+        invoice_id,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -375,8 +422,16 @@ def list_payment_methods(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.payment_methods.list_response(
-        db, customer_id, type, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.payment_methods,
+        db,
+        customer_id,
+        type,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -420,8 +475,16 @@ def list_payment_intents(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.payment_intents.list_response(
-        db, customer_id, invoice_id, status, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.payment_intents,
+        db,
+        customer_id,
+        invoice_id,
+        status,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -458,8 +521,14 @@ def list_usage_records(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.usage_records.list_response(
-        db, subscription_item_id, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.usage_records,
+        db,
+        subscription_item_id,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -486,8 +555,8 @@ def list_coupons(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.coupons.list_response(
-        db, valid, code, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.coupons, db, valid, code, order_by, order_dir, limit, offset
     )
 
 
@@ -527,8 +596,16 @@ def list_discounts(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.discounts.list_response(
-        db, customer_id, subscription_id, coupon_id, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.discounts,
+        db,
+        customer_id,
+        subscription_id,
+        coupon_id,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -562,8 +639,15 @@ def list_entitlements(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.entitlements.list_response(
-        db, product_id, feature_key, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.entitlements,
+        db,
+        product_id,
+        feature_key,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -607,8 +691,16 @@ def list_webhook_events(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return billing_service.webhook_events.list_response(
-        db, provider, event_type, status, order_by, order_dir, limit, offset
+    return service_list_response(
+        billing_service.webhook_events,
+        db,
+        provider,
+        event_type,
+        status,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 

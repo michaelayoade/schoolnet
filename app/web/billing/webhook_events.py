@@ -1,4 +1,5 @@
 """Admin web routes for Webhook Event management (read-only)."""
+
 from __future__ import annotations
 
 import logging
@@ -85,9 +86,7 @@ def list_webhook_events(
             "error": request.query_params.get("error"),
         }
     )
-    return templates.TemplateResponse(
-        "admin/billing/webhook_events/list.html", ctx
-    )
+    return templates.TemplateResponse("admin/billing/webhook_events/list.html", ctx)
 
 
 @router.get("/{item_id}", response_class=HTMLResponse)
@@ -107,6 +106,4 @@ def webhook_event_detail(
         page_title="Webhook Event Detail",
     )
     ctx["event"] = item
-    return templates.TemplateResponse(
-        "admin/billing/webhook_events/detail.html", ctx
-    )
+    return templates.TemplateResponse("admin/billing/webhook_events/detail.html", ctx)

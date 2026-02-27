@@ -181,7 +181,9 @@ class SchoolService:
                             account_number=school.account_number,
                         )
                     else:
-                        commission_pct = (school.commission_rate or settings.schoolnet_commission_rate) / 100
+                        commission_pct = (
+                            school.commission_rate or settings.schoolnet_commission_rate
+                        ) / 100
                         result = paystack_gateway.create_subaccount(
                             business_name=school.name,
                             bank_code=school.bank_code,
@@ -231,54 +233,86 @@ class SchoolService:
 
     def get_dashboard_stats(self, school_id: UUID) -> SchoolDashboardStats:
         # Forms
-        total_forms = self.db.scalar(
-            select(func.count()).select_from(AdmissionForm).where(
-                AdmissionForm.school_id == school_id,
-                AdmissionForm.is_active.is_(True),
+        total_forms = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(AdmissionForm)
+                .where(
+                    AdmissionForm.school_id == school_id,
+                    AdmissionForm.is_active.is_(True),
+                )
             )
-        ) or 0
-        active_forms = self.db.scalar(
-            select(func.count()).select_from(AdmissionForm).where(
-                AdmissionForm.school_id == school_id,
-                AdmissionForm.status == AdmissionFormStatus.active,
-                AdmissionForm.is_active.is_(True),
+            or 0
+        )
+        active_forms = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(AdmissionForm)
+                .where(
+                    AdmissionForm.school_id == school_id,
+                    AdmissionForm.status == AdmissionFormStatus.active,
+                    AdmissionForm.is_active.is_(True),
+                )
             )
-        ) or 0
+            or 0
+        )
 
         # Applications (via admission forms for this school)
         form_ids_stmt = select(AdmissionForm.id).where(
             AdmissionForm.school_id == school_id
         )
-        total_apps = self.db.scalar(
-            select(func.count()).select_from(Application).where(
-                Application.admission_form_id.in_(form_ids_stmt),
-                Application.is_active.is_(True),
+        total_apps = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(Application)
+                .where(
+                    Application.admission_form_id.in_(form_ids_stmt),
+                    Application.is_active.is_(True),
+                )
             )
-        ) or 0
-        pending_apps = self.db.scalar(
-            select(func.count()).select_from(Application).where(
-                Application.admission_form_id.in_(form_ids_stmt),
-                Application.status.in_([
-                    ApplicationStatus.submitted,
-                    ApplicationStatus.under_review,
-                ]),
-                Application.is_active.is_(True),
+            or 0
+        )
+        pending_apps = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(Application)
+                .where(
+                    Application.admission_form_id.in_(form_ids_stmt),
+                    Application.status.in_(
+                        [
+                            ApplicationStatus.submitted,
+                            ApplicationStatus.under_review,
+                        ]
+                    ),
+                    Application.is_active.is_(True),
+                )
             )
-        ) or 0
-        accepted_apps = self.db.scalar(
-            select(func.count()).select_from(Application).where(
-                Application.admission_form_id.in_(form_ids_stmt),
-                Application.status == ApplicationStatus.accepted,
-                Application.is_active.is_(True),
+            or 0
+        )
+        accepted_apps = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(Application)
+                .where(
+                    Application.admission_form_id.in_(form_ids_stmt),
+                    Application.status == ApplicationStatus.accepted,
+                    Application.is_active.is_(True),
+                )
             )
-        ) or 0
-        rejected_apps = self.db.scalar(
-            select(func.count()).select_from(Application).where(
-                Application.admission_form_id.in_(form_ids_stmt),
-                Application.status == ApplicationStatus.rejected,
-                Application.is_active.is_(True),
+            or 0
+        )
+        rejected_apps = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(Application)
+                .where(
+                    Application.admission_form_id.in_(form_ids_stmt),
+                    Application.status == ApplicationStatus.rejected,
+                    Application.is_active.is_(True),
+                )
             )
-        ) or 0
+            or 0
+        )
 
         avg_rating = self.get_average_rating(school_id)
 

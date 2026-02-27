@@ -67,9 +67,7 @@ class RatingService:
         )
         return self.db.scalar(stmt) is not None
 
-    def get_for_school(
-        self, school_id: UUID, limit: int = 20
-    ) -> list[Rating]:
+    def get_for_school(self, school_id: UUID, limit: int = 20) -> list[Rating]:
         stmt = (
             select(Rating)
             .where(Rating.school_id == school_id, Rating.is_active.is_(True))

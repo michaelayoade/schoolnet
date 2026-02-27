@@ -26,7 +26,8 @@ class AdmissionFormService:
         # Create billing Product
         product = Product(
             name=f"{school.name} - {payload.title}",
-            description=payload.description or f"Admission form for {payload.academic_year}",
+            description=payload.description
+            or f"Admission form for {payload.academic_year}",
             is_active=True,
             metadata_={"school_id": str(school.id), "type": "admission_form"},
         )
@@ -106,9 +107,13 @@ class AdmissionFormService:
     def check_availability(self, form: AdmissionForm) -> bool:
         if form.status != AdmissionFormStatus.active:
             return False
-        return not (form.max_submissions and form.current_submissions >= form.max_submissions)
+        return not (
+            form.max_submissions and form.current_submissions >= form.max_submissions
+        )
 
-    def update(self, form: AdmissionForm, payload: AdmissionFormUpdate) -> AdmissionForm:
+    def update(
+        self, form: AdmissionForm, payload: AdmissionFormUpdate
+    ) -> AdmissionForm:
         data = payload.model_dump(exclude_unset=True)
 
         # Update price if changed

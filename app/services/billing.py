@@ -55,7 +55,6 @@ from app.schemas.billing import (
 )
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
-from app.services.response import ListResponseMixin
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +62,7 @@ logger = logging.getLogger(__name__)
 # ── Products ─────────────────────────────────────────────
 
 
-class Products(ListResponseMixin):
+class Products:
     @staticmethod
     def create(db: Session, payload: ProductCreate) -> Product:
         item = Product(**payload.model_dump())
@@ -128,7 +127,7 @@ class Products(ListResponseMixin):
 # ── Prices ───────────────────────────────────────────────
 
 
-class Prices(ListResponseMixin):
+class Prices:
     @staticmethod
     def create(db: Session, payload: PriceCreate) -> Price:
         if not db.get(Product, coerce_uuid(payload.product_id)):
@@ -204,7 +203,7 @@ class Prices(ListResponseMixin):
 # ── Customers ────────────────────────────────────────────
 
 
-class Customers(ListResponseMixin):
+class Customers:
     @staticmethod
     def create(db: Session, payload: CustomerCreate) -> Customer:
         item = Customer(**payload.model_dump())
@@ -275,7 +274,7 @@ class Customers(ListResponseMixin):
 # ── Subscriptions ────────────────────────────────────────
 
 
-class Subscriptions(ListResponseMixin):
+class Subscriptions:
     @staticmethod
     def create(db: Session, payload: SubscriptionCreate) -> Subscription:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
@@ -351,7 +350,7 @@ class Subscriptions(ListResponseMixin):
 # ── Subscription Items ───────────────────────────────────
 
 
-class SubscriptionItems(ListResponseMixin):
+class SubscriptionItems:
     @staticmethod
     def create(db: Session, payload: SubscriptionItemCreate) -> SubscriptionItem:
         if not db.get(Subscription, coerce_uuid(payload.subscription_id)):
@@ -427,7 +426,7 @@ class SubscriptionItems(ListResponseMixin):
 # ── Invoices ─────────────────────────────────────────────
 
 
-class Invoices(ListResponseMixin):
+class Invoices:
     @staticmethod
     def create(db: Session, payload: InvoiceCreate) -> Invoice:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
@@ -508,7 +507,7 @@ class Invoices(ListResponseMixin):
 # ── Invoice Items ────────────────────────────────────────
 
 
-class InvoiceItems(ListResponseMixin):
+class InvoiceItems:
     @staticmethod
     def create(db: Session, payload: InvoiceItemCreate) -> InvoiceItem:
         if not db.get(Invoice, coerce_uuid(payload.invoice_id)):
@@ -518,9 +517,7 @@ class InvoiceItems(ListResponseMixin):
         if payload.subscription_item_id and not db.get(
             SubscriptionItem, coerce_uuid(payload.subscription_item_id)
         ):
-            raise HTTPException(
-                status_code=404, detail="Subscription item not found"
-            )
+            raise HTTPException(status_code=404, detail="Subscription item not found")
         item = InvoiceItem(**payload.model_dump())
         db.add(item)
         db.commit()
@@ -582,7 +579,7 @@ class InvoiceItems(ListResponseMixin):
 # ── Payment Methods ──────────────────────────────────────
 
 
-class PaymentMethods(ListResponseMixin):
+class PaymentMethods:
     @staticmethod
     def create(db: Session, payload: PaymentMethodCreate) -> PaymentMethod:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
@@ -659,14 +656,12 @@ class PaymentMethods(ListResponseMixin):
 # ── Payment Intents ──────────────────────────────────────
 
 
-class PaymentIntents(ListResponseMixin):
+class PaymentIntents:
     @staticmethod
     def create(db: Session, payload: PaymentIntentCreate) -> PaymentIntent:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
             raise HTTPException(status_code=404, detail="Customer not found")
-        if payload.invoice_id and not db.get(
-            Invoice, coerce_uuid(payload.invoice_id)
-        ):
+        if payload.invoice_id and not db.get(Invoice, coerce_uuid(payload.invoice_id)):
             raise HTTPException(status_code=404, detail="Invoice not found")
         if payload.payment_method_id and not db.get(
             PaymentMethod, coerce_uuid(payload.payment_method_id)
@@ -735,13 +730,11 @@ class PaymentIntents(ListResponseMixin):
 # ── Usage Records ────────────────────────────────────────
 
 
-class UsageRecords(ListResponseMixin):
+class UsageRecords:
     @staticmethod
     def create(db: Session, payload: UsageRecordCreate) -> UsageRecord:
         if not db.get(SubscriptionItem, coerce_uuid(payload.subscription_item_id)):
-            raise HTTPException(
-                status_code=404, detail="Subscription item not found"
-            )
+            raise HTTPException(status_code=404, detail="Subscription item not found")
         item = UsageRecord(**payload.model_dump())
         db.add(item)
         db.commit()
@@ -787,7 +780,7 @@ class UsageRecords(ListResponseMixin):
 # ── Coupons ──────────────────────────────────────────────
 
 
-class Coupons(ListResponseMixin):
+class Coupons:
     @staticmethod
     def create(db: Session, payload: CouponCreate) -> Coupon:
         item = Coupon(**payload.model_dump())
@@ -855,7 +848,7 @@ class Coupons(ListResponseMixin):
 # ── Discounts ────────────────────────────────────────────
 
 
-class Discounts(ListResponseMixin):
+class Discounts:
     @staticmethod
     def create(db: Session, payload: DiscountCreate) -> Discount:
         if not db.get(Coupon, coerce_uuid(payload.coupon_id)):
@@ -925,7 +918,7 @@ class Discounts(ListResponseMixin):
 # ── Entitlements ─────────────────────────────────────────
 
 
-class Entitlements(ListResponseMixin):
+class Entitlements:
     @staticmethod
     def create(db: Session, payload: EntitlementCreate) -> Entitlement:
         if not db.get(Product, coerce_uuid(payload.product_id)):
@@ -994,7 +987,7 @@ class Entitlements(ListResponseMixin):
 # ── Webhook Events ───────────────────────────────────────
 
 
-class WebhookEvents(ListResponseMixin):
+class WebhookEvents:
     @staticmethod
     def create(db: Session, payload: WebhookEventCreate) -> WebhookEvent:
         item = WebhookEvent(**payload.model_dump())

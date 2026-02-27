@@ -18,6 +18,7 @@ from app.schemas.rbac import (
     RoleUpdate,
 )
 from app.services import rbac as rbac_service
+from app.services.response import service_list_response
 
 router = APIRouter(prefix="/rbac", tags=["rbac"])
 
@@ -41,7 +42,9 @@ def list_roles(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return rbac_service.roles.list_response(db, is_active, order_by, order_dir, limit, offset)
+    return service_list_response(
+        rbac_service.roles, db, is_active, order_by, order_dir, limit, offset
+    )
 
 
 @router.patch("/roles/{role_id}", response_model=RoleRead)
@@ -54,7 +57,9 @@ def delete_role(role_id: str, db: Session = Depends(get_db)):
     rbac_service.roles.delete(db, role_id)
 
 
-@router.post("/permissions", response_model=PermissionRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/permissions", response_model=PermissionRead, status_code=status.HTTP_201_CREATED
+)
 def create_permission(payload: PermissionCreate, db: Session = Depends(get_db)):
     return rbac_service.permissions.create(db, payload)
 
@@ -73,7 +78,9 @@ def list_permissions(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return rbac_service.permissions.list_response(db, is_active, order_by, order_dir, limit, offset)
+    return service_list_response(
+        rbac_service.permissions, db, is_active, order_by, order_dir, limit, offset
+    )
 
 
 @router.patch("/permissions/{permission_id}", response_model=PermissionRead)
@@ -114,8 +121,15 @@ def list_role_permissions(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return rbac_service.role_permissions.list_response(
-        db, role_id, permission_id, order_by, order_dir, limit, offset
+    return service_list_response(
+        rbac_service.role_permissions,
+        db,
+        role_id,
+        permission_id,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -131,7 +145,9 @@ def delete_role_permission(link_id: str, db: Session = Depends(get_db)):
     rbac_service.role_permissions.delete(db, link_id)
 
 
-@router.post("/person-roles", response_model=PersonRoleRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/person-roles", response_model=PersonRoleRead, status_code=status.HTTP_201_CREATED
+)
 def create_person_role(payload: PersonRoleCreate, db: Session = Depends(get_db)):
     return rbac_service.person_roles.create(db, payload)
 
@@ -151,8 +167,15 @@ def list_person_roles(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return rbac_service.person_roles.list_response(
-        db, person_id, role_id, order_by, order_dir, limit, offset
+    return service_list_response(
+        rbac_service.person_roles,
+        db,
+        person_id,
+        role_id,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 

@@ -5,7 +5,6 @@ from app.models.scheduler import ScheduledTask, ScheduleType
 from app.schemas.scheduler import ScheduledTaskCreate, ScheduledTaskUpdate
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination
-from app.services.response import ListResponseMixin
 
 
 def _validate_schedule_type(value):
@@ -19,7 +18,7 @@ def _validate_schedule_type(value):
         raise HTTPException(status_code=400, detail="Invalid schedule_type") from exc
 
 
-class ScheduledTasks(ListResponseMixin):
+class ScheduledTasks:
     @staticmethod
     def create(db: Session, payload: ScheduledTaskCreate):
         if payload.interval_seconds < 1:

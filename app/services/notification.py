@@ -1,4 +1,5 @@
 """Notification service — create, list, mark read, unread count."""
+
 from __future__ import annotations
 
 import logging
@@ -34,9 +35,7 @@ class NotificationService:
         )
         self.db.add(notification)
         self.db.flush()
-        logger.info(
-            "Created notification for %s: %s", data.recipient_id, data.title
-        )
+        logger.info("Created notification for %s: %s", data.recipient_id, data.title)
         return notification
 
     def get_by_id(self, notification_id: UUID) -> Notification | None:
@@ -52,12 +51,9 @@ class NotificationService:
         offset: int = 0,
     ) -> list[Notification]:
         """List notifications for a recipient."""
-        stmt = (
-            select(Notification)
-            .where(
-                Notification.recipient_id == recipient_id,
-                Notification.is_active.is_(True),
-            )
+        stmt = select(Notification).where(
+            Notification.recipient_id == recipient_id,
+            Notification.is_active.is_(True),
         )
         if unread_only:
             stmt = stmt.where(Notification.is_read.is_(False))
@@ -78,7 +74,9 @@ class NotificationService:
         result = self.db.execute(stmt).scalar()
         return result or 0
 
-    def mark_read(self, notification_id: UUID, recipient_id: UUID) -> Notification | None:
+    def mark_read(
+        self, notification_id: UUID, recipient_id: UUID
+    ) -> Notification | None:
         """Mark a single notification as read."""
         notification = self.db.get(Notification, notification_id)
         if not notification or notification.recipient_id != recipient_id:

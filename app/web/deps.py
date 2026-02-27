@@ -1,4 +1,5 @@
 """Web authentication dependencies — cookie-based JWT auth."""
+
 from __future__ import annotations
 
 import logging

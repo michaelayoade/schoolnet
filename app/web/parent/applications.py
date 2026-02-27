@@ -37,11 +37,13 @@ def list_applications(
             form_title = form.title
             if form.school:
                 school_name = form.school.name
-        enriched.append({
-            "app": app,
-            "school_name": school_name,
-            "form_title": form_title,
-        })
+        enriched.append(
+            {
+                "app": app,
+                "school_name": school_name,
+                "form_title": form_title,
+            }
+        )
 
     return templates.TemplateResponse(
         "parent/applications/list.html",
@@ -101,7 +103,9 @@ def purchase_submit(
     auth_url = result.get("authorization_url", "")
     if auth_url:
         return RedirectResponse(url=auth_url, status_code=303)
-    return RedirectResponse(url="/parent/applications?success=Purchase+completed", status_code=303)
+    return RedirectResponse(
+        url="/parent/applications?success=Purchase+completed", status_code=303
+    )
 
 
 @router.get("/fill/{app_id}")
@@ -114,9 +118,13 @@ def fill_application_page(
     svc = ApplicationService(db)
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
-        return RedirectResponse(url="/parent/applications?error=Application+not+found", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Application+not+found", status_code=303
+        )
     if str(application.parent_id) != auth["person_id"]:
-        return RedirectResponse(url="/parent/applications?error=Not+your+application", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Not+your+application", status_code=303
+        )
 
     form = application.admission_form
     school = form.school if form else None
@@ -147,9 +155,13 @@ def fill_application_submit(
     svc = ApplicationService(db)
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
-        return RedirectResponse(url="/parent/applications?error=Application+not+found", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Application+not+found", status_code=303
+        )
     if str(application.parent_id) != auth["person_id"]:
-        return RedirectResponse(url="/parent/applications?error=Not+your+application", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Not+your+application", status_code=303
+        )
 
     from datetime import date
 
@@ -192,7 +204,9 @@ def application_detail(
     svc = ApplicationService(db)
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
-        return RedirectResponse(url="/parent/applications?error=Application+not+found", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Application+not+found", status_code=303
+        )
 
     form = application.admission_form
     school = form.school if form else None
@@ -219,9 +233,13 @@ def withdraw_application(
     svc = ApplicationService(db)
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
-        return RedirectResponse(url="/parent/applications?error=Application+not+found", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Application+not+found", status_code=303
+        )
     if str(application.parent_id) != auth["person_id"]:
-        return RedirectResponse(url="/parent/applications?error=Not+your+application", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=Not+your+application", status_code=303
+        )
     try:
         svc.withdraw(application)
         db.commit()
@@ -230,4 +248,6 @@ def withdraw_application(
             url=f"/parent/applications/{app_id}?error={e}",
             status_code=303,
         )
-    return RedirectResponse(url="/parent/applications?success=Application+withdrawn", status_code=303)
+    return RedirectResponse(
+        url="/parent/applications?success=Application+withdrawn", status_code=303
+    )

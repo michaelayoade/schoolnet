@@ -4,11 +4,10 @@ from fastapi import HTTPException
 
 from app.models.domain_settings import SettingDomain, SettingValueType
 from app.services import domain_settings as settings_service
-from app.services.response import ListResponseMixin
 
 
 @dataclass(frozen=True)
-class SettingSpec(ListResponseMixin):
+class SettingSpec:
     domain: SettingDomain
     key: str
     env_var: str | None
@@ -302,9 +301,17 @@ def resolve_value(db, domain: SettingDomain, key: str) -> object | None:
             parsed = int(value)
         except (TypeError, ValueError):
             parsed = spec.default if isinstance(spec.default, int) else None
-        if spec.min_value is not None and parsed is not None and parsed < spec.min_value:
+        if (
+            spec.min_value is not None
+            and parsed is not None
+            and parsed < spec.min_value
+        ):
             parsed = spec.default
-        if spec.max_value is not None and parsed is not None and parsed > spec.max_value:
+        if (
+            spec.max_value is not None
+            and parsed is not None
+            and parsed > spec.max_value
+        ):
             parsed = spec.default
         value = parsed
     return value
@@ -349,7 +356,9 @@ def coerce_value(spec: SettingSpec, raw: object) -> tuple[object | None, str | N
     return raw, None
 
 
-def normalize_for_db(spec: SettingSpec, value: object) -> tuple[str | None, object | None]:
+def normalize_for_db(
+    spec: SettingSpec, value: object
+) -> tuple[str | None, object | None]:
     if spec.value_type == SettingValueType.boolean:
         bool_value = bool(value)
         return ("true" if bool_value else "false"), bool_value

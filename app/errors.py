@@ -8,6 +8,7 @@ Every error response includes a consistent envelope:
         "request_id": "uuid"
     }
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,9 +25,7 @@ def _get_request_id(request: Request) -> str:
     return getattr(request.state, "request_id", "unknown")
 
 
-def _error_payload(
-    code: str, message: str, details: object, request_id: str
-) -> dict:
+def _error_payload(code: str, message: str, details: object, request_id: str) -> dict:
     return {
         "code": code,
         "message": message,

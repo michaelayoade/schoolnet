@@ -20,6 +20,7 @@ from app.schemas.auth import (
 )
 from app.schemas.common import ListResponse
 from app.services import auth as auth_service
+from app.services.response import service_list_response
 
 router = APIRouter()
 
@@ -30,7 +31,9 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     tags=["user-credentials"],
 )
-def create_user_credential(payload: UserCredentialCreate, db: Session = Depends(get_db)):
+def create_user_credential(
+    payload: UserCredentialCreate, db: Session = Depends(get_db)
+):
     return auth_service.user_credentials.create(db, payload)
 
 
@@ -58,8 +61,16 @@ def list_user_credentials(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.user_credentials.list_response(
-        db, person_id, provider, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        auth_service.user_credentials,
+        db,
+        person_id,
+        provider,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -119,7 +130,8 @@ def list_mfa_methods(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.mfa_methods.list_response(
+    return service_list_response(
+        auth_service.mfa_methods,
         db,
         person_id,
         method_type,
@@ -186,8 +198,8 @@ def list_sessions(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.sessions.list_response(
-        db, person_id, status, order_by, order_dir, limit, offset
+    return service_list_response(
+        auth_service.sessions, db, person_id, status, order_by, order_dir, limit, offset
     )
 
 
@@ -258,8 +270,15 @@ def list_api_keys(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.api_keys.list_response(
-        db, person_id, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        auth_service.api_keys,
+        db,
+        person_id,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 

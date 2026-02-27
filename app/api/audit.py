@@ -5,6 +5,7 @@ from app.api.deps import get_db, require_audit_auth
 from app.schemas.audit import AuditEventRead
 from app.schemas.common import ListResponse
 from app.services import audit as audit_service
+from app.services.response import service_list_response
 
 router = APIRouter(
     prefix="/audit-events",
@@ -35,7 +36,8 @@ def list_audit_events(
     db: Session = Depends(get_db),
 ):
     resolved_actor_type = audit_service.audit_events.parse_actor_type(actor_type)
-    return audit_service.audit_events.list_response(
+    return service_list_response(
+        audit_service.audit_events,
         db,
         actor_id,
         resolved_actor_type,

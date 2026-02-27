@@ -15,10 +15,9 @@ from app.schemas.rbac import (
 )
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination
-from app.services.response import ListResponseMixin
 
 
-class Roles(ListResponseMixin):
+class Roles:
     @staticmethod
     def create(db: Session, payload: RoleCreate):
         role = Role(**payload.model_dump())
@@ -76,7 +75,7 @@ class Roles(ListResponseMixin):
         db.commit()
 
 
-class Permissions(ListResponseMixin):
+class Permissions:
     @staticmethod
     def create(db: Session, payload: PermissionCreate):
         permission = Permission(**payload.model_dump())
@@ -134,7 +133,7 @@ class Permissions(ListResponseMixin):
         db.commit()
 
 
-class RolePermissions(ListResponseMixin):
+class RolePermissions:
     @staticmethod
     def create(db: Session, payload: RolePermissionCreate):
         role = db.get(Role, coerce_uuid(payload.role_id))
@@ -170,7 +169,9 @@ class RolePermissions(ListResponseMixin):
         if role_id:
             query = query.filter(RolePermission.role_id == coerce_uuid(role_id))
         if permission_id:
-            query = query.filter(RolePermission.permission_id == coerce_uuid(permission_id))
+            query = query.filter(
+                RolePermission.permission_id == coerce_uuid(permission_id)
+            )
         query = apply_ordering(
             query,
             order_by,
@@ -208,7 +209,7 @@ class RolePermissions(ListResponseMixin):
         db.commit()
 
 
-class PersonRoles(ListResponseMixin):
+class PersonRoles:
     @staticmethod
     def create(db: Session, payload: PersonRoleCreate):
         person = db.get(Person, coerce_uuid(payload.person_id))

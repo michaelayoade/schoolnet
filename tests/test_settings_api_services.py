@@ -3,10 +3,10 @@ from fastapi import HTTPException
 
 from app.schemas.settings import DomainSettingUpdate
 from app.services import settings_api
-from app.services.response import ListResponseMixin
+from app.services.response import service_list_response
 
 
-class _ListResponseStub(ListResponseMixin):
+class _ListResponseStub:
     @staticmethod
     def list(_db, *args, **kwargs):
         return [{"id": "one"}, {"id": "two"}]
@@ -14,11 +14,11 @@ class _ListResponseStub(ListResponseMixin):
 
 def test_list_response_mixin_requires_limit_offset(db_session):
     with pytest.raises(ValueError, match="limit and offset are required"):
-        _ListResponseStub().list_response(db_session)
+        service_list_response(_ListResponseStub(), db_session)
 
 
 def test_list_response_mixin_with_args(db_session):
-    response = _ListResponseStub().list_response(db_session, None, None, 2, 0)
+    response = service_list_response(_ListResponseStub(), db_session, None, None, 2, 0)
     assert response["count"] == 2
     assert response["limit"] == 2
     assert response["offset"] == 0

@@ -1,4 +1,5 @@
 """Admin web routes for Subscription management."""
+
 from __future__ import annotations
 
 import logging

@@ -5,10 +5,9 @@ from app.models.audit import AuditActorType, AuditEvent
 from app.schemas.audit import AuditEventCreate
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination
-from app.services.response import ListResponseMixin
 
 
-class AuditEvents(ListResponseMixin):
+class AuditEvents:
     @staticmethod
     def parse_actor_type(value: str | None) -> AuditActorType | None:
         if value is None:

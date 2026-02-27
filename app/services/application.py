@@ -34,8 +34,14 @@ logger = logging.getLogger(__name__)
 # Valid state transitions
 VALID_TRANSITIONS: dict[ApplicationStatus, set[ApplicationStatus]] = {
     ApplicationStatus.draft: {ApplicationStatus.submitted},
-    ApplicationStatus.submitted: {ApplicationStatus.under_review, ApplicationStatus.withdrawn},
-    ApplicationStatus.under_review: {ApplicationStatus.accepted, ApplicationStatus.rejected},
+    ApplicationStatus.submitted: {
+        ApplicationStatus.under_review,
+        ApplicationStatus.withdrawn,
+    },
+    ApplicationStatus.under_review: {
+        ApplicationStatus.accepted,
+        ApplicationStatus.rejected,
+    },
     ApplicationStatus.accepted: set(),
     ApplicationStatus.rejected: set(),
     ApplicationStatus.withdrawn: set(),
@@ -188,10 +194,17 @@ class ApplicationService:
             self.db.add(application)
             form.current_submissions += 1
             self.db.flush()
-            paystack_data = {"authorization_url": f"/parent/applications/fill/{application.id}"}
+            paystack_data = {
+                "authorization_url": f"/parent/applications/fill/{application.id}"
+            }
 
         self.db.flush()
-        logger.info("Initiated purchase: ref=%s, parent=%s, form=%s", reference, parent_id, admission_form_id)
+        logger.info(
+            "Initiated purchase: ref=%s, parent=%s, form=%s",
+            reference,
+            parent_id,
+            admission_form_id,
+        )
 
         return {
             "reference": reference,
@@ -201,7 +214,9 @@ class ApplicationService:
             "access_code": paystack_data.get("access_code", ""),
         }
 
-    def handle_payment_success(self, reference: str, paystack_data: dict | None = None) -> Application | None:
+    def handle_payment_success(
+        self, reference: str, paystack_data: dict | None = None
+    ) -> Application | None:
         """Process successful payment — update billing records, create draft application."""
         # Find payment intent by reference
         stmt = select(PaymentIntent).where(PaymentIntent.external_id == reference)
@@ -213,7 +228,9 @@ class ApplicationService:
         if payment_intent.status == PaymentIntentStatus.succeeded:
             logger.info("Payment already processed: %s", reference)
             # Find existing application
-            stmt2 = select(Application).where(Application.invoice_id == payment_intent.invoice_id)
+            stmt2 = select(Application).where(
+                Application.invoice_id == payment_intent.invoice_id
+            )
             existing_app: Application | None = self.db.scalar(stmt2)
             return existing_app
 
@@ -259,7 +276,11 @@ class ApplicationService:
             form.current_submissions += 1
 
         self.db.flush()
-        logger.info("Payment success: created application %s for ref %s", application.id, reference)
+        logger.info(
+            "Payment success: created application %s for ref %s",
+            application.id,
+            reference,
+        )
         return application
 
     # ── Application lifecycle ────────────────────────────
@@ -306,10 +327,16 @@ class ApplicationService:
         """Review an application (submitted/under_review → accepted/rejected)."""
         # First transition to under_review if not already
         if application.status == ApplicationStatus.submitted:
-            self._validate_transition(application.status, ApplicationStatus.under_review)
+            self._validate_transition(
+                application.status, ApplicationStatus.under_review
+            )
             application.status = ApplicationStatus.under_review
 
-        target = ApplicationStatus.accepted if decision == "accepted" else ApplicationStatus.rejected
+        target = (
+            ApplicationStatus.accepted
+            if decision == "accepted"
+            else ApplicationStatus.rejected
+        )
         self._validate_transition(application.status, target)
 
         application.status = target
@@ -329,10 +356,14 @@ class ApplicationService:
         logger.info("Application withdrawn: %s", application.id)
         return application
 
-    def _validate_transition(self, current: ApplicationStatus, target: ApplicationStatus) -> None:
+    def _validate_transition(
+        self, current: ApplicationStatus, target: ApplicationStatus
+    ) -> None:
         allowed = VALID_TRANSITIONS.get(current, set())
         if target not in allowed:
-            raise ValueError(f"Cannot transition from {current.value} to {target.value}")
+            raise ValueError(
+                f"Cannot transition from {current.value} to {target.value}"
+            )
 
     # ── Queries ──────────────────────────────────────────
 
@@ -345,7 +376,9 @@ class ApplicationService:
         return list(self.db.scalars(stmt).all())
 
     def list_for_school(self, school_id: UUID) -> list[Application]:
-        form_ids_stmt = select(AdmissionForm.id).where(AdmissionForm.school_id == school_id)
+        form_ids_stmt = select(AdmissionForm.id).where(
+            AdmissionForm.school_id == school_id
+        )
         stmt = (
             select(Application)
             .where(

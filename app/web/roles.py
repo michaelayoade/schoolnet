@@ -1,4 +1,5 @@
 """Admin web routes for Role management."""
+
 from __future__ import annotations
 
 import logging
@@ -58,9 +59,10 @@ def list_roles(
     offset = (page - 1) * PAGE_SIZE
 
     query = select(Role).where(Role.is_active.is_(True)).order_by(Role.name.asc())
-    total = db.scalar(
-        select(func.count()).select_from(query.order_by(None).subquery())
-    ) or 0
+    total = (
+        db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+        or 0
+    )
     items = list(db.scalars(query.limit(PAGE_SIZE).offset(offset)).all())
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
@@ -178,9 +180,7 @@ def edit_role_form(
             select(RolePermission).where(RolePermission.role_id == role_id)
         ).all()
     }
-    ctx = _base_context(
-        request, db, auth, title="Edit Role", page_title="Edit Role"
-    )
+    ctx = _base_context(request, db, auth, title="Edit Role", page_title="Edit Role")
     ctx["role"] = role
     ctx["all_permissions"] = all_permissions
     ctx["current_permission_ids"] = current_permission_ids

@@ -5,10 +5,9 @@ from app.models.domain_settings import DomainSetting, SettingDomain, SettingValu
 from app.schemas.settings import DomainSettingCreate, DomainSettingUpdate
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination
-from app.services.response import ListResponseMixin
 
 
-class DomainSettings(ListResponseMixin):
+class DomainSettings:
     def __init__(self, domain: SettingDomain | None = None) -> None:
         self.domain = domain
 

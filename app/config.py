@@ -24,8 +24,12 @@ class Settings:
 
     # Avatar settings
     avatar_upload_dir: str = os.getenv("AVATAR_UPLOAD_DIR", "static/avatars")
-    avatar_max_size_bytes: int = int(os.getenv("AVATAR_MAX_SIZE_BYTES", str(2 * 1024 * 1024)))  # 2MB
-    avatar_allowed_types: str = os.getenv("AVATAR_ALLOWED_TYPES", "image/jpeg,image/png,image/gif,image/webp")
+    avatar_max_size_bytes: int = int(
+        os.getenv("AVATAR_MAX_SIZE_BYTES", str(2 * 1024 * 1024))
+    )  # 2MB
+    avatar_allowed_types: str = os.getenv(
+        "AVATAR_ALLOWED_TYPES", "image/jpeg,image/png,image/gif,image/webp"
+    )
     avatar_url_prefix: str = os.getenv("AVATAR_URL_PREFIX", "/static/avatars")
 
     # Branding
@@ -53,7 +57,9 @@ class Settings:
     s3_endpoint_url: str = os.getenv("S3_ENDPOINT_URL", "")
 
     # File uploads
-    upload_max_size_bytes: int = int(os.getenv("UPLOAD_MAX_SIZE_BYTES", str(10 * 1024 * 1024)))  # 10MB
+    upload_max_size_bytes: int = int(
+        os.getenv("UPLOAD_MAX_SIZE_BYTES", str(10 * 1024 * 1024))
+    )  # 10MB
     upload_allowed_types: str = os.getenv(
         "UPLOAD_ALLOWED_TYPES",
         "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv",
@@ -64,7 +70,9 @@ class Settings:
     paystack_public_key: str = os.getenv("PAYSTACK_PUBLIC_KEY", "")
 
     # SchoolNet
-    schoolnet_commission_rate: int = int(os.getenv("SCHOOLNET_COMMISSION_RATE", "1000"))  # basis points (10%)
+    schoolnet_commission_rate: int = int(
+        os.getenv("SCHOOLNET_COMMISSION_RATE", "1000")
+    )  # basis points (10%)
     schoolnet_currency: str = os.getenv("SCHOOLNET_CURRENCY", "NGN")
 
     # CORS
@@ -80,7 +88,9 @@ def validate_settings(s: Settings) -> list[str]:
     if not jwt_secret:
         warnings.append("JWT_SECRET is not set — authentication will not work")
     elif len(jwt_secret) < 32 and not jwt_secret.startswith("openbao://"):
-        warnings.append("JWT_SECRET is shorter than 32 characters — consider a stronger secret")
+        warnings.append(
+            "JWT_SECRET is shorter than 32 characters — consider a stronger secret"
+        )
 
     if not totp_key:
         warnings.append("TOTP_ENCRYPTION_KEY is not set — MFA will not work")
@@ -88,7 +98,10 @@ def validate_settings(s: Settings) -> list[str]:
     if not s.secret_key:
         warnings.append("SECRET_KEY is not set — CSRF and session security weakened")
 
-    if "localhost" in s.database_url and os.getenv("ENVIRONMENT", "dev") == "production":
+    if (
+        "localhost" in s.database_url
+        and os.getenv("ENVIRONMENT", "dev") == "production"
+    ):
         warnings.append("DATABASE_URL points to localhost in production")
 
     return warnings

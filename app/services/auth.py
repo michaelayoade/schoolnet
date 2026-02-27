@@ -36,7 +36,6 @@ from app.schemas.auth import (
 from app.services import settings_spec
 from app.services.common import coerce_uuid
 from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
-from app.services.response import ListResponseMixin
 
 
 def hash_api_key(value: str) -> str:
@@ -90,13 +89,14 @@ def _get_redis_client() -> redis.Redis | None:
     except redis.RedisError:
         return None
 
+
 def _ensure_person(db: Session, person_id: str):
     person = db.get(Person, coerce_uuid(person_id))
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
 
 
-class UserCredentials(ListResponseMixin):
+class UserCredentials:
     @staticmethod
     def create(db: Session, payload: UserCredentialCreate):
         _ensure_person(db, str(payload.person_id))
@@ -181,7 +181,7 @@ class UserCredentials(ListResponseMixin):
         db.commit()
 
 
-class MFAMethods(ListResponseMixin):
+class MFAMethods:
     @staticmethod
     def create(db: Session, payload: MFAMethodCreate):
         _ensure_person(db, str(payload.person_id))
@@ -290,7 +290,7 @@ class MFAMethods(ListResponseMixin):
         db.commit()
 
 
-class Sessions(ListResponseMixin):
+class Sessions:
     @staticmethod
     def create(db: Session, payload: SessionCreate):
         _ensure_person(db, str(payload.person_id))
@@ -323,8 +323,7 @@ class Sessions(ListResponseMixin):
             query = query.filter(AuthSession.person_id == coerce_uuid(person_id))
         if status:
             query = query.filter(
-                AuthSession.status
-                == validate_enum(status, SessionStatus, "status")
+                AuthSession.status == validate_enum(status, SessionStatus, "status")
             )
         query = apply_ordering(
             query,
@@ -362,7 +361,7 @@ class Sessions(ListResponseMixin):
         db.commit()
 
 
-class ApiKeys(ListResponseMixin):
+class ApiKeys:
     @staticmethod
     def generate_with_rate_limit(
         db: Session, payload: ApiKeyGenerateRequest, request: Request | None
@@ -373,7 +372,9 @@ class ApiKeys(ListResponseMixin):
         window_seconds = _auth_int_setting(
             db, "api_key_rate_window_seconds", _API_KEY_WINDOW_SECONDS
         )
-        max_per_window = _auth_int_setting(db, "api_key_rate_max", _API_KEY_MAX_PER_WINDOW)
+        max_per_window = _auth_int_setting(
+            db, "api_key_rate_max", _API_KEY_MAX_PER_WINDOW
+        )
         redis_client = _get_redis_client()
         if not redis_client:
             raise HTTPException(

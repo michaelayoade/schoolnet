@@ -1,4 +1,5 @@
 """WebSocket connection manager for real-time notifications."""
+
 from __future__ import annotations
 
 import json
@@ -47,6 +48,12 @@ class ConnectionManager:
         """Send a JSON message to all connections for a person."""
         key = str(person_id)
         connections = self._connections.get(key, set())
+        logger.debug(
+            "WebSocket outbound notification: person=%s connections=%d payload=%s",
+            person_id,
+            len(connections),
+            data,
+        )
         dead: list[WebSocket] = []
         for ws in connections:
             try:

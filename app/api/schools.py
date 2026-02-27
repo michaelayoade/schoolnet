@@ -36,9 +36,16 @@ def search_schools(
 ) -> list:
     svc = SchoolService(db)
     schools, _ = svc.search(
-        query=q, state=state, city=city, school_type=school_type,
-        category=category, gender=gender, fee_min=fee_min, fee_max=fee_max,
-        limit=limit, offset=offset,
+        query=q,
+        state=state,
+        city=city,
+        school_type=school_type,
+        category=category,
+        gender=gender,
+        fee_min=fee_min,
+        fee_max=fee_max,
+        limit=limit,
+        offset=offset,
     )
     return schools
 
@@ -96,7 +103,11 @@ def my_schools(
     return svc.get_schools_for_owner(require_uuid(auth["person_id"]))
 
 
-@router.post("/{school_id}/ratings", response_model=RatingRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{school_id}/ratings",
+    response_model=RatingRead,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_rating(
     school_id: UUID,
     payload: RatingCreate,

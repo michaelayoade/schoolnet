@@ -36,7 +36,9 @@ def list_my_notifications(
 ) -> ListResponse[NotificationRead]:
     person_id = UUID(auth["person_id"])
     svc = NotificationService(db)
-    items = svc.list_for_recipient(person_id, unread_only=unread_only, limit=limit, offset=offset)
+    items = svc.list_for_recipient(
+        person_id, unread_only=unread_only, limit=limit, offset=offset
+    )
     total = svc.unread_count(person_id) if unread_only else len(items)
     return ListResponse(
         items=[NotificationRead.model_validate(n) for n in items],
@@ -69,6 +71,7 @@ def mark_notification_read(
     record = svc.mark_read(notification_id, person_id)
     if not record:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Notification not found")
     db.commit()
     return NotificationRead.model_validate(record)

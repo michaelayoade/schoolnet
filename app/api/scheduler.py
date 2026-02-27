@@ -9,6 +9,7 @@ from app.schemas.scheduler import (
     ScheduledTaskUpdate,
 )
 from app.services import scheduler as scheduler_service
+from app.services.response import service_list_response
 
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 
@@ -22,8 +23,14 @@ def list_scheduled_tasks(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return scheduler_service.scheduled_tasks.list_response(
-        db, enabled, order_by, order_dir, limit, offset
+    return service_list_response(
+        scheduler_service.scheduled_tasks,
+        db,
+        enabled,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
@@ -32,9 +39,7 @@ def list_scheduled_tasks(
     response_model=ScheduledTaskRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create_scheduled_task(
-    payload: ScheduledTaskCreate, db: Session = Depends(get_db)
-):
+def create_scheduled_task(payload: ScheduledTaskCreate, db: Session = Depends(get_db)):
     return scheduler_service.scheduled_tasks.create(db, payload)
 
 

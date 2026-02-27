@@ -5,6 +5,7 @@ from app.api.deps import get_db
 from app.schemas.common import ListResponse
 from app.schemas.person import PersonCreate, PersonRead, PersonUpdate
 from app.services import person as person_service
+from app.services.response import service_list_response
 
 router = APIRouter(prefix="/people", tags=["people"])
 
@@ -30,8 +31,16 @@ def list_people(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return person_service.people.list_response(
-        db, email, status, is_active, order_by, order_dir, limit, offset
+    return service_list_response(
+        person_service.people,
+        db,
+        email,
+        status,
+        is_active,
+        order_by,
+        order_dir,
+        limit,
+        offset,
     )
 
 
