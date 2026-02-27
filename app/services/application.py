@@ -16,6 +16,7 @@ from app.models.billing import (
     InvoiceStatus,
     PaymentIntent,
     PaymentIntentStatus,
+    Price,
     WebhookEvent,
     WebhookEventStatus,
 )
@@ -51,6 +52,117 @@ def _generate_application_number() -> str:
 
 def _generate_reference() -> str:
     return f"SN-{secrets.token_hex(12)}"
+
+
+def _create_billing_records(
+    db: Session,
+    person: Person,
+    form: AdmissionForm,
+    price: Price,
+    reference: str,
+) -> tuple[Invoice, PaymentIntent]:
+    """Create invoice, invoice item, and payment intent for a purchase."""
+    customer_stmt = select(Customer).where(Customer.person_id == person.id)
+    customer: Customer | None = db.scalar(customer_stmt)
+    if not customer:
+        raise ValueError("Customer not found")
+
+    amount = price.unit_amount
+    invoice = Invoice(
+        customer_id=customer.id,
+        number=reference,
+        status=InvoiceStatus.open,
+        currency=settings.schoolnet_currency,
+        subtotal=amount,
+        total=amount,
+        amount_due=amount,
+        metadata_={
+            "admission_form_id": str(form.id),
+            "school_id": str(form.school_id),
+        },
+    )
+    db.add(invoice)
+    db.flush()
+
+    invoice_item = InvoiceItem(
+        invoice_id=invoice.id,
+        price_id=price.id,
+        description=f"Admission form: {form.title}",
+        quantity=1,
+        unit_amount=amount,
+        amount=amount,
+    )
+    db.add(invoice_item)
+
+    payment_intent = PaymentIntent(
+        customer_id=customer.id,
+        invoice_id=invoice.id,
+        amount=amount,
+        currency=settings.schoolnet_currency,
+        status=PaymentIntentStatus.requires_payment_method,
+        external_id=reference,
+        metadata_={
+            "admission_form_id": str(form.id),
+            "parent_id": str(person.id),
+        },
+    )
+    db.add(payment_intent)
+    db.flush()
+    return invoice, payment_intent
+
+
+def _init_paystack_or_dev(
+    db: Session,
+    intent: PaymentIntent,
+    invoice: Invoice,
+    person: Person,
+    form: AdmissionForm,
+    callback_url: str,
+    school: School | None,
+) -> dict[str, str]:
+    """Initialize Paystack transaction or bypass in dev mode."""
+    reference = intent.external_id
+    if not reference:
+        raise ValueError("Payment reference missing")
+
+    if paystack_gateway.is_configured():
+        try:
+            paystack_data = paystack_gateway.initialize_transaction(
+                amount=intent.amount,
+                email=person.email,
+                reference=reference,
+                callback_url=callback_url,
+                subaccount_code=school.paystack_subaccount_code if school else None,
+                bearer="account",
+            )
+            intent.status = PaymentIntentStatus.requires_action
+            return {
+                "authorization_url": paystack_data.get("authorization_url", ""),
+                "access_code": paystack_data.get("access_code", ""),
+            }
+        except (ValueError, RuntimeError) as e:
+            logger.error("Paystack init failed: %s", e)
+            raise ValueError(f"Payment initialization failed: {e}") from e
+
+    # Dev mode: skip Paystack and immediately create a draft application
+    intent.status = PaymentIntentStatus.succeeded
+    invoice.status = InvoiceStatus.paid
+    invoice.paid_at = datetime.now(UTC)
+    invoice.amount_paid = intent.amount
+    invoice.amount_due = 0
+
+    app_number = _generate_application_number()
+    application = Application(
+        admission_form_id=form.id,
+        parent_id=person.id,
+        invoice_id=invoice.id,
+        application_number=app_number,
+        status=ApplicationStatus.draft,
+    )
+    db.add(application)
+    form.current_submissions += 1
+    db.flush()
+    return {"authorization_url": f"/parent/applications/fill/{application.id}"}
 
 
 class ApplicationService:
@@ -94,101 +206,25 @@ class ApplicationService:
         if form.max_submissions and form.current_submissions >= form.max_submissions:
             raise ValueError("This form has reached maximum submissions")
 
-        # Get price
-        from app.models.billing import Price
-
         price = self.db.get(Price, form.price_id) if form.price_id else None
         if not price:
             raise ValueError("Form price not configured")
-        amount = price.unit_amount  # in kobo
 
         # Get school for subaccount
         school = self.db.get(School, form.school_id)
 
-        # Create/get customer
-        customer = self._get_or_create_customer(person)
-
-        # Create invoice
+        self._get_or_create_customer(person)
         reference = _generate_reference()
-        invoice = Invoice(
-            customer_id=customer.id,
-            number=reference,
-            status=InvoiceStatus.open,
-            currency=settings.schoolnet_currency,
-            subtotal=amount,
-            total=amount,
-            amount_due=amount,
-            metadata_={
-                "admission_form_id": str(admission_form_id),
-                "school_id": str(form.school_id),
-            },
+        invoice, payment_intent = _create_billing_records(self.db, person, form, price, reference)
+        paystack_data = _init_paystack_or_dev(
+            db=self.db,
+            intent=payment_intent,
+            invoice=invoice,
+            person=person,
+            form=form,
+            callback_url=callback_url,
+            school=school,
         )
-        self.db.add(invoice)
-        self.db.flush()
-
-        # Create invoice item
-        invoice_item = InvoiceItem(
-            invoice_id=invoice.id,
-            price_id=price.id,
-            description=f"Admission form: {form.title}",
-            quantity=1,
-            unit_amount=amount,
-            amount=amount,
-        )
-        self.db.add(invoice_item)
-
-        # Create payment intent
-        payment_intent = PaymentIntent(
-            customer_id=customer.id,
-            invoice_id=invoice.id,
-            amount=amount,
-            currency=settings.schoolnet_currency,
-            status=PaymentIntentStatus.requires_payment_method,
-            external_id=reference,
-            metadata_={
-                "admission_form_id": str(admission_form_id),
-                "parent_id": str(parent_id),
-            },
-        )
-        self.db.add(payment_intent)
-        self.db.flush()
-
-        # Initialize Paystack transaction
-        paystack_data = {}
-        if paystack_gateway.is_configured():
-            try:
-                paystack_data = paystack_gateway.initialize_transaction(
-                    amount=amount,
-                    email=person.email,
-                    reference=reference,
-                    callback_url=callback_url,
-                    subaccount_code=school.paystack_subaccount_code if school else None,
-                    bearer="account",
-                )
-                payment_intent.status = PaymentIntentStatus.requires_action
-            except (ValueError, RuntimeError) as e:
-                logger.error("Paystack init failed: %s", e)
-                raise ValueError(f"Payment initialization failed: {e}")
-        else:
-            # Dev mode: skip Paystack, mark as succeeded
-            payment_intent.status = PaymentIntentStatus.succeeded
-            invoice.status = InvoiceStatus.paid
-            invoice.paid_at = datetime.now(UTC)
-            invoice.amount_paid = amount
-            invoice.amount_due = 0
-            # Create application directly in dev mode
-            app_number = _generate_application_number()
-            application = Application(
-                admission_form_id=admission_form_id,
-                parent_id=parent_id,
-                invoice_id=invoice.id,
-                application_number=app_number,
-                status=ApplicationStatus.draft,
-            )
-            self.db.add(application)
-            form.current_submissions += 1
-            self.db.flush()
-            paystack_data = {"authorization_url": f"/parent/applications/fill/{application.id}"}
 
         self.db.flush()
         logger.info("Initiated purchase: ref=%s, parent=%s, form=%s", reference, parent_id, admission_form_id)
