@@ -3,11 +3,69 @@ from __future__ import annotations
 import os
 import re
 import uuid
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 
 from app.config import settings
+
+_UNSAFE_SVG_ERROR = "Unsafe SVG content is not allowed"
+_BLOCKED_SVG_ELEMENTS = {
+    "use",
+    "animate",
+    "animatetransform",
+    "animatemotion",
+    "set",
+    "foreignobject",
+    "script",
+    "iframe",
+}
+_EVENT_ATTRIBUTE_RE = re.compile(r"^on[a-z]+$", flags=re.IGNORECASE)
+_JAVASCRIPT_RE = re.compile(r"javascript\s*:", flags=re.IGNORECASE)
+
+
+def _xml_local_name(name: str) -> str:
+    if "}" in name:
+        return name.split("}", 1)[1]
+    if ":" in name:
+        return name.split(":", 1)[1]
+    return name
+
+
+def _sanitize_style_value(value: str) -> str:
+    # Remove CSS url(...) tokens, handling nested parentheses in payloads.
+    sanitized: list[str] = []
+    index = 0
+    while index < len(value):
+        if value[index : index + 3].lower() == "url":
+            scan = index + 3
+            while scan < len(value) and value[scan].isspace():
+                scan += 1
+            if scan < len(value) and value[scan] == "(":
+                depth = 1
+                scan += 1
+                quote: str | None = None
+                while scan < len(value) and depth > 0:
+                    char = value[scan]
+                    if quote:
+                        if char == quote:
+                            quote = None
+                        elif char == "\\" and scan + 1 < len(value):
+                            scan += 1
+                    else:
+                        if char in {'"', "'"}:
+                            quote = char
+                        elif char == "(":
+                            depth += 1
+                        elif char == ")":
+                            depth -= 1
+                    scan += 1
+                index = scan
+                continue
+        sanitized.append(value[index])
+        index += 1
+    return "".join(sanitized).strip()
 
 
 def _allowed_types() -> set[str]:
@@ -81,18 +139,49 @@ def _sniff_content_type(content: bytes) -> str | None:
     return None
 
 
-def _validate_svg_safety(content: bytes) -> None:
+def _sanitize_svg(content: bytes) -> bytes:
     text = content.decode("utf-8", errors="ignore")
     lowered = text.lower()
-    dangerous_patterns = [
-        r"<\s*script\b",
-        r"\bon[a-z]+\s*=",
-        r"javascript:",
-        r"<\s*foreignobject\b",
-    ]
-    for pattern in dangerous_patterns:
-        if re.search(pattern, lowered):
-            raise HTTPException(status_code=400, detail="Unsafe SVG content is not allowed")
+    if "<!doctype" in lowered or "<!entity" in lowered:
+        raise HTTPException(status_code=400, detail=_UNSAFE_SVG_ERROR)
+
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError as exc:
+        raise HTTPException(status_code=400, detail=_UNSAFE_SVG_ERROR) from exc
+
+    if _xml_local_name(root.tag).lower() != "svg":
+        raise HTTPException(status_code=400, detail=_UNSAFE_SVG_ERROR)
+
+    for element in root.iter():
+        tag_name = _xml_local_name(element.tag).lower()
+        if tag_name in _BLOCKED_SVG_ELEMENTS:
+            raise HTTPException(status_code=400, detail=_UNSAFE_SVG_ERROR)
+
+        for attr_name in list(element.attrib):
+            local_name = _xml_local_name(attr_name).lower()
+
+            if local_name == "href":
+                del element.attrib[attr_name]
+                continue
+
+            if _EVENT_ATTRIBUTE_RE.match(local_name):
+                raise HTTPException(status_code=400, detail=_UNSAFE_SVG_ERROR)
+
+            value = element.attrib.get(attr_name, "")
+            if local_name == "style":
+                sanitized_style = _sanitize_style_value(value)
+                if sanitized_style:
+                    element.attrib[attr_name] = sanitized_style
+                    value = sanitized_style
+                else:
+                    del element.attrib[attr_name]
+                    continue
+
+            if _JAVASCRIPT_RE.search(value):
+                raise HTTPException(status_code=400, detail=_UNSAFE_SVG_ERROR)
+
+    return ET.tostring(root, encoding="utf-8")
 
 
 async def _read_limited(file: UploadFile, max_size: int) -> bytes:
@@ -145,7 +234,7 @@ async def save_branding_asset(file: UploadFile, kind: str) -> str:
     if sniffed_normalized not in allowed_normalized:
         raise HTTPException(status_code=400, detail="Detected file type is not allowed")
     if sniffed_type == "image/svg+xml":
-        _validate_svg_safety(content)
+        content = _sanitize_svg(content)
     if file.content_type in {"image/x-icon", "image/vnd.microsoft.icon"} and sniffed_type == "image/x-icon":
         resolved_type = file.content_type
     else:
