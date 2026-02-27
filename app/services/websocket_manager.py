@@ -16,9 +16,17 @@ class ConnectionManager:
     def __init__(self) -> None:
         self._connections: dict[str, set[WebSocket]] = {}
 
-    async def connect(self, person_id: UUID, websocket: WebSocket) -> None:
+    async def connect(
+        self,
+        person_id: UUID,
+        websocket: WebSocket,
+        subprotocol: str | None = None,
+    ) -> None:
         """Accept and register a WebSocket connection."""
-        await websocket.accept()
+        if subprotocol:
+            await websocket.accept(subprotocol=subprotocol)
+        else:
+            await websocket.accept()
         key = str(person_id)
         if key not in self._connections:
             self._connections[key] = set()
