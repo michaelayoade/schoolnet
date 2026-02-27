@@ -149,6 +149,8 @@ class TestRequireAuditAuthWithApiKey:
         )
         assert result["actor_type"] == "api_key"
         assert result["actor_id"] == str(api_key.id)
+        assert request.state.actor_id == str(api_key.id)
+        assert request.state.actor_type == "api_key"
 
     def test_api_key_auth_revoked(self, db_session):
         """Test revoked API key is rejected."""
@@ -388,6 +390,8 @@ class TestAuditScopeEnforcement:
             )
             assert result["actor_type"] == "user"
             assert result["actor_id"] == str(person.id)
+            assert request.state.actor_id == str(person.id)
+            assert request.state.actor_type == "user"
 
 
 class TestSessionTokenAuth:
@@ -422,6 +426,8 @@ class TestSessionTokenAuth:
         )
         assert result["actor_type"] == "user"
         assert result["actor_id"] == str(person.id)
+        assert request.state.actor_id == str(person.id)
+        assert request.state.actor_type == "user"
 
     def test_no_auth_provided_returns_401(self, db_session):
         """Test that no authentication returns 401."""

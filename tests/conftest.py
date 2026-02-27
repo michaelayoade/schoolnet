@@ -89,6 +89,7 @@ class MockSettings:
     paystack_public_key = ""
     schoolnet_commission_rate = 1000
     schoolnet_currency = "NGN"
+    internal_service_ips = ""
 
 
 mock_config_module.settings = MockSettings()

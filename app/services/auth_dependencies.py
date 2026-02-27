@@ -66,6 +66,15 @@ def _has_audit_scope(payload: dict) -> bool:
     )
 
 
+def _set_request_actor(
+    request: Request | None, actor_id: str, actor_type: str
+) -> None:
+    if request is None:
+        return
+    request.state.actor_id = actor_id
+    request.state.actor_type = actor_type
+
+
 def require_audit_auth(
     authorization: str | None = Header(default=None),
     x_session_token: str | None = Header(default=None),
@@ -90,8 +99,7 @@ def require_audit_auth(
                 if _make_aware(session.expires_at) <= now:
                     raise HTTPException(status_code=401, detail="Session expired")
             actor_id = str(payload.get("sub"))
-            if request is not None:
-                request.state.actor_id = actor_id
+            _set_request_actor(request, actor_id, "user")
             return {"actor_type": "user", "actor_id": actor_id}
         stmt = select(AuthSession).where(
             AuthSession.token_hash == hash_session_token(token),
@@ -101,9 +109,9 @@ def require_audit_auth(
         )
         session = db.scalar(stmt)
         if session:
-            if request is not None:
-                request.state.actor_id = str(session.person_id)
-            return {"actor_type": "user", "actor_id": str(session.person_id)}
+            actor_id = str(session.person_id)
+            _set_request_actor(request, actor_id, "user")
+            return {"actor_type": "user", "actor_id": actor_id}
     if x_api_key:
         api_key_stmt = select(ApiKey).where(
             ApiKey.key_hash == hash_api_key(x_api_key),
@@ -113,9 +121,9 @@ def require_audit_auth(
         )
         api_key = db.scalar(api_key_stmt)
         if api_key:
-            if request is not None:
-                request.state.actor_id = str(api_key.id)
-            return {"actor_type": "api_key", "actor_id": str(api_key.id)}
+            actor_id = str(api_key.id)
+            _set_request_actor(request, actor_id, "api_key")
+            return {"actor_type": "api_key", "actor_id": actor_id}
     raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -151,8 +159,7 @@ def require_user_auth(
     roles = [str(role) for role in roles_value] if isinstance(roles_value, list) else []
     scopes = [str(scope) for scope in scopes_value] if isinstance(scopes_value, list) else []
     actor_id = str(person_id)
-    if request is not None:
-        request.state.actor_id = actor_id
+    _set_request_actor(request, actor_id, "user")
     return {
         "person_id": str(person_id),
         "session_id": str(session_id),

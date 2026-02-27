@@ -69,6 +69,9 @@ class Settings:
 
     # CORS
     cors_origins: str = os.getenv("CORS_ORIGINS", "")  # Comma-separated origins
+    internal_service_ips: str = os.getenv(
+        "INTERNAL_SERVICE_IPS", ""
+    )  # Comma-separated trusted internal client IPs
 
 
 def validate_settings(s: Settings) -> list[str]:

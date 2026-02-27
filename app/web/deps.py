@@ -83,6 +83,8 @@ def require_web_auth(
 
     raw_roles = payload.get("roles", [])
     roles = [str(r) for r in raw_roles] if isinstance(raw_roles, list) else []
+    request.state.actor_id = str(person_id)
+    request.state.actor_type = "user"
 
     return {
         "person_id": str(person_id),
