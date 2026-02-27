@@ -104,9 +104,10 @@ def review_application(
             review_notes=review_notes if review_notes else None,
         )
         db.commit()
-    except ValueError as e:
+    except ValueError:
+        logger.exception("Failed to review application %s", app_id)
         return RedirectResponse(
-            url=f"/school/applications/{app_id}?error={e}",
+            url=f"/school/applications/{app_id}?error=An+unexpected+error+occurred",
             status_code=303,
         )
     return RedirectResponse(

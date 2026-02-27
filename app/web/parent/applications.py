@@ -92,9 +92,10 @@ def purchase_submit(
             callback_url=str(request.url_for("payment_callback")),
         )
         db.commit()
-    except ValueError as e:
+    except ValueError:
+        logger.exception("Failed to initiate purchase for form %s", form_id)
         return RedirectResponse(
-            url=f"/parent/applications/purchase/{form_id}?error={e}",
+            url=f"/parent/applications/purchase/{form_id}?error=An+unexpected+error+occurred",
             status_code=303,
         )
 
@@ -170,9 +171,10 @@ def fill_application_submit(
             ward_gender=ward_gender,
         )
         db.commit()
-    except ValueError as e:
+    except ValueError:
+        logger.exception("Failed to submit application %s", app_id)
         return RedirectResponse(
-            url=f"/parent/applications/fill/{app_id}?error={e}",
+            url=f"/parent/applications/fill/{app_id}?error=An+unexpected+error+occurred",
             status_code=303,
         )
 
@@ -225,9 +227,10 @@ def withdraw_application(
     try:
         svc.withdraw(application)
         db.commit()
-    except ValueError as e:
+    except ValueError:
+        logger.exception("Failed to withdraw application %s", app_id)
         return RedirectResponse(
-            url=f"/parent/applications/{app_id}?error={e}",
+            url=f"/parent/applications/{app_id}?error=An+unexpected+error+occurred",
             status_code=303,
         )
     return RedirectResponse(url="/parent/applications?success=Application+withdrawn", status_code=303)

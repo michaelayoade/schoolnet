@@ -172,16 +172,16 @@ async def delete_file_upload(
             url="/admin/file-uploads?success=File+deleted+successfully",
             status_code=302,
         )
-    except ValueError as exc:
-        logger.warning("Failed to delete file upload %s: %s", file_id, exc)
+    except ValueError:
+        logger.exception("Failed to delete file upload %s", file_id)
         return RedirectResponse(
-            url=f"/admin/file-uploads?error={exc}",
+            url="/admin/file-uploads?error=An+unexpected+error+occurred",
             status_code=302,
         )
     except Exception as exc:
         logger.exception("Failed to delete file upload %s: %s", file_id, exc)
         db.rollback()
         return RedirectResponse(
-            url=f"/admin/file-uploads?error={exc}",
+            url="/admin/file-uploads?error=An+unexpected+error+occurred",
             status_code=302,
         )
