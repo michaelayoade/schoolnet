@@ -63,26 +63,33 @@ def send_email(
         msg.attach(MIMEText(body_text, "plain"))
     msg.attach(MIMEText(body_html, "html"))
 
+    server = None
     try:
         if config["use_ssl"]:
             server = smtplib.SMTP_SSL(config["host"], config["port"])
         else:
             server = smtplib.SMTP(config["host"], config["port"])
 
-        if config["use_tls"] and not config["use_ssl"]:
-            server.starttls()
+        try:
+            if config["use_tls"] and not config["use_ssl"]:
+                server.starttls()
 
-        if config["username"] and config["password"]:
-            server.login(config["username"], config["password"])
+            if config["username"] and config["password"]:
+                server.login(config["username"], config["password"])
 
-        server.sendmail(config["from_email"], to_email, msg.as_string())
-        server.quit()
-
-        logger.info("Email sent to %s", to_email)
-        return True
+            server.sendmail(config["from_email"], to_email, msg.as_string())
+            logger.info("Email sent to %s", to_email)
+            return True
+        except Exception as exc:
+            logger.error("Failed to send email to %s: %s", to_email, exc)
+            return False
     except Exception as exc:
-        logger.error("Failed to send email to %s: %s", to_email, exc)
+        # This outer try/except catches connection establishment failures
+        logger.error("Failed to connect to SMTP server for %s: %s", to_email, exc)
         return False
+    finally:
+        if server:
+            server.quit()
 
 
 def send_password_reset_email(

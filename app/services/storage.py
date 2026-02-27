@@ -140,8 +140,24 @@ class S3Storage(StorageBackend):
         try:
             client.head_object(Bucket=self.bucket, Key=storage_key)  # type: ignore[union-attr]
             return True
-        except Exception:
-            return False
+        except Exception as exc:
+            # Import here to avoid mandatory dependency for local dev
+            from botocore.exceptions import ClientError
+            
+            if isinstance(exc, ClientError):
+                error_code = exc.response.get('Error', {}).get('Code', '')
+                # Handle 404/NoSuchKey as "file doesn't exist"
+                if error_code in ('404', 'NoSuchKey'):
+                    return False
+                # For other ClientError (permissions, configuration issues), log and re-raise
+                logger.warning(
+                    "S3 client error checking existence of %s: %s",
+                    storage_key,
+                    exc,
+                )
+                raise
+            # Re-raise any non-ClientError exceptions
+            raise
 
 
 def get_storage_backend() -> StorageBackend:
