@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.services.branding_context import load_branding_context
 from app.templates import templates
+from app.web.deps import sanitize_next_url
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +24,13 @@ def login_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     branding = load_branding_context(db)
+    next_url = sanitize_next_url(next)
     return templates.TemplateResponse(
         "admin/login.html",
         {
             "request": request,
             "title": "Login",
-            "next_url": next,
+            "next_url": next_url,
             "brand": branding["brand"],
             "org_branding": branding["org_branding"],
         },
@@ -58,7 +60,7 @@ async def login_submit(
     form = await request.form()
     username = str(form.get("username", "")).strip()
     password = str(form.get("password", ""))
-    next_url = str(form.get("next", "/admin"))
+    next_url = sanitize_next_url(form.get("next", "/admin"))
 
     if not username or not password:
         return _login_error(request, db, "Username and password are required", next_url)

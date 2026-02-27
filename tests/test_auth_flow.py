@@ -10,7 +10,13 @@ from starlette.requests import Request
 
 from app.models.auth import Session as AuthSession, SessionStatus, UserCredential
 from app.models.auth import AuthProvider
-from app.services.auth_flow import AuthFlow, decode_access_token, hash_password
+from app.services.auth_flow import (
+    AuthFlow,
+    decode_access_token,
+    hash_password,
+    request_password_reset,
+    reset_password,
+)
 from tests.mocks import FakeHTTPXResponse
 
 
@@ -115,3 +121,21 @@ def test_decode_access_token_uses_openbao_secret(monkeypatch):
 
     assert decoded["sub"] == "user-id"
     assert decoded["typ"] == "access"
+
+
+def test_reset_password_rejects_short_password(db_session, person):
+    credential = UserCredential(
+        person_id=person.id,
+        provider=AuthProvider.local,
+        username=_unique_username(),
+        password_hash=hash_password("oldpassword123"),
+        is_active=True,
+    )
+    db_session.add(credential)
+    db_session.commit()
+
+    reset = request_password_reset(db_session, person.email)
+    assert reset is not None
+
+    with pytest.raises(ValueError, match="Password must be at least 8 characters"):
+        reset_password(db_session, reset["token"], "short")

@@ -17,12 +17,13 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 @router.post("/webhook/paystack")
 async def paystack_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
     """Handle Paystack webhook — no auth required, signature verified."""
+    if not paystack_gateway.is_configured():
+        raise HTTPException(status_code=503, detail="Payment gateway not configured")
+
     body = await request.body()
     signature = request.headers.get("x-paystack-signature", "")
-
-    if paystack_gateway.is_configured():
-        if not paystack_gateway.validate_webhook_signature(body, signature):
-            raise HTTPException(status_code=400, detail="Invalid signature")
+    if not paystack_gateway.validate_webhook_signature(body, signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
 
     import json
 
