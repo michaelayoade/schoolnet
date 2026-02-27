@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- [Security] Password minimum length of 8 characters now enforced in `register_parent`, `register_school_admin`, and password-change service methods via `_validate_password_strength()` helper; raises `ValueError` on violation (PR #5)
+- [Security] Rate limiter now fails **closed** on Redis outage — an in-memory sliding-window fallback (5 req / 60 s per IP, using `collections.deque`) enforces brute-force limits on login, MFA, and registration even when Redis is unavailable (PR #7)
+- [Security] WebSocket JWT access token moved from URL query parameter to `Sec-WebSocket-Protocol` subprotocol header — prevents token leakage in server access logs, browser history, and `Referer` headers (PR #6)
 - [Security] Fix open redirect in admin login — `next` URL parameter now validated to require a leading `/` and no `://`; defaults to `/admin` if invalid (PR #4)
 - [Security] Paystack webhook endpoint now returns HTTP 503 when `PAYSTACK_SECRET_KEY` is unset instead of processing unsigned events (PR #3)
 - [Security] Upgrade `cryptography` to `>=44.0.1` — resolves CVE-2024-12797 (TLS client certificate validation bypass) and several CVEs in the 42–43 range (PR #2)

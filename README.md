@@ -7,9 +7,10 @@ A production-ready FastAPI starter template with enterprise-grade features inclu
 - **Authentication & Security**
   - JWT-based authentication with refresh token rotation
   - Multi-factor authentication (TOTP, SMS, Email)
-  - API key management with rate limiting
+  - API key management with rate limiting (Redis-backed; in-memory fallback when Redis is unavailable)
   - Session management with token hashing
-  - Password policies and account lockout
+  - Password policies (minimum 8 characters) and account lockout
+  - WebSocket authentication via `Sec-WebSocket-Protocol` header (token never exposed in URLs or logs)
 
 - **Authorization**
   - Role-based access control (RBAC)
