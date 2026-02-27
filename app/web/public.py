@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
-from app.services.auth_flow import AuthFlow
+from app.services.auth_flow import AuthFlow, _refresh_cookie_secure
 from app.services.common import require_uuid
 from app.services.registration import RegistrationService
 from app.services.school import SchoolService
@@ -243,6 +243,7 @@ def login_submit(
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=_refresh_cookie_secure(db),
         samesite="lax",
         max_age=900,
     )
@@ -251,6 +252,7 @@ def login_submit(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
+            secure=_refresh_cookie_secure(db),
             samesite="lax",
             max_age=30 * 24 * 3600,
         )

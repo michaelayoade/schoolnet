@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.services.auth_flow import _refresh_cookie_secure
 from app.services.branding_context import load_branding_context
 from app.templates import templates
 from app.web.deps import sanitize_next_url
@@ -86,6 +87,7 @@ async def login_submit(
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=_refresh_cookie_secure(db),
         samesite="lax",
         path="/",
         max_age=3600,
@@ -95,6 +97,7 @@ async def login_submit(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
+            secure=_refresh_cookie_secure(db),
             samesite="lax",
             path="/",
             max_age=30 * 24 * 3600,
