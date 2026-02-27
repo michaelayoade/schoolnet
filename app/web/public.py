@@ -212,7 +212,7 @@ def login_submit(
     try:
         result = AuthFlow.login(db, email, password, request, "local")
     except Exception as e:
-        logger.warning("Login failed for %s: %s", email, e)
+        logger.warning("Login failed for [redacted]: %s", e)
         return templates.TemplateResponse(
             "public/auth/login.html",
             {"request": request, "error_message": "Invalid email or password"},

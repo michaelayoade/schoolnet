@@ -23,6 +23,8 @@ _RATE_LIMIT_PATHS: dict[str, tuple[int, int]] = {
     "/auth/password-reset": (5, 300),  # 5 attempts per 5 minutes
     "/auth/mfa/verify": (10, 60),      # 10 attempts per minute
     "/auth/register": (5, 300),        # 5 registrations per 5 minutes
+    "/register/parent": (5, 300),      # 5 registrations per 5 minutes
+    "/register/school": (5, 300),      # 5 registrations per 5 minutes
 }
 _FALLBACK_LIMIT = (5, 60)  # 5 attempts per minute per IP when Redis is unavailable.
 _FALLBACK_CACHE_SIZE = 10_000

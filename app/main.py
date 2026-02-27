@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
+from hmac import compare_digest
 from threading import Lock
 from time import monotonic
 from typing import Any
@@ -366,8 +367,8 @@ def readiness_check() -> JSONResponse:
             checks["database"] = "ok"
         finally:
             db.close()
-    except Exception as e:
-        checks["database"] = f"error: {e}"
+    except Exception:
+        checks["database"] = "Service unavailable"
 
     # Check Redis
     try:
@@ -378,8 +379,8 @@ def readiness_check() -> JSONResponse:
         )
         r.ping()
         checks["redis"] = "ok"
-    except Exception as e:
-        checks["redis"] = f"error: {e}"
+    except Exception:
+        checks["redis"] = "Service unavailable"
 
     all_ok = all(v == "ok" for v in checks.values())
     return JSONResponse(
@@ -389,6 +390,17 @@ def readiness_check() -> JSONResponse:
 
 
 @app.get("/metrics")
-def metrics() -> Response:
+def metrics(request: Request) -> Response:
+    metrics_token = os.getenv("METRICS_TOKEN", "")
+    auth_header = request.headers.get("Authorization", "")
+    scheme, _, provided_token = auth_header.partition(" ")
+    if (
+        not metrics_token
+        or scheme.lower() != "bearer"
+        or not provided_token
+        or not compare_digest(provided_token.strip(), metrics_token)
+    ):
+        return Response(status_code=403)
+
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)

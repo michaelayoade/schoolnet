@@ -150,3 +150,19 @@ class TestRateLimitPaths:
     def test_register_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
         assert "/auth/register" in _RATE_LIMIT_PATHS
+
+    def test_parent_register_path_configured(self) -> None:
+        from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
+        assert "/register/parent" in _RATE_LIMIT_PATHS
+        max_req, window = _RATE_LIMIT_PATHS["/register/parent"]
+        assert max_req == 5
+        assert window == 300
+
+    def test_school_register_path_configured(self) -> None:
+        from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
+        assert "/register/school" in _RATE_LIMIT_PATHS
+        max_req, window = _RATE_LIMIT_PATHS["/register/school"]
+        assert max_req == 5
+        assert window == 300
