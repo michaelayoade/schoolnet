@@ -1,27 +1,20 @@
 """School admin — admission form management."""
 
 import logging
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
-from app.models.school import School
 from app.services.admission_form import AdmissionFormService
 from app.services.common import require_uuid
-from app.services.school import SchoolService
 from app.templates import templates
-from app.web.schoolnet_deps import require_school_admin_auth
+from app.web.schoolnet_deps import get_school_for_admin, require_school_admin_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/school/forms", tags=["school-forms"])
-
-
-def _get_school_for_admin(db: Session, auth: dict) -> School | None:
-    svc = SchoolService(db)
-    schools = svc.get_schools_for_owner(require_uuid(auth["person_id"]))
-    return schools[0] if schools else None
 
 
 @router.get("")
@@ -30,7 +23,8 @@ def list_forms(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
-    school = _get_school_for_admin(db, auth)
+    current_user = SimpleNamespace(person_id=require_uuid(auth["person_id"]))
+    school = get_school_for_admin(db, current_user)
     if not school:
         return templates.TemplateResponse(
             "school/forms/list.html",
@@ -56,7 +50,8 @@ def create_form_page(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
-    school = _get_school_for_admin(db, auth)
+    current_user = SimpleNamespace(person_id=require_uuid(auth["person_id"]))
+    school = get_school_for_admin(db, current_user)
     if not school:
         return RedirectResponse(url="/school/forms?error=No+school+found", status_code=303)
     return templates.TemplateResponse(
@@ -76,7 +71,8 @@ def create_form_submit(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
-    school = _get_school_for_admin(db, auth)
+    current_user = SimpleNamespace(person_id=require_uuid(auth["person_id"]))
+    school = get_school_for_admin(db, current_user)
     if not school:
         return RedirectResponse(url="/school/forms?error=No+school+found", status_code=303)
 

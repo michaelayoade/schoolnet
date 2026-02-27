@@ -1,6 +1,7 @@
 """School admin — application review."""
 
 import logging
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
@@ -9,18 +10,11 @@ from starlette.responses import RedirectResponse, Response
 from app.api.deps import get_db
 from app.services.application import ApplicationService
 from app.services.common import require_uuid
-from app.services.school import SchoolService
 from app.templates import templates
-from app.web.schoolnet_deps import require_school_admin_auth
+from app.web.schoolnet_deps import get_school_for_admin, require_school_admin_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/school/applications", tags=["school-applications"])
-
-
-def _get_school_id(db: Session, auth: dict):
-    svc = SchoolService(db)
-    schools = svc.get_schools_for_owner(require_uuid(auth["person_id"]))
-    return schools[0].id if schools else None
 
 
 @router.get("")
@@ -29,7 +23,11 @@ def list_applications(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
-    school_id = _get_school_id(db, auth)
+    current_user = SimpleNamespace(person_id=require_uuid(auth["person_id"]))
+    school = get_school_for_admin(db, current_user)
+    school_id = getattr(school, "school_id", None) if school else None
+    if school and school_id is None:
+        school_id = school.id
     if not school_id:
         return templates.TemplateResponse(
             "school/applications/list.html",

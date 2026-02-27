@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import Depends, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.models.school import School
 from app.models.rbac import PersonRole, Role
 from app.services.common import require_uuid
+from app.services.school import SchoolService
 from app.web.deps import WebAuthRedirect, require_web_auth
 
 logger = logging.getLogger(__name__)
@@ -27,6 +30,11 @@ def _has_role(db: Session, person_id: str, role_name: str) -> bool:
         PersonRole.role_id == role.id,
     )
     return db.scalar(link_stmt) is not None
+
+
+def get_school_for_admin(db: Session, current_user: Any) -> School | None:
+    schools = SchoolService(db).get_schools_for_owner(current_user.person_id)
+    return schools[0] if schools else None
 
 
 def require_parent_auth(
