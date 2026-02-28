@@ -1,3 +1,4 @@
+import html
 import logging
 import os
 import smtplib
@@ -64,6 +65,7 @@ def send_email(
     msg.attach(MIMEText(body_html, "html"))
 
     try:
+        server: smtplib.SMTP
         if config["use_ssl"]:
             server = smtplib.SMTP_SSL(config["host"], config["port"])
         else:
@@ -95,10 +97,12 @@ def send_password_reset_email(
     app_url = _env_value("APP_URL") or "http://localhost:8000"
     reset_link = f"{app_url.rstrip('/')}/auth/reset-password?token={reset_token}"
     subject = "Reset your password"
+    safe_name = html.escape(name)
+    safe_link = html.escape(reset_link)
     body_html = (
-        f"<p>Hi {name},</p>"
+        f"<p>Hi {safe_name},</p>"
         "<p>Use the link below to reset your password:</p>"
-        f'<p><a href="{reset_link}">Reset password</a></p>'
+        f'<p><a href="{safe_link}">Reset password</a></p>'
     )
     body_text = f"Hi {name}, use this link to reset your password: {reset_link}"
     return send_email(db, to_email, subject, body_html, body_text)
