@@ -109,7 +109,7 @@ Optional: `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
 
 ## Docker
 
-- Container names: `starter_template_app`, `starter_template_worker`, `starter_template_beat`, `starter_template_db`, `starter_template_redis`
-- App port: 8001 (external and internal)
-- DB port: 5434 (external) → 5432 (internal)
-- Redis port: 6379
+- Container names: `schoolnet_app`, `schoolnet_worker`, `schoolnet_beat`, `schoolnet_db`, `schoolnet_redis`
+- App port: 8006 (external) → 8001 (internal)
+- DB port: 127.0.0.1:5435 (external) → 5432 (internal)
+- Redis port: 127.0.0.1:6380 (external) → 6379 (internal)

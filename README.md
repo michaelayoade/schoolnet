@@ -132,9 +132,9 @@ docker compose down
 ```
 
 Services:
-- **App**: http://localhost:8001
-- **PostgreSQL**: localhost:5434
-- **Redis**: localhost:6379
+- **App**: http://localhost:8006
+- **PostgreSQL**: localhost:5435 (loopback-only)
+- **Redis**: localhost:6380 (loopback-only)
 
 ### Running Locally
 
@@ -181,10 +181,10 @@ Services:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://postgres:postgres@localhost:5434/starter_template` |
-| `REDIS_URL` | Redis connection string | `redis://:redis@localhost:6379/0` |
-| `CELERY_BROKER_URL` | Celery broker URL | `redis://:redis@localhost:6379/0` |
-| `CELERY_RESULT_BACKEND` | Celery result backend | `redis://:redis@localhost:6379/1` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://postgres:postgres@localhost:5435/starter_template` |
+| `REDIS_URL` | Redis connection string | `redis://:redis@localhost:6380/0` |
+| `CELERY_BROKER_URL` | Celery broker URL | `redis://:redis@localhost:6380/0` |
+| `CELERY_RESULT_BACKEND` | Celery result backend | `redis://:redis@localhost:6380/1` |
 | `JWT_SECRET` | JWT signing secret | Required |
 | `JWT_ALGORITHM` | JWT algorithm | `HS256` |
 | `JWT_ACCESS_TTL_MINUTES` | Access token TTL | `15` |

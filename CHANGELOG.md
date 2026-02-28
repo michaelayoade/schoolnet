@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [Changed] Docker Compose container names updated from `starter_template_*` to `schoolnet_*` — containers are now `schoolnet_app`, `schoolnet_worker`, `schoolnet_beat`, `schoolnet_db`, `schoolnet_redis`; app external port changed from `8001` to `8006`; PostgreSQL port bound to `127.0.0.1:5435:5432` (loopback-only, was `5434:5432`); Redis port bound to `127.0.0.1:6380:6379` (loopback-only, was `6379:6379`); data volume renamed from `starter_template_db_data` to `schoolnet_db_data` (`docker-compose.yml`)
+
+### Fixed
+- [Fixed] `DbScheduler.__init__()` now initialises `_last_refresh_at` before calling `super().__init__()` — the previous ordering could cause `AttributeError` if the parent `Scheduler` referenced the attribute during its own initialisation (`app/celery_scheduler.py`)
+
 ### Security
 - [Security] Branding settings routes now require `admin` role — `GET /settings/branding` and `POST /settings/branding` in `app/web_home.py` were unauthenticated, allowing any visitor to overwrite `custom_css`; CSS is now sanitised (stripping `</style>` and `<script>` sequences) before storage, preventing zero-auth stored XSS on all pages via `{{ org_branding.css | safe }}` (PR #70)
 - [Security] File upload and delete ownership regression re-fixed — `upload_file` and `delete_file_upload` handlers in `app/api/file_uploads.py` now accept `auth: dict = Depends(require_user_auth)`; `upload_file` passes `auth['person_id']` as `uploaded_by`; `delete_file_upload` verifies `record.uploaded_by` matches the caller before deletion; any mismatch returns 403 (regression of PR #32 fix) (PR #68)
