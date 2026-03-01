@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
@@ -362,7 +362,7 @@ def revoke_session(
     if session.status == SessionStatus.revoked:
         raise HTTPException(status_code=400, detail="Session already revoked")
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     session.status = SessionStatus.revoked
     session.revoked_at = now
     db.commit()
@@ -395,7 +395,7 @@ def revoke_all_other_sessions(
         .all()
     )
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     for session in sessions:
         session.status = SessionStatus.revoked
         session.revoked_at = now
@@ -436,7 +436,7 @@ def change_password(
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password must be different")
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     credential.password_hash = hash_password(payload.new_password)
     credential.password_updated_at = now
     credential.must_change_password = False

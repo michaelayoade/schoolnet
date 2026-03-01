@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -38,7 +38,7 @@ def _make_aware(dt: datetime) -> datetime:
     if dt is None:
         return None  # type: ignore[return-value]
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
+        return dt.replace(tzinfo=timezone.utc)
     return dt
 
 
@@ -65,7 +65,7 @@ def require_web_auth(
     if not person_id or not session_id:
         raise WebAuthRedirect(next_url=request.url.path)
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     person_uuid = coerce_uuid(person_id)
     session_uuid = coerce_uuid(session_id)
     session = db.get(AuthSession, session_uuid)

@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -202,7 +202,7 @@ class SchoolService:
 
     def approve(self, school: School, approved_by: UUID) -> School:
         school.status = SchoolStatus.active
-        school.verified_at = datetime.now(UTC)
+        school.verified_at = datetime.now(timezone.utc)
         school.verified_by = approved_by
         self.db.flush()
         logger.info("Approved school: %s by %s", school.id, approved_by)

@@ -2,7 +2,7 @@ import hashlib
 import os
 import secrets
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import redis
 from fastapi import HTTPException, Request
@@ -358,7 +358,7 @@ class Sessions(ListResponseMixin):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         session.status = SessionStatus.revoked
-        session.revoked_at = datetime.now(UTC)
+        session.revoked_at = datetime.now(timezone.utc)
         db.commit()
 
 
@@ -478,7 +478,7 @@ class ApiKeys(ListResponseMixin):
         if not api_key:
             raise HTTPException(status_code=404, detail="API key not found")
         api_key.is_active = False
-        api_key.revoked_at = datetime.now(UTC)
+        api_key.revoked_at = datetime.now(timezone.utc)
         db.commit()
 
     @staticmethod

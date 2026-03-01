@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pyotp
 from cryptography.fernet import Fernet, InvalidToken
@@ -56,14 +56,14 @@ def _env_int(name: str) -> int | None:
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
+        return value.replace(tzinfo=timezone.utc)
     return value
 
 

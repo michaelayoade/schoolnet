@@ -2,7 +2,7 @@
 
 import logging
 import secrets
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -50,7 +50,7 @@ VALID_TRANSITIONS: dict[ApplicationStatus, set[ApplicationStatus]] = {
 
 def _generate_application_number() -> str:
     """Generate a unique application number like SCH-2026-XXXXX."""
-    year = datetime.now(UTC).year
+    year = datetime.now(timezone.utc).year
     suffix = secrets.token_hex(3).upper()[:5]
     return f"SCH-{year}-{suffix}"
 
@@ -179,7 +179,7 @@ class ApplicationService:
             # Dev mode: skip Paystack, mark as succeeded
             payment_intent.status = PaymentIntentStatus.succeeded
             invoice.status = InvoiceStatus.paid
-            invoice.paid_at = datetime.now(UTC)
+            invoice.paid_at = datetime.now(timezone.utc)
             invoice.amount_paid = amount
             invoice.amount_due = 0
             # Create application directly in dev mode
@@ -242,7 +242,7 @@ class ApplicationService:
             invoice = self.db.get(Invoice, payment_intent.invoice_id)
             if invoice:
                 invoice.status = InvoiceStatus.paid
-                invoice.paid_at = datetime.now(UTC)
+                invoice.paid_at = datetime.now(timezone.utc)
                 invoice.amount_paid = invoice.total
                 invoice.amount_due = 0
 
@@ -311,7 +311,7 @@ class ApplicationService:
         application.document_urls = document_urls
         application.ward_passport_url = ward_passport_url
         application.status = ApplicationStatus.submitted
-        application.submitted_at = datetime.now(UTC)
+        application.submitted_at = datetime.now(timezone.utc)
 
         self.db.flush()
         logger.info("Application submitted: %s", application.id)
@@ -340,7 +340,7 @@ class ApplicationService:
         self._validate_transition(application.status, target)
 
         application.status = target
-        application.reviewed_at = datetime.now(UTC)
+        application.reviewed_at = datetime.now(timezone.utc)
         application.reviewed_by = reviewer_id
         application.review_notes = review_notes
 
@@ -407,13 +407,13 @@ class ApplicationService:
             if reference:
                 self.handle_payment_success(reference, payload.get("data"))
                 webhook.status = WebhookEventStatus.processed
-                webhook.processed_at = datetime.now(UTC)
+                webhook.processed_at = datetime.now(timezone.utc)
             else:
                 webhook.status = WebhookEventStatus.failed
                 webhook.error_message = "No reference in payload"
         else:
             webhook.status = WebhookEventStatus.processed
-            webhook.processed_at = datetime.now(UTC)
+            webhook.processed_at = datetime.now(timezone.utc)
 
         self.db.flush()
         logger.info("Processed webhook: %s %s", event_type, event_id)

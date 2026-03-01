@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -82,7 +82,7 @@ class NotificationService:
         if not notification or notification.recipient_id != recipient_id:
             return None
         notification.is_read = True
-        notification.read_at = datetime.now(UTC)
+        notification.read_at = datetime.now(timezone.utc)
         self.db.flush()
         return notification
 
@@ -95,7 +95,7 @@ class NotificationService:
                 Notification.is_active.is_(True),
                 Notification.is_read.is_(False),
             )
-            .values(is_read=True, read_at=datetime.now(UTC))
+            .values(is_read=True, read_at=datetime.now(timezone.utc))
         )
         result = self.db.execute(stmt)
         self.db.flush()

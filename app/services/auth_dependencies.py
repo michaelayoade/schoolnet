@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
@@ -14,11 +14,11 @@ from app.services.common import coerce_uuid
 
 
 def _make_aware(dt: datetime) -> datetime:
-    """Ensure datetime is timezone-aware (UTC). SQLite doesn't preserve tz info."""
+    """Ensure datetime is timezone-aware (timezone.utc). SQLite doesn't preserve tz info."""
     if dt is None:
         return None
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
+        return dt.replace(tzinfo=timezone.utc)
     return dt
 
 
@@ -74,7 +74,7 @@ def require_audit_auth(
     db: Session = Depends(_get_db),
 ):
     token = _extract_bearer_token(authorization) or x_session_token
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     if token:
         if _is_jwt(token):
             payload = decode_access_token(db, token)
@@ -133,7 +133,7 @@ def require_user_auth(
     if not person_id or not session_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     person_uuid = coerce_uuid(person_id)
     session_uuid = coerce_uuid(session_id)
     stmt = select(AuthSession).where(

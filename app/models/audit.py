@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import JSON, Boolean, DateTime, Enum, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -23,7 +23,7 @@ class AuditEvent(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     actor_type: Mapped[AuditActorType] = mapped_column(
         Enum(AuditActorType), default=AuditActorType.system
