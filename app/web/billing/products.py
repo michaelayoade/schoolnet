@@ -1,4 +1,5 @@
 """Admin web routes for Product management."""
+
 from __future__ import annotations
 
 import logging
@@ -138,9 +139,7 @@ def product_detail(
 ) -> HTMLResponse:
     """Show product detail view."""
     item = billing_service.products.get(db, str(item_id))
-    ctx = _base_context(
-        request, db, auth, title=item.name, page_title="Product Detail"
-    )
+    ctx = _base_context(request, db, auth, title=item.name, page_title="Product Detail")
     ctx["product"] = item
     # Load related prices
     prices, _ = billing_service.prices.list(

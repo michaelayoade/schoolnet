@@ -1,12 +1,10 @@
 import uuid
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from app.models.auth import (
-    MFAMethod,
-    MFAMethodType,
     Session as AuthSession,
+)
+from app.models.auth import (
     SessionStatus,
     UserCredential,
 )
@@ -156,7 +154,7 @@ class TestSessionsAPI:
             status=SessionStatus.active,
             ip_address="192.168.1.1",
             user_agent="other-client",
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
         db_session.add(other_session)
         db_session.commit()
@@ -185,7 +183,7 @@ class TestSessionsAPI:
                 status=SessionStatus.active,
                 ip_address=f"192.168.1.{i}",
                 user_agent=f"client-{i}",
-                expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
             )
             db_session.add(session)
         db_session.commit()
@@ -220,7 +218,9 @@ class TestPasswordAPI:
         data = response.json()
         assert "changed_at" in data
 
-    def test_change_password_wrong_current(self, client, auth_headers, db_session, person):
+    def test_change_password_wrong_current(
+        self, client, auth_headers, db_session, person
+    ):
         """Test changing password with wrong current password."""
         credential = UserCredential(
             person_id=person.id,
@@ -238,7 +238,9 @@ class TestPasswordAPI:
         response = client.post("/auth/me/password", json=payload, headers=auth_headers)
         assert response.status_code == 401
 
-    def test_change_password_same_password(self, client, auth_headers, db_session, person):
+    def test_change_password_same_password(
+        self, client, auth_headers, db_session, person
+    ):
         """Test changing password to the same password."""
         credential = UserCredential(
             person_id=person.id,
@@ -275,7 +277,7 @@ class TestPasswordAPI:
             status=SessionStatus.active,
             ip_address="192.168.1.100",
             user_agent="other-client",
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
         db_session.add(other_session)
         db_session.commit()
@@ -328,7 +330,7 @@ class TestPasswordAPI:
             status=SessionStatus.active,
             ip_address="192.168.1.200",
             user_agent="client-one",
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
         session_two = AuthSession(
             person_id=person.id,
@@ -336,7 +338,7 @@ class TestPasswordAPI:
             status=SessionStatus.active,
             ip_address="192.168.1.201",
             user_agent="client-two",
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
         db_session.add_all([session_one, session_two])
         db_session.commit()
@@ -374,7 +376,9 @@ class TestRefreshAPI:
         assert response.status_code == 401
         data = response.json()
         # Error handler transforms response to {"code": ..., "message": ..., "details": ...}
-        assert "missing" in data["message"].lower() or "refresh" in data["message"].lower()
+        assert (
+            "missing" in data["message"].lower() or "refresh" in data["message"].lower()
+        )
 
     def test_refresh_v1_with_cookie(self, client, db_session, person):
         """Test refresh using cookie on v1 endpoint."""
@@ -397,7 +401,9 @@ class TestRefreshAPI:
         assert refresh_token
 
         # Use the refresh token in body since cookie may not be auto-passed to different path
-        response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+        response = client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
+        )
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
@@ -427,7 +433,9 @@ class TestRefreshAPI:
         assert new_refresh
         assert new_refresh != old_refresh
 
-        reuse_response = client.post("/auth/refresh", json={"refresh_token": old_refresh})
+        reuse_response = client.post(
+            "/auth/refresh", json={"refresh_token": old_refresh}
+        )
         assert reuse_response.status_code == 401
         data = reuse_response.json()
         # Error handler transforms response to {"code": ..., "message": ..., "details": ...}

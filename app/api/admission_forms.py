@@ -68,7 +68,9 @@ def update_form(
         raise HTTPException(status_code=404, detail="Admission form not found")
     school = db.get(School, form.school_id)
     roles = set(auth.get("roles") or [])
-    if not school or (str(school.owner_id) != auth["person_id"] and "admin" not in roles):
+    if not school or (
+        str(school.owner_id) != auth["person_id"] and "admin" not in roles
+    ):
         raise HTTPException(status_code=403, detail="Not your school")
     form = svc.update(form, payload)
     db.commit()
@@ -89,7 +91,9 @@ def close_form(
         raise HTTPException(status_code=404, detail="Admission form not found")
     school = db.get(School, form.school_id)
     roles = set(auth.get("roles") or [])
-    if not school or (str(school.owner_id) != auth["person_id"] and "admin" not in roles):
+    if not school or (
+        str(school.owner_id) != auth["person_id"] and "admin" not in roles
+    ):
         raise HTTPException(status_code=403, detail="Not your school")
     form = svc.close(form)
     db.commit()

@@ -1,4 +1,5 @@
 """File upload service — CRUD + storage integration."""
+
 from __future__ import annotations
 
 import logging
@@ -101,9 +102,13 @@ class FileUploadService:
         """Count active file uploads."""
         from sqlalchemy import func
 
-        stmt = select(func.count()).select_from(FileUpload).where(
-            FileUpload.is_active.is_(True),
-            FileUpload.status == FileUploadStatus.active,
+        stmt = (
+            select(func.count())
+            .select_from(FileUpload)
+            .where(
+                FileUpload.is_active.is_(True),
+                FileUpload.status == FileUploadStatus.active,
+            )
         )
         if uploaded_by is not None:
             stmt = stmt.where(FileUpload.uploaded_by == uploaded_by)
@@ -120,7 +125,9 @@ class FileUploadService:
         try:
             self.storage.delete(record.storage_key)
         except Exception:
-            logger.exception("Failed to delete file from storage: %s", record.storage_key)
+            logger.exception(
+                "Failed to delete file from storage: %s", record.storage_key
+            )
         record.status = FileUploadStatus.deleted
         record.is_active = False
         self.db.flush()

@@ -2,19 +2,11 @@
 
 import uuid
 
-import pytest
-
 from app.models.school import (
-    AdmissionForm,
-    AdmissionFormStatus,
     Application,
     ApplicationStatus,
     Rating,
-    School,
-    SchoolCategory,
-    SchoolGender,
     SchoolStatus,
-    SchoolType,
 )
 from app.schemas.school import SchoolCreate, SchoolUpdate
 from app.services.school import SchoolService
@@ -40,7 +32,9 @@ class TestSchoolServiceCreate:
 
     def test_create_school_generates_unique_slug(self, db_session, school_owner):
         svc = SchoolService(db_session)
-        payload = SchoolCreate(name="Same Name School", school_type="primary", category="private")
+        payload = SchoolCreate(
+            name="Same Name School", school_type="primary", category="private"
+        )
         s1 = svc.create(payload, owner_id=school_owner.id)
         db_session.flush()
 
@@ -122,7 +116,9 @@ class TestSchoolServiceUpdate:
 
     def test_approve_school(self, db_session, school_owner):
         svc = SchoolService(db_session)
-        payload = SchoolCreate(name="Pending School", school_type="secondary", category="public")
+        payload = SchoolCreate(
+            name="Pending School", school_type="secondary", category="public"
+        )
         school = svc.create(payload, owner_id=school_owner.id)
         db_session.flush()
 
@@ -158,7 +154,9 @@ class TestSchoolServiceRatings:
         assert avg == 4.0
 
     def test_get_ratings(self, db_session, school, parent_person):
-        r = Rating(school_id=school.id, parent_id=parent_person.id, score=5, comment="Great!")
+        r = Rating(
+            school_id=school.id, parent_id=parent_person.id, score=5, comment="Great!"
+        )
         db_session.add(r)
         db_session.commit()
 
@@ -168,7 +166,9 @@ class TestSchoolServiceRatings:
 
 
 class TestSchoolServiceDashboard:
-    def test_get_dashboard_stats(self, db_session, school, admission_form_with_price, parent_person):
+    def test_get_dashboard_stats(
+        self, db_session, school, admission_form_with_price, parent_person
+    ):
         # Create an application
         app = Application(
             admission_form_id=admission_form_with_price.id,

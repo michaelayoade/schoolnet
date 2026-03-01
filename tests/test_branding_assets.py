@@ -20,10 +20,24 @@ async def test_save_branding_asset_sniffs_png_content(tmp_path: Path) -> None:
     file.read = AsyncMock(side_effect=[png, b""])
 
     with (
-        patch.object(branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True),
-        patch.object(branding_assets.settings, "branding_url_prefix", "/static/branding", create=True),
-        patch.object(branding_assets.settings, "branding_max_size_bytes", 1024 * 1024, create=True),
-        patch.object(branding_assets.settings, "branding_allowed_types", "image/png", create=True),
+        patch.object(
+            branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_url_prefix",
+            "/static/branding",
+            create=True,
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_max_size_bytes",
+            1024 * 1024,
+            create=True,
+        ),
+        patch.object(
+            branding_assets.settings, "branding_allowed_types", "image/png", create=True
+        ),
     ):
         url = await branding_assets.save_branding_asset(file, "logo")
     assert url.startswith("/static/branding/logo_")
@@ -38,9 +52,21 @@ async def test_rejects_mismatch_declared_and_sniffed_type(tmp_path: Path) -> Non
     file.read = AsyncMock(side_effect=[png, b""])
 
     with (
-        patch.object(branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True),
-        patch.object(branding_assets.settings, "branding_max_size_bytes", 1024 * 1024, create=True),
-        patch.object(branding_assets.settings, "branding_allowed_types", "image/jpeg", create=True),
+        patch.object(
+            branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_max_size_bytes",
+            1024 * 1024,
+            create=True,
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_allowed_types",
+            "image/jpeg",
+            create=True,
+        ),
         pytest.raises(HTTPException) as exc,
     ):
         await branding_assets.save_branding_asset(file, "logo")
@@ -55,9 +81,21 @@ async def test_rejects_unsafe_svg(tmp_path: Path) -> None:
     file.read = AsyncMock(side_effect=[svg, b""])
 
     with (
-        patch.object(branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True),
-        patch.object(branding_assets.settings, "branding_max_size_bytes", 1024 * 1024, create=True),
-        patch.object(branding_assets.settings, "branding_allowed_types", "image/svg+xml", create=True),
+        patch.object(
+            branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_max_size_bytes",
+            1024 * 1024,
+            create=True,
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_allowed_types",
+            "image/svg+xml",
+            create=True,
+        ),
         pytest.raises(HTTPException) as exc,
     ):
         await branding_assets.save_branding_asset(file, "logo")
@@ -69,8 +107,15 @@ def test_delete_branding_asset_blocks_path_traversal(tmp_path: Path) -> None:
     keep.write_text("do-not-delete", encoding="utf-8")
 
     with (
-        patch.object(branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True),
-        patch.object(branding_assets.settings, "branding_url_prefix", "/static/branding", create=True),
+        patch.object(
+            branding_assets.settings, "branding_upload_dir", str(tmp_path), create=True
+        ),
+        patch.object(
+            branding_assets.settings,
+            "branding_url_prefix",
+            "/static/branding",
+            create=True,
+        ),
     ):
         branding_assets.delete_branding_asset("/static/branding/../../keep.txt")
 

@@ -110,16 +110,8 @@ def get_celery_config() -> dict:
     finally:
         session.close()
 
-    broker = (
-        broker
-        or _env_value("REDIS_URL")
-        or "redis://localhost:6379/0"
-    )
-    backend = (
-        backend
-        or _env_value("REDIS_URL")
-        or "redis://localhost:6379/1"
-    )
+    broker = broker or _env_value("REDIS_URL") or "redis://localhost:6379/0"
+    backend = backend or _env_value("REDIS_URL") or "redis://localhost:6379/1"
     timezone = timezone or "UTC"
     config = {"broker_url": broker, "result_backend": backend, "timezone": timezone}
     config["beat_max_loop_interval"] = beat_max_loop_interval
@@ -132,9 +124,7 @@ def build_beat_schedule() -> dict:
     session = SessionLocal()
     try:
         tasks = (
-            session.query(ScheduledTask)
-            .filter(ScheduledTask.enabled.is_(True))
-            .all()
+            session.query(ScheduledTask).filter(ScheduledTask.enabled.is_(True)).all()
         )
         for task in tasks:
             if task.schedule_type != ScheduleType.interval:

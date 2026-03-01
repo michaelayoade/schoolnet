@@ -1,11 +1,10 @@
 """Tests for RatingService — create, validation, queries."""
 
 import uuid
-from datetime import date
 
 import pytest
 
-from app.models.school import Application, ApplicationStatus, Rating
+from app.models.school import Rating
 from app.services.rating import RatingService
 
 
@@ -28,9 +27,7 @@ class TestRatingCreate:
     def test_create_rating(
         self, db_session, school, parent_person, admission_form_with_price
     ):
-        self._create_application(
-            db_session, parent_person, admission_form_with_price
-        )
+        self._create_application(db_session, parent_person, admission_form_with_price)
         svc = RatingService(db_session)
         rating = svc.create(
             school_id=school.id,
@@ -57,9 +54,7 @@ class TestRatingCreate:
     def test_create_rating_duplicate(
         self, db_session, school, parent_person, admission_form_with_price
     ):
-        self._create_application(
-            db_session, parent_person, admission_form_with_price
-        )
+        self._create_application(db_session, parent_person, admission_form_with_price)
         svc = RatingService(db_session)
         svc.create(school_id=school.id, parent_id=parent_person.id, score=5)
         db_session.commit()
@@ -104,8 +99,8 @@ class TestRatingQueries:
         assert len(ratings) >= 1
 
     def test_get_average(self, db_session, school):
-        from tests.conftest import _unique_email
         from app.models.person import Person
+        from tests.conftest import _unique_email
 
         p1 = Person(first_name="A", last_name="B", email=_unique_email())
         p2 = Person(first_name="C", last_name="D", email=_unique_email())

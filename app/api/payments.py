@@ -52,7 +52,9 @@ def payment_callback(
     """Handle redirect from Paystack after payment."""
     ref = reference or trxref
     if not ref:
-        return RedirectResponse(url="/parent/applications?error=No+payment+reference", status_code=303)
+        return RedirectResponse(
+            url="/parent/applications?error=No+payment+reference", status_code=303
+        )
 
     svc = ApplicationService(db)
     application = svc.handle_payment_success(ref)
@@ -63,4 +65,6 @@ def payment_callback(
             url=f"/parent/applications/fill/{application.id}?success=Payment+successful.+Fill+your+application.",
             status_code=303,
         )
-    return RedirectResponse(url="/parent/applications?success=Payment+processed", status_code=303)
+    return RedirectResponse(
+        url="/parent/applications?success=Payment+processed", status_code=303
+    )

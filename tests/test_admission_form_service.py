@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from app.models.school import AdmissionForm, AdmissionFormStatus
+from app.models.school import AdmissionFormStatus
 from app.schemas.school import AdmissionFormCreate, AdmissionFormUpdate
 from app.services.admission_form import AdmissionFormService
 
@@ -59,7 +59,9 @@ class TestAdmissionFormLists:
         assert len(forms) >= 1
         assert all(f.school_id == school.id for f in forms)
 
-    def test_list_active_for_school(self, db_session, school, admission_form_with_price):
+    def test_list_active_for_school(
+        self, db_session, school, admission_form_with_price
+    ):
         svc = AdmissionFormService(db_session)
         forms = svc.list_active_for_school(school.id)
         assert len(forms) >= 1
@@ -133,7 +135,9 @@ class TestAdmissionFormLifecycle:
         svc = AdmissionFormService(db_session)
         assert svc.check_availability(admission_form_with_price) is False
 
-    def test_check_availability_max_reached(self, db_session, admission_form_with_price):
+    def test_check_availability_max_reached(
+        self, db_session, admission_form_with_price
+    ):
         admission_form_with_price.max_submissions = 5
         admission_form_with_price.current_submissions = 5
         db_session.commit()

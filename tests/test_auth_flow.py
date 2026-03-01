@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pyotp
 import pytest
@@ -8,8 +8,8 @@ from fastapi import HTTPException
 from jose import jwt
 from starlette.requests import Request
 
-from app.models.auth import Session as AuthSession, SessionStatus, UserCredential
-from app.models.auth import AuthProvider
+from app.models.auth import AuthProvider, SessionStatus, UserCredential
+from app.models.auth import Session as AuthSession
 from app.services.auth_flow import (
     AuthFlow,
     decode_access_token,
@@ -60,7 +60,9 @@ def test_login_and_refresh_reuse_detection(db_session, person, monkeypatch):
     assert exc.value.status_code == 401
     assert "reuse" in str(exc.value.detail).lower()
 
-    session = db_session.query(AuthSession).filter(AuthSession.person_id == person.id).first()
+    session = (
+        db_session.query(AuthSession).filter(AuthSession.person_id == person.id).first()
+    )
     assert session.status == SessionStatus.revoked
     assert session.revoked_at is not None
 
@@ -108,7 +110,7 @@ def test_decode_access_token_uses_openbao_secret(monkeypatch):
 
     monkeypatch.setattr(httpx, "get", mock_get)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": "user-id",
         "session_id": "session-id",

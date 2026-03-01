@@ -14,9 +14,7 @@ class TestAuthSettingsAPI:
 
     def test_list_auth_settings_with_pagination(self, client, auth_headers):
         """Test listing auth settings with pagination."""
-        response = client.get(
-            "/settings/auth?limit=10&offset=0", headers=auth_headers
-        )
+        response = client.get("/settings/auth?limit=10&offset=0", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) <= 10
@@ -43,7 +41,9 @@ class TestAuthSettingsAPI:
         """Test creating an auth setting via upsert."""
         key = "jwt_access_ttl_minutes"
         payload = {"value_text": "45"}
-        response = client.put(f"/settings/auth/{key}", json=payload, headers=auth_headers)
+        response = client.put(
+            f"/settings/auth/{key}", json=payload, headers=auth_headers
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["key"] == key
@@ -65,7 +65,9 @@ class TestAuthSettingsAPI:
         """Test creating an auth setting with JSON value."""
         key = "refresh_cookie_secure"
         payload = {"value_json": True}
-        response = client.put(f"/settings/auth/{key}", json=payload, headers=auth_headers)
+        response = client.put(
+            f"/settings/auth/{key}", json=payload, headers=auth_headers
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["value_json"] is True
@@ -84,9 +86,7 @@ class TestAuditSettingsAPI:
 
     def test_list_audit_settings_with_pagination(self, client, auth_headers):
         """Test listing audit settings with pagination."""
-        response = client.get(
-            "/settings/audit?limit=10&offset=0", headers=auth_headers
-        )
+        response = client.get("/settings/audit?limit=10&offset=0", headers=auth_headers)
         assert response.status_code == 200
 
     def test_get_audit_setting(self, client, auth_headers, db_session):
@@ -105,7 +105,9 @@ class TestAuditSettingsAPI:
         """Test creating an audit setting via upsert."""
         key = "methods"
         payload = {"value_json": ["POST", "GET"]}
-        response = client.put(f"/settings/audit/{key}", json=payload, headers=auth_headers)
+        response = client.put(
+            f"/settings/audit/{key}", json=payload, headers=auth_headers
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["key"] == key

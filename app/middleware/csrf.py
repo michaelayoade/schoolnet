@@ -4,6 +4,7 @@ Implements a double-submit cookie check:
 - Sets a CSRF cookie and `request.state.csrf_token` on safe requests.
 - Validates form submissions by matching submitted token to cookie.
 """
+
 from __future__ import annotations
 
 import secrets
@@ -42,7 +43,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         return secrets.token_urlsafe(32), True
 
     def _is_exempt_path(self, path: str) -> bool:
-        return path.startswith("/static") or path.startswith("/health") or path == "/metrics"
+        return (
+            path.startswith("/static")
+            or path.startswith("/health")
+            or path == "/metrics"
+        )
 
     def _requires_csrf(self, request: Request) -> bool:
         if request.method in _SAFE_METHODS:
