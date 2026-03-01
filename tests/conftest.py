@@ -33,12 +33,12 @@ class TimestampMixin:
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)  # noqa: UP017,
+        default=lambda: datetime.now(timezone.utc),  # noqa: UP017
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)  # noqa: UP017,
-        onupdate=lambda: datetime.now(timezone.utc)  # noqa: UP017,
+        default=lambda: datetime.now(timezone.utc),  # noqa: UP017
+        onupdate=lambda: datetime.now(timezone.utc),  # noqa: UP017
     )
 
 
@@ -249,7 +249,7 @@ def auth_session(db_session, person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc)  # noqa: UP017 + timedelta(days=30),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30)  # noqa: UP017,
     )
     db_session.add(session)
     db_session.commit()
@@ -311,7 +311,7 @@ def admin_session(db_session, admin_person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc)  # noqa: UP017 + timedelta(days=30),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30)  # noqa: UP017,
     )
     db_session.add(session)
     db_session.commit()
