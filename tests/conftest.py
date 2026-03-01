@@ -1,7 +1,7 @@
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import ModuleType
 
 import pytest
@@ -33,12 +33,12 @@ class TimestampMixin:
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(datetime.UTC),
+        default=lambda: datetime.now(timezone.utc)  # noqa: UP017,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(datetime.UTC),
-        onupdate=lambda: datetime.now(datetime.UTC),
+        default=lambda: datetime.now(timezone.utc)  # noqa: UP017,
+        onupdate=lambda: datetime.now(timezone.utc)  # noqa: UP017,
     )
 
 
@@ -226,7 +226,7 @@ def _create_access_token(
     """Create a JWT access token for testing."""
     secret = os.getenv("JWT_SECRET", "test-secret")
     algorithm = os.getenv("JWT_ALGORITHM", "HS256")
-    now = datetime.now(datetime.UTC)
+    now = datetime.now(timezone.utc)  # noqa: UP017
     expire = now + timedelta(minutes=15)
     payload = {
         "sub": person_id,
@@ -249,7 +249,7 @@ def auth_session(db_session, person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(datetime.UTC) + timedelta(days=30),
+        expires_at=datetime.now(timezone.utc)  # noqa: UP017 + timedelta(days=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -311,7 +311,7 @@ def admin_session(db_session, admin_person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(datetime.UTC) + timedelta(days=30),
+        expires_at=datetime.now(timezone.utc)  # noqa: UP017 + timedelta(days=30),
     )
     db_session.add(session)
     db_session.commit()
