@@ -62,6 +62,7 @@ ignore = [
     "S104",   # binding to all interfaces
     "S110",   # try-except-pass
     "UP007",  # Use X | Y for Union (needs from __future__)
+    "UP017",  # Use datetime.UTC alias (ambiguous with 'from datetime import datetime')
     "UP042",  # replace with PEP 604 (needs from __future__)
     "SIM102", # collapsible if (readability)
 ]
