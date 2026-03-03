@@ -655,9 +655,7 @@ class PaymentMethods(ListResponseMixin):
         count_stmt = select(func.count()).select_from(PaymentMethod)
         conditions = []
         if customer_id:
-            conditions.append(
-                PaymentMethod.customer_id == coerce_uuid(customer_id)
-            )
+            conditions.append(PaymentMethod.customer_id == coerce_uuid(customer_id))
         if type:
             conditions.append(
                 PaymentMethod.type == validate_enum(type, PaymentMethodType, "type")
@@ -960,9 +958,7 @@ class Discounts(ListResponseMixin):
         if customer_id:
             conditions.append(Discount.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            conditions.append(
-                Discount.subscription_id == coerce_uuid(subscription_id)
-            )
+            conditions.append(Discount.subscription_id == coerce_uuid(subscription_id))
         if coupon_id:
             conditions.append(Discount.coupon_id == coerce_uuid(coupon_id))
         if conditions:

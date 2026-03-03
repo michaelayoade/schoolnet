@@ -249,7 +249,7 @@ def auth_session(db_session, person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30)  # noqa: UP017,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),  # noqa: UP017,
     )
     db_session.add(session)
     db_session.commit()
@@ -311,7 +311,7 @@ def admin_session(db_session, admin_person):
         status=SessionStatus.active,
         ip_address="127.0.0.1",
         user_agent="pytest",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30)  # noqa: UP017,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),  # noqa: UP017,
     )
     db_session.add(session)
     db_session.commit()
