@@ -2,6 +2,7 @@ import hashlib
 import os
 import secrets
 import time
+from typing import cast
 from datetime import datetime, timezone
 
 import redis
@@ -395,7 +396,7 @@ class ApiKeys(ListResponseMixin):
         window = max(window_seconds, 1)
         key = f"api_key_rl:{client_ip}:{int(time.time() // window)}"
         try:
-            count = redis_client.incr(key)
+            count = cast(int, redis_client.incr(key))
             if count == 1:
                 redis_client.expire(key, window)
             if count > max(max_per_window, 1):

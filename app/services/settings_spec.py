@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import cast
 
 from fastapi import HTTPException
 
@@ -298,8 +299,9 @@ def resolve_value(db, domain: SettingDomain, key: str) -> object | None:
     if spec.allowed and value is not None and value not in spec.allowed:
         value = spec.default
     if spec.value_type == SettingValueType.integer and value is not None:
+        parsed: int | None
         try:
-            parsed = int(value)
+            parsed = int(str(value))
         except (TypeError, ValueError):
             parsed = spec.default if isinstance(spec.default, int) else None
         if (
@@ -307,13 +309,13 @@ def resolve_value(db, domain: SettingDomain, key: str) -> object | None:
             and parsed is not None
             and parsed < spec.min_value
         ):
-            parsed = spec.default
+            parsed = spec.default if isinstance(spec.default, int) else None
         if (
             spec.max_value is not None
             and parsed is not None
             and parsed > spec.max_value
         ):
-            parsed = spec.default
+            parsed = spec.default if isinstance(spec.default, int) else None
         value = parsed
     return value
 
@@ -322,9 +324,9 @@ def extract_db_value(setting) -> object | None:
     if not setting:
         return None
     if setting.value_text is not None:
-        return setting.value_text
+        return cast(object, setting.value_text)
     if setting.value_json is not None:
-        return setting.value_json
+        return cast(object, setting.value_json)
     return None
 
 
@@ -364,7 +366,7 @@ def normalize_for_db(
         bool_value = bool(value)
         return ("true" if bool_value else "false"), bool_value
     if spec.value_type == SettingValueType.integer:
-        return str(int(value)), None
+        return str(int(str(value))), None
     if spec.value_type == SettingValueType.string:
         return str(value), None
     return None, value

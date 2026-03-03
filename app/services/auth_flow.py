@@ -4,6 +4,7 @@ import hashlib
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 
 import pyotp
 from cryptography.fernet import Fernet, InvalidToken
@@ -227,7 +228,7 @@ def _issue_access_token(
         payload["roles"] = roles
     if permissions:
         payload["scopes"] = permissions
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
 def _issue_mfa_token(db: Session | None, person_id: str) -> str:
@@ -238,7 +239,7 @@ def _issue_mfa_token(db: Session | None, person_id: str) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=5)).timestamp()),
     }
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
 def _password_reset_ttl_minutes(db: Session | None) -> int:
@@ -265,7 +266,7 @@ def _issue_password_reset_token(db: Session | None, person_id: str, email: str) 
             (now + timedelta(minutes=_password_reset_ttl_minutes(db))).timestamp()
         ),
     }
-    return jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db))
+    return cast(str, jwt.encode(payload, _jwt_secret(db), algorithm=_jwt_algorithm(db)))
 
 
 def _decode_password_reset_token(db: Session | None, token: str) -> dict:
@@ -279,7 +280,7 @@ def _decode_jwt(db: Session | None, token: str, expected_type: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
     if payload.get("typ") != expected_type:
         raise HTTPException(status_code=401, detail="Invalid token type")
-    return payload
+    return cast(dict[Any, Any], payload)
 
 
 def decode_access_token(db: Session | None, token: str) -> dict:
@@ -343,13 +344,13 @@ def _decrypt_secret(db: Session | None, secret: str) -> str:
 
 
 def hash_password(password: str) -> str:
-    return PASSWORD_CONTEXT.hash(password)
+    return cast(str, PASSWORD_CONTEXT.hash(password))
 
 
 def verify_password(password: str, password_hash: str | None) -> bool:
     if not password_hash:
         return False
-    return PASSWORD_CONTEXT.verify(password, password_hash)
+    return bool(PASSWORD_CONTEXT.verify(password, password_hash))
 
 
 def revoke_sessions_for_person(
@@ -495,7 +496,7 @@ class AuthFlow(ListResponseMixin):
                 "mfa_token": _issue_mfa_token(db, str(credential.person_id)),
             }
 
-        return AuthFlow._issue_tokens(db, credential.person_id, request)
+        return AuthFlow._issue_tokens(db, str(credential.person_id), request)
 
     @staticmethod
     def mfa_setup(db: Session, person_id: str, label: str | None):

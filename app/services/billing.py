@@ -105,7 +105,7 @@ class Products(ListResponseMixin):
             {"created_at": Product.created_at, "name": Product.name},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -187,7 +187,7 @@ class Prices(ListResponseMixin):
             {"created_at": Price.created_at, "unit_amount": Price.unit_amount},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -264,7 +264,7 @@ class Customers(ListResponseMixin):
             {"created_at": Customer.created_at, "name": Customer.name},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -346,7 +346,7 @@ class Subscriptions(ListResponseMixin):
             {"created_at": Subscription.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -426,7 +426,7 @@ class SubscriptionItems(ListResponseMixin):
             {"created_at": SubscriptionItem.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -513,7 +513,7 @@ class Invoices(ListResponseMixin):
             {"created_at": Invoice.created_at, "total": Invoice.total},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -592,7 +592,7 @@ class InvoiceItems(ListResponseMixin):
             {"created_at": InvoiceItem.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -674,7 +674,7 @@ class PaymentMethods(ListResponseMixin):
             {"created_at": PaymentMethod.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -764,7 +764,7 @@ class PaymentIntents(ListResponseMixin):
             {"created_at": PaymentIntent.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -834,7 +834,7 @@ class UsageRecords(ListResponseMixin):
             },
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -886,7 +886,7 @@ class Coupons(ListResponseMixin):
             {"created_at": Coupon.created_at, "name": Coupon.name},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -975,7 +975,7 @@ class Discounts(ListResponseMixin):
             {"created_at": Discount.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -1038,7 +1038,7 @@ class Entitlements(ListResponseMixin):
             {"created_at": Entitlement.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
@@ -1117,7 +1117,7 @@ class WebhookEvents(ListResponseMixin):
             {"created_at": WebhookEvent.created_at},
         )
         stmt = apply_pagination(stmt, limit, offset)
-        items = db.scalars(stmt).all()
+        items = list(db.scalars(stmt).all())
         total = db.scalar(count_stmt) or 0
         return items, total
 
