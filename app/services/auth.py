@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 import redis
 from fastapi import HTTPException, Request
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -49,13 +50,13 @@ _REDIS_CLIENT: redis.Redis | None = None
 
 
 def _auth_setting(db: Session, key: str) -> str | None:
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == SettingDomain.auth)
-        .filter(DomainSetting.key == key)
-        .filter(DomainSetting.is_active.is_(True))
-        .first()
+    stmt = (
+        select(DomainSetting)
+        .where(DomainSetting.domain == SettingDomain.auth)
+        .where(DomainSetting.key == key)
+        .where(DomainSetting.is_active.is_(True))
     )
+    setting = db.scalars(stmt).first()
     if not setting:
         return None
     if setting.value_text is not None:
@@ -113,7 +114,7 @@ class UserCredentials(ListResponseMixin):
                 )
         credential = UserCredential(**data)
         db.add(credential)
-        db.commit()
+        db.flush()
         db.refresh(credential)
         return credential
 
@@ -135,20 +136,20 @@ class UserCredentials(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(UserCredential)
+        stmt = select(UserCredential)
         if person_id:
-            query = query.filter(UserCredential.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(UserCredential.person_id == coerce_uuid(person_id))
         if provider:
-            query = query.filter(
+            stmt = stmt.where(
                 UserCredential.provider
                 == validate_enum(provider, AuthProvider, "provider")
             )
         if is_active is None:
-            query = query.filter(UserCredential.is_active.is_(True))
+            stmt = stmt.where(UserCredential.is_active.is_(True))
         else:
-            query = query.filter(UserCredential.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(UserCredential.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -157,7 +158,8 @@ class UserCredentials(ListResponseMixin):
                 "last_login_at": UserCredential.last_login_at,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = apply_pagination(stmt, limit, offset)
+        return db.scalars(stmt).all()
 
     @staticmethod
     def update(db: Session, credential_id: str, payload: UserCredentialUpdate):
@@ -169,7 +171,7 @@ class UserCredentials(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
             setattr(credential, key, value)
-        db.commit()
+        db.flush()
         db.refresh(credential)
         return credential
 
@@ -179,7 +181,7 @@ class UserCredentials(ListResponseMixin):
         if not credential:
             raise HTTPException(status_code=404, detail="User credential not found")
         credential.is_active = False
-        db.commit()
+        db.flush()
 
 
 class MFAMethods(ListResponseMixin):
@@ -187,14 +189,17 @@ class MFAMethods(ListResponseMixin):
     def create(db: Session, payload: MFAMethodCreate):
         _ensure_person(db, str(payload.person_id))
         if payload.is_primary:
-            db.query(MFAMethod).filter(
-                MFAMethod.person_id == payload.person_id,
-                MFAMethod.is_primary.is_(True),
-            ).update({"is_primary": False})
+            stmt = (
+                update(MFAMethod)
+                .where(MFAMethod.person_id == payload.person_id)
+                .where(MFAMethod.is_primary.is_(True))
+                .values(is_primary=False)
+            )
+            db.execute(stmt)
         method = MFAMethod(**payload.model_dump())
         db.add(method)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -224,24 +229,24 @@ class MFAMethods(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(MFAMethod)
+        stmt = select(MFAMethod)
         if person_id:
-            query = query.filter(MFAMethod.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(MFAMethod.person_id == coerce_uuid(person_id))
         if method_type:
-            query = query.filter(
+            stmt = stmt.where(
                 MFAMethod.method_type
                 == validate_enum(method_type, MFAMethodType, "method_type")
             )
         if is_primary is not None:
-            query = query.filter(MFAMethod.is_primary == is_primary)
+            stmt = stmt.where(MFAMethod.is_primary == is_primary)
         if enabled is not None:
-            query = query.filter(MFAMethod.enabled == enabled)
+            stmt = stmt.where(MFAMethod.enabled == enabled)
         if is_active is None:
-            query = query.filter(MFAMethod.is_active.is_(True))
+            stmt = stmt.where(MFAMethod.is_active.is_(True))
         else:
-            query = query.filter(MFAMethod.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(MFAMethod.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -250,7 +255,8 @@ class MFAMethods(ListResponseMixin):
                 "is_primary": MFAMethod.is_primary,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = apply_pagination(stmt, limit, offset)
+        return db.scalars(stmt).all()
 
     @staticmethod
     def update(db: Session, method_id: str, payload: MFAMethodUpdate):
@@ -262,15 +268,18 @@ class MFAMethods(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         if data.get("is_primary"):
             person_id = data.get("person_id", method.person_id)
-            db.query(MFAMethod).filter(
-                MFAMethod.person_id == person_id,
-                MFAMethod.id != method.id,
-                MFAMethod.is_primary.is_(True),
-            ).update({"is_primary": False})
+            stmt = (
+                update(MFAMethod)
+                .where(MFAMethod.person_id == person_id)
+                .where(MFAMethod.id != method.id)
+                .where(MFAMethod.is_primary.is_(True))
+                .values(is_primary=False)
+            )
+            db.execute(stmt)
         for key, value in data.items():
             setattr(method, key, value)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -288,7 +297,7 @@ class MFAMethods(ListResponseMixin):
         method.is_active = False
         method.enabled = False
         method.is_primary = False
-        db.commit()
+        db.flush()
 
 
 class Sessions(ListResponseMixin):
@@ -298,7 +307,7 @@ class Sessions(ListResponseMixin):
         data = payload.model_dump()
         session = AuthSession(**data)
         db.add(session)
-        db.commit()
+        db.flush()
         db.refresh(session)
         return session
 
@@ -319,15 +328,15 @@ class Sessions(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(AuthSession)
+        stmt = select(AuthSession)
         if person_id:
-            query = query.filter(AuthSession.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(AuthSession.person_id == coerce_uuid(person_id))
         if status:
-            query = query.filter(
+            stmt = stmt.where(
                 AuthSession.status == validate_enum(status, SessionStatus, "status")
             )
-        query = apply_ordering(
-            query,
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -336,7 +345,8 @@ class Sessions(ListResponseMixin):
                 "status": AuthSession.status,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = apply_pagination(stmt, limit, offset)
+        return db.scalars(stmt).all()
 
     @staticmethod
     def update(db: Session, session_id: str, payload: SessionUpdate):
@@ -348,7 +358,7 @@ class Sessions(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
             setattr(session, key, value)
-        db.commit()
+        db.flush()
         db.refresh(session)
         return session
 
@@ -359,7 +369,7 @@ class Sessions(ListResponseMixin):
             raise HTTPException(status_code=404, detail="Session not found")
         session.status = SessionStatus.revoked
         session.revoked_at = datetime.now(timezone.utc)
-        db.commit()
+        db.flush()
 
 
 class ApiKeys(ListResponseMixin):
@@ -408,7 +418,7 @@ class ApiKeys(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         api_key = ApiKey(**data)
         db.add(api_key)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key, raw_key
 
@@ -420,7 +430,7 @@ class ApiKeys(ListResponseMixin):
         data["key_hash"] = hash_api_key(data["key_hash"])
         api_key = ApiKey(**data)
         db.add(api_key)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key
 
@@ -441,20 +451,21 @@ class ApiKeys(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(ApiKey)
+        stmt = select(ApiKey)
         if person_id:
-            query = query.filter(ApiKey.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(ApiKey.person_id == coerce_uuid(person_id))
         if is_active is None:
-            query = query.filter(ApiKey.is_active.is_(True))
+            stmt = stmt.where(ApiKey.is_active.is_(True))
         else:
-            query = query.filter(ApiKey.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(ApiKey.is_active == is_active)
+        stmt = apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": ApiKey.created_at, "label": ApiKey.label},
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = apply_pagination(stmt, limit, offset)
+        return db.scalars(stmt).all()
 
     @staticmethod
     def update(db: Session, key_id: str, payload: ApiKeyUpdate):
@@ -468,7 +479,7 @@ class ApiKeys(ListResponseMixin):
             data["key_hash"] = hash_api_key(data["key_hash"])
         for key, value in data.items():
             setattr(api_key, key, value)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key
 
@@ -479,7 +490,7 @@ class ApiKeys(ListResponseMixin):
             raise HTTPException(status_code=404, detail="API key not found")
         api_key.is_active = False
         api_key.revoked_at = datetime.now(timezone.utc)
-        db.commit()
+        db.flush()
 
     @staticmethod
     def revoke(db: Session, key_id: str):
