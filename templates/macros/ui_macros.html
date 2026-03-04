@@ -2,36 +2,127 @@
   UI Macros — Reusable UI components for status badges and flash messages.
 #}
 
-{# Default color map for common statuses across the application #}
+{# Unified color map for all statuses across the application #}
 {% set default_status_colors = {
     'active': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'approved': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
     'accepted': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'paid': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'verified': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'completed': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'success': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'succeeded': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
     'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    'submitted': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
     'under_review': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     'rejected': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     'suspended': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'failed': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'error': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'cancelled': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'canceled': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     'closed': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'void': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'uncollectible': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'deleted': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     'draft': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-    'withdrawn': 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
-    'archived': 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+    'inactive': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    'withdrawn': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    'archived': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    'open': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    'submitted': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    'processing': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    'info': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    'warning': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    'waitlisted': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
 } %}
 
 
 {% macro status_badge(status, color_map=None) %}
 {%- set colors = color_map if color_map else default_status_colors -%}
-{%- set status_str = status.value if status is not string and status.value is defined else status -%}
-<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium {{ colors.get(status_str, 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300') }}">
-    {{ status_str | replace('_', ' ') | title }}
+{%- set status_str = status.value if status is not string and status.value is defined else (status if status else '') -%}
+{%- set status_key = status_str | lower -%}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ colors.get(status_key, 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300') }}">
+    {{ status_str | replace('_', ' ') | title if status_str else 'Unknown' }}
 </span>
+{%- endmacro %}
+
+
+{% macro breadcrumbs(items) %}
+<nav aria-label="Breadcrumb" class="mb-6">
+    <ol class="flex items-center gap-1.5 text-sm">
+        {% for item in items %}
+        <li class="flex items-center gap-1.5">
+            {% if not loop.last %}
+            <a href="{{ item.url }}" class="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition">{{ item.label }}</a>
+            <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            {% else %}
+            <span class="font-medium text-slate-900 dark:text-white">{{ item.label }}</span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+</nav>
+{%- endmacro %}
+
+
+{% macro enhanced_pagination(page, total_pages, base_url, params={}) %}
+{% if total_pages > 1 %}
+<div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+    <p class="text-sm text-slate-500 dark:text-slate-400">Page {{ page }} of {{ total_pages }}</p>
+    <div class="flex items-center gap-1">
+        {# Previous #}
+        {% if page > 1 %}
+        <a href="{{ base_url }}?{{ params | urlencode }}&page={{ page - 1 }}" class="px-3 py-1.5 rounded-lg text-sm border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition">Previous</a>
+        {% endif %}
+
+        {# Page numbers #}
+        {% set window = 2 %}
+        {% set start = [1, page - window] | max %}
+        {% set end = [total_pages, page + window] | min %}
+
+        {% if start > 1 %}
+        <a href="{{ base_url }}?{{ params | urlencode }}&page=1" class="px-3 py-1.5 rounded-lg text-sm {{ 'bg-primary-600 text-white' if page == 1 else 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' }} transition">1</a>
+        {% if start > 2 %}
+        <span class="px-1 text-slate-400">...</span>
+        {% endif %}
+        {% endif %}
+
+        {% for p in range(start, end + 1) %}
+        <a href="{{ base_url }}?{{ params | urlencode }}&page={{ p }}" class="px-3 py-1.5 rounded-lg text-sm {{ 'bg-primary-600 text-white font-medium' if p == page else 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' }} transition">{{ p }}</a>
+        {% endfor %}
+
+        {% if end < total_pages %}
+        {% if end < total_pages - 1 %}
+        <span class="px-1 text-slate-400">...</span>
+        {% endif %}
+        <a href="{{ base_url }}?{{ params | urlencode }}&page={{ total_pages }}" class="px-3 py-1.5 rounded-lg text-sm {{ 'bg-primary-600 text-white' if page == total_pages else 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' }} transition">{{ total_pages }}</a>
+        {% endif %}
+
+        {# Next #}
+        {% if page < total_pages %}
+        <a href="{{ base_url }}?{{ params | urlencode }}&page={{ page + 1 }}" class="px-3 py-1.5 rounded-lg text-sm border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition">Next</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {%- endmacro %}
 
 
 {% macro flash_messages(success_message=None, error_message=None) %}
 {% if success_message %}
-<div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">{{ success_message }}</div>
+<div class="mb-4 flex items-start gap-3 p-4 rounded-xl border border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">
+    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ success_message }}</span>
+</div>
 {% endif %}
 {% if error_message %}
-<div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{{ error_message }}</div>
+<div class="mb-4 flex items-start gap-3 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ error_message }}</span>
+</div>
 {% endif %}
 {%- endmacro %}

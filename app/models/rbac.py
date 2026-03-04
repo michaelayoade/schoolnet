@@ -96,4 +96,5 @@ class PersonRole(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
+    person = relationship("Person", back_populates="person_roles")
     role = relationship("Role", back_populates="members")

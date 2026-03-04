@@ -6,13 +6,13 @@
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div class="h-48 bg-gradient-to-br from-primary-100 via-primary-200 to-accent-100 dark:from-primary-900/40 dark:via-primary-900/20 dark:to-accent-900/20 flex items-center justify-center">
             {% if school.cover_image_url %}
-            <img src="{{ school.cover_image_url }}" alt="{{ school.name }}" class="w-full h-full object-cover">
+            <img src="{{ school.cover_image_url }}" alt="{{ school.name }}" class="w-full h-full object-cover" loading="lazy">
             {% endif %}
         </div>
         <div class="p-6 flex flex-col md:flex-row gap-6 items-start">
             <div class="-mt-16 md:-mt-12 flex-shrink-0">
                 {% if school.logo_url %}
-                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-24 w-24 rounded-xl object-cover border-4 border-white dark:border-slate-800 shadow-lg">
+                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-24 w-24 rounded-xl object-cover border-4 border-white dark:border-slate-800 shadow-lg" loading="lazy">
                 {% else %}
                 <div class="h-24 w-24 rounded-xl bg-primary-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white dark:border-slate-800 shadow-lg">
                     {{ school.name[0] | upper }}
@@ -77,7 +77,7 @@
                     <div class="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-700">
                         <div>
                             <h3 class="font-medium text-slate-900 dark:text-white text-sm">{{ form.title }}</h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ form.academic_year }}{% if form.closes_at %} &bull; Closes {{ form.closes_at.strftime('%d %b %Y') }}{% endif %}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ form.academic_year }}{% if form.closes_at %} &bull; Closes {{ form.closes_at | format_date }}{% endif %}</p>
                         </div>
                         <a href="/parent/applications/purchase/{{ form.id }}" class="rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white hover:bg-primary-700 transition">
                             Apply Now
@@ -99,7 +99,7 @@
                             {% for i in range(1, 6) %}
                             <svg class="w-4 h-4 {{ 'text-yellow-400' if i <= rating.score else 'text-slate-300 dark:text-slate-600' }}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                             {% endfor %}
-                            <span class="text-xs text-slate-400 ml-2">{{ rating.created_at.strftime('%d %b %Y') }}</span>
+                            <span class="text-xs text-slate-400 ml-2">{{ rating.created_at | format_date }}</span>
                         </div>
                         {% if rating.comment %}
                         <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">{{ rating.comment }}</p>
@@ -164,9 +164,9 @@
                     <div>
                         <dt class="text-slate-500 dark:text-slate-400">Fee Range</dt>
                         <dd class="text-slate-900 dark:text-white font-medium">
-                            {% if school.fee_range_min %}&#8358;{{ "{:,.0f}".format(school.fee_range_min / 100) }}{% endif %}
+                            {% if school.fee_range_min %}{{ school.fee_range_min | format_naira }}{% endif %}
                             {% if school.fee_range_min and school.fee_range_max %} - {% endif %}
-                            {% if school.fee_range_max %}&#8358;{{ "{:,.0f}".format(school.fee_range_max / 100) }}{% endif %}
+                            {% if school.fee_range_max %}{{ school.fee_range_max | format_naira }}{% endif %}
                         </dd>
                     </div>
                     {% endif %}

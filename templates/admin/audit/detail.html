@@ -1,16 +1,14 @@
+{% from "macros/ui_macros.html" import breadcrumbs %}
 {% extends "admin/base.html" %}
 {% block admin_content %}
-<div class="mb-6 flex items-center justify-between">
-    <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{{ page_title if page_title else 'Audit Event Detail' }}</h1>
-        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Full details for audit event</p>
-    </div>
-    <a href="/admin/audit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Back to Audit Log
-    </a>
+{{ breadcrumbs([
+    {"label": "Dashboard", "url": "/admin"},
+    {"label": "Audit Log", "url": "/admin/audit"},
+    {"label": page_title if page_title else 'Event Detail'}
+]) }}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{{ page_title if page_title else 'Audit Event Detail' }}</h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Full details for audit event</p>
 </div>
 
 <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
@@ -56,7 +54,7 @@
     {% if event.details %}
     <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
         <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Details</label>
-        <pre class="p-4 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 overflow-x-auto font-mono">{{ event.details | tojson(indent=2) | safe }}</pre>
+        <pre class="p-4 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 overflow-x-auto font-mono">{{ event.details | tojson(indent=2) | string | e }}</pre>
     </div>
     {% endif %}
 

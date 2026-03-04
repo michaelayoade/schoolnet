@@ -1,6 +1,8 @@
 """Public-facing web routes — landing, school search, school profiles, auth."""
 
 import logging
+import os
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ from starlette.responses import JSONResponse, RedirectResponse, Response
 from app.api.deps import get_db
 from app.services.auth_flow import (
     AuthFlow,
+    AuthFlowServiceError,
     decode_access_token,
     issue_email_verification_token,
     request_password_reset,
@@ -16,6 +19,7 @@ from app.services.auth_flow import (
     revoke_sessions_for_person,
     verify_email_token,
 )
+from app.services.branding_context import load_branding_context
 from app.services.common import require_uuid
 from app.services.email import send_password_reset_email, send_verification_email
 from app.services.registration import RegistrationService
@@ -26,13 +30,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["public"])
 
 
+def _is_secure_request(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    return forwarded_proto.split(",", 1)[0].strip().lower() == "https"
+
+
+def _access_cookie_max_age_seconds() -> int:
+    raw = os.getenv("JWT_ACCESS_TTL_MINUTES", "15")
+    try:
+        minutes = int(raw)
+    except ValueError:
+        minutes = 15
+    return max(minutes, 1) * 60
+
+
 @router.get("/")
 def landing_page(request: Request, db: Session = Depends(get_db)) -> Response:
     svc = SchoolService(db)
-    featured, _ = svc.search(limit=6, offset=0)
+    featured = svc.get_featured(limit=6)
+    branding = load_branding_context(db)
     return templates.TemplateResponse(
         "public/index.html",
-        {"request": request, "featured_schools": featured},
+        {"request": request, "featured_schools": featured, **branding},
     )
 
 
@@ -45,12 +66,17 @@ def school_search(
     school_type: str | None = None,
     category: str | None = None,
     gender: str | None = None,
+    fee_min: int | None = Query(default=None, ge=0),
+    fee_max: int | None = Query(default=None, ge=0),
     page: int = Query(default=1, ge=1),
     db: Session = Depends(get_db),
 ) -> Response:
     limit = 12
     offset = (page - 1) * limit
     svc = SchoolService(db)
+    # Convert Naira to kobo for the backend
+    fee_min_kobo = fee_min * 100 if fee_min else None
+    fee_max_kobo = fee_max * 100 if fee_max else None
     schools, total = svc.search(
         query=q,
         state=state,
@@ -58,6 +84,8 @@ def school_search(
         school_type=school_type,
         category=category,
         gender=gender,
+        fee_min=fee_min_kobo,
+        fee_max=fee_max_kobo,
         limit=limit,
         offset=offset,
     )
@@ -76,6 +104,8 @@ def school_search(
             "school_type": school_type or "",
             "category": category or "",
             "gender": gender or "",
+            "fee_min": fee_min or "",
+            "fee_max": fee_max or "",
         },
     )
 
@@ -129,7 +159,7 @@ def school_profile(
                     require_uuid(school.id),
                     require_uuid(person_id),
                 )
-        except Exception:
+        except AuthFlowServiceError:
             pass
 
     return templates.TemplateResponse(
@@ -162,7 +192,7 @@ def school_rate_submit(
     try:
         payload = decode_access_token(db, access_token)
         person_id = payload.get("sub")
-    except Exception:
+    except AuthFlowServiceError:
         return RedirectResponse(url="/login", status_code=303)
 
     svc = SchoolService(db)
@@ -181,7 +211,7 @@ def school_rate_submit(
         db.commit()
     except ValueError as e:
         return RedirectResponse(
-            url=f"/schools/{slug}?error={e}",
+            url=f"/schools/{slug}?error={quote_plus(str(e))}",
             status_code=303,
         )
 
@@ -195,16 +225,18 @@ def school_rate_submit(
 
 
 @router.get("/register")
-def register_choice(request: Request) -> Response:
+def register_choice(request: Request, db: Session = Depends(get_db)) -> Response:
+    branding = load_branding_context(db)
     return templates.TemplateResponse(
-        "public/auth/register_choice.html", {"request": request}
+        "public/auth/register_choice.html", {"request": request, **branding}
     )
 
 
 @router.get("/register/parent")
-def register_parent_form(request: Request) -> Response:
+def register_parent_form(request: Request, db: Session = Depends(get_db)) -> Response:
+    branding = load_branding_context(db)
     return templates.TemplateResponse(
-        "public/auth/register_parent.html", {"request": request}
+        "public/auth/register_parent.html", {"request": request, **branding}
     )
 
 
@@ -228,22 +260,25 @@ def register_parent_submit(
             phone=phone if phone else None,
         )
     except ValueError as e:
+        branding = load_branding_context(db)
         return templates.TemplateResponse(
             "public/auth/register_parent.html",
-            {"request": request, "error_message": str(e)},
+            {"request": request, "error_message": str(e), **branding},
         )
 
     db.commit()
 
     # Send verification email
     try:
+        from sqlalchemy import select
+
         from app.models.person import Person
 
-        person = db.query(Person).filter(Person.email == email).first()
+        person = db.scalar(select(Person).where(Person.email == email))
         if person:
             token = issue_email_verification_token(db, str(person.id), email)
             send_verification_email(db, email, token, first_name)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         logger.warning("Failed to send verification email: %s", e)
 
     return RedirectResponse(
@@ -253,9 +288,10 @@ def register_parent_submit(
 
 
 @router.get("/register/school")
-def register_school_form(request: Request) -> Response:
+def register_school_form(request: Request, db: Session = Depends(get_db)) -> Response:
+    branding = load_branding_context(db)
     return templates.TemplateResponse(
-        "public/auth/register_school.html", {"request": request}
+        "public/auth/register_school.html", {"request": request, **branding}
     )
 
 
@@ -291,21 +327,39 @@ def register_school_submit(
             address=address if address else None,
         )
     except ValueError as e:
+        branding = load_branding_context(db)
         return templates.TemplateResponse(
             "public/auth/register_school.html",
-            {"request": request, "error_message": str(e)},
+            {"request": request, "error_message": str(e), **branding},
         )
 
     db.commit()
+
+    # Send verification email
+    try:
+        from sqlalchemy import select
+
+        from app.models.person import Person
+
+        person = db.scalar(select(Person).where(Person.email == email))
+        if person:
+            token = issue_email_verification_token(db, str(person.id), email)
+            send_verification_email(db, email, token, first_name)
+    except (OSError, ValueError) as e:
+        logger.warning("Failed to send school admin verification email: %s", e)
+
     return RedirectResponse(
-        url="/login?success=Registration+successful.+Your+school+is+pending+approval.",
+        url="/login?success=Registration+successful.+Please+check+your+email+to+verify+your+account.+Your+school+is+pending+approval.",
         status_code=303,
     )
 
 
 @router.get("/login")
-def login_form(request: Request) -> Response:
-    return templates.TemplateResponse("public/auth/login.html", {"request": request})
+def login_form(request: Request, db: Session = Depends(get_db)) -> Response:
+    branding = load_branding_context(db)
+    return templates.TemplateResponse(
+        "public/auth/login.html", {"request": request, **branding}
+    )
 
 
 @router.post("/login")
@@ -315,31 +369,58 @@ def login_submit(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ) -> Response:
+    from sqlalchemy import select
+
+    from app.models.auth import AuthProvider, UserCredential
+    from app.models.person import Person
+
+    # Resolve email to username for AuthFlow.login
+    login_id = email
+    person = db.scalar(select(Person).where(Person.email == email))
+    if person:
+        credential = db.scalar(
+            select(UserCredential).where(
+                UserCredential.person_id == person.id,
+                UserCredential.provider == AuthProvider.local,
+                UserCredential.is_active.is_(True),
+            )
+        )
+        if credential and credential.username:
+            login_id = credential.username
+
     try:
-        result = AuthFlow.login(db, email, password, request, "local")
-    except Exception as e:
+        result = AuthFlow.login(db, login_id, password, request, "local")
+        db.commit()
+    except AuthFlowServiceError as e:
+        if str(e.detail) == "Invalid credentials":
+            db.commit()
+        else:
+            db.rollback()
         logger.warning("Login failed for %s: %s", email, e)
+        branding = load_branding_context(db)
         return templates.TemplateResponse(
             "public/auth/login.html",
-            {"request": request, "error_message": "Invalid email or password"},
+            {"request": request, "error_message": "Invalid email or password", **branding},
         )
 
     # Check email verification
     from app.models.person import Person
 
-    person = db.query(Person).filter(Person.email == email).first()
+    person = db.scalar(select(Person).where(Person.email == email))
     if person and not person.email_verified:
         # Send new verification email
         try:
             token = issue_email_verification_token(db, str(person.id), email)
             send_verification_email(db, email, token, person.first_name)
-        except Exception:
+        except (OSError, ValueError):
             pass
+        branding = load_branding_context(db)
         return templates.TemplateResponse(
             "public/auth/login.html",
             {
                 "request": request,
-                "error_message": "Please verify your email first. A new verification link has been sent.",
+                "error_message": "Invalid email or password",
+                **branding,
             },
         )
 
@@ -361,22 +442,26 @@ def login_submit(
             redirect_url = "/admin/schools"
         elif "school_admin" in roles:
             redirect_url = "/school"
-    except Exception:
+    except AuthFlowServiceError:
         logger.debug("Could not decode access token for redirect")
 
     response = RedirectResponse(url=redirect_url, status_code=303)
+    secure_cookie = _is_secure_request(request)
+    access_max_age = _access_cookie_max_age_seconds()
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=secure_cookie,
         samesite="lax",
-        max_age=900,
+        max_age=access_max_age,
     )
     if refresh_token:
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
+            secure=secure_cookie,
             samesite="lax",
             max_age=30 * 24 * 3600,
         )
@@ -384,6 +469,7 @@ def login_submit(
         key="logged_in",
         value="1",
         httponly=False,
+        secure=secure_cookie,
         samesite="lax",
         max_age=30 * 24 * 3600,
     )
@@ -399,7 +485,9 @@ def mfa_verify_submit(
 ) -> Response:
     try:
         result = AuthFlow.mfa_verify(db, mfa_token, code, request)
-    except Exception as e:
+        db.commit()
+    except AuthFlowServiceError as e:
+        db.rollback()
         logger.warning("MFA verification failed: %s", e)
         return templates.TemplateResponse(
             "public/auth/mfa_verify.html",
@@ -422,22 +510,26 @@ def mfa_verify_submit(
             redirect_url = "/admin/schools"
         elif "school_admin" in roles:
             redirect_url = "/school"
-    except Exception:
+    except AuthFlowServiceError:
         logger.debug("Could not decode access token for redirect")
 
     response = RedirectResponse(url=redirect_url, status_code=303)
+    secure_cookie = _is_secure_request(request)
+    access_max_age = _access_cookie_max_age_seconds()
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=secure_cookie,
         samesite="lax",
-        max_age=900,
+        max_age=access_max_age,
     )
     if refresh_token:
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
+            secure=secure_cookie,
             samesite="lax",
             max_age=30 * 24 * 3600,
         )
@@ -445,13 +537,14 @@ def mfa_verify_submit(
         key="logged_in",
         value="1",
         httponly=False,
+        secure=secure_cookie,
         samesite="lax",
         max_age=30 * 24 * 3600,
     )
     return response
 
 
-@router.get("/logout")
+@router.post("/logout")
 def logout(request: Request, db: Session = Depends(get_db)) -> Response:
     access_token = request.cookies.get("access_token")
     if access_token:
@@ -461,12 +554,12 @@ def logout(request: Request, db: Session = Depends(get_db)) -> Response:
             if person_id:
                 revoke_sessions_for_person(db, person_id)
                 db.commit()
-        except Exception:
+        except AuthFlowServiceError:
             pass  # Still delete cookies even if revocation fails
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
-    response.delete_cookie("logged_in")
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+    response.delete_cookie("logged_in", path="/")
     return response
 
 
@@ -481,7 +574,12 @@ def web_refresh(request: Request, db: Session = Depends(get_db)) -> Response:
 
     try:
         result = AuthFlow.refresh(db, refresh_token, request)
-    except Exception:
+        db.commit()
+    except AuthFlowServiceError as exc:
+        if str(exc.detail) in {"Refresh token reuse detected", "Refresh token expired"}:
+            db.commit()
+        else:
+            db.rollback()
         return JSONResponse(
             status_code=401, content={"detail": "Invalid refresh token"}
         )
@@ -490,18 +588,22 @@ def web_refresh(request: Request, db: Session = Depends(get_db)) -> Response:
     new_refresh = result.get("refresh_token", "")
 
     response = JSONResponse(status_code=200, content={"ok": True})
+    secure_cookie = _is_secure_request(request)
+    access_max_age = _access_cookie_max_age_seconds()
     response.set_cookie(
         key="access_token",
         value=new_access,
         httponly=True,
+        secure=secure_cookie,
         samesite="lax",
-        max_age=900,
+        max_age=access_max_age,
     )
     if new_refresh:
         response.set_cookie(
             key="refresh_token",
             value=new_refresh,
             httponly=True,
+            secure=secure_cookie,
             samesite="lax",
             max_age=30 * 24 * 3600,
         )
@@ -509,6 +611,7 @@ def web_refresh(request: Request, db: Session = Depends(get_db)) -> Response:
         key="logged_in",
         value="1",
         httponly=False,
+        secure=secure_cookie,
         samesite="lax",
         max_age=30 * 24 * 3600,
     )
@@ -579,13 +682,18 @@ def reset_password_submit(
         )
     try:
         reset_password(db, token, new_password)
-    except Exception:
+        db.commit()
+    except AuthFlowServiceError as exc:
+        db.rollback()
+        error_message = "Invalid or expired reset link"
+        if exc.status_code == 400 and isinstance(exc.detail, str):
+            error_message = exc.detail
         return templates.TemplateResponse(
             "public/auth/reset_password.html",
             {
                 "request": request,
                 "token": token,
-                "error_message": "Invalid or expired reset link",
+                "error_message": error_message,
             },
         )
     return RedirectResponse(
@@ -610,7 +718,8 @@ def verify_email_page(
     try:
         verify_email_token(db, token)
         db.commit()
-    except Exception:
+    except AuthFlowServiceError:
+        db.rollback()
         return templates.TemplateResponse(
             "public/auth/verify_email.html",
             {

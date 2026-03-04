@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -103,33 +104,50 @@ def create_customer_form(
 
 
 @router.post("/create", response_model=None)
-async def create_customer_submit(
+def create_customer_submit(
     request: Request,
+    name: str = Form(""),
+    email: str = Form(""),
+    currency: str = Form("usd"),
+    balance: str | None = Form(None),
+    tax_id: str | None = Form(None),
+    external_id: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle customer creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "email": email,
+        "currency": currency,
+        "balance": balance,
+        "tax_id": tax_id,
+        "external_id": external_id,
+        "is_active": is_active,
+    }
 
     try:
         payload = CustomerCreate(
-            name=str(data.get("name", "")),
-            email=str(data.get("email", "")),
-            currency=str(data.get("currency", "usd")),
-            balance=as_int(data.get("balance")) or 0,
-            tax_id=str(data["tax_id"]) if data.get("tax_id") else None,
-            external_id=str(data["external_id"]) if data.get("external_id") else None,
-            is_active=data.get("is_active") == "on",
+            name=name,
+            email=email,
+            currency=currency,
+            balance=as_int(balance) or 0,
+            tax_id=tax_id if tax_id else None,
+            external_id=external_id if external_id else None,
+            is_active=is_active == "on",
         )
         billing_service.customers.create(db, payload)
+        db.commit()
         logger.info("Created customer via web: %s", payload.email)
         return RedirectResponse(
             url="/admin/billing/customers?success=Customer+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create customer: %s", exc)
         ctx = _base_context(
             request, db, auth, title="Create Customer", page_title="Create Customer"
@@ -198,34 +216,51 @@ def edit_customer_form(
 
 
 @router.post("/{item_id}/edit", response_model=None)
-async def edit_customer_submit(
+def edit_customer_submit(
     request: Request,
     item_id: UUID,
+    name: str | None = Form(None),
+    email: str | None = Form(None),
+    currency: str | None = Form(None),
+    balance: str | None = Form(None),
+    tax_id: str | None = Form(None),
+    external_id: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle customer edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "email": email,
+        "currency": currency,
+        "balance": balance,
+        "tax_id": tax_id,
+        "external_id": external_id,
+        "is_active": is_active,
+    }
 
     try:
         payload = CustomerUpdate(
-            name=str(data["name"]) if data.get("name") else None,
-            email=str(data["email"]) if data.get("email") else None,
-            currency=str(data["currency"]) if data.get("currency") else None,
-            balance=as_int(data.get("balance")) if data.get("balance") else None,
-            tax_id=str(data["tax_id"]) if data.get("tax_id") else None,
-            external_id=str(data["external_id"]) if data.get("external_id") else None,
-            is_active="is_active" in data,
+            name=name if name else None,
+            email=email if email else None,
+            currency=currency if currency else None,
+            balance=as_int(balance) if balance else None,
+            tax_id=tax_id if tax_id else None,
+            external_id=external_id if external_id else None,
+            is_active=is_active == "on",
         )
         billing_service.customers.update(db, str(item_id), payload)
+        db.commit()
         logger.info("Updated customer via web: %s", item_id)
         return RedirectResponse(
             url=f"/admin/billing/customers/{item_id}?success=Customer+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update customer %s: %s", item_id, exc)
         item = billing_service.customers.get(db, str(item_id))
         ctx = _base_context(
@@ -237,26 +272,28 @@ async def edit_customer_submit(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_customer(
+def delete_customer(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle customer deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.customers.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted customer via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/customers?success=Customer+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete customer %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/customers?error={exc}",
+            url=f"/admin/billing/customers?error={quote_plus(str(exc))}",
             status_code=302,
         )

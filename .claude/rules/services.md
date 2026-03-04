@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models.some_module import SomeModel
+from app.schemas.some_module import SomeCreateSchema
 
 logger = logging.getLogger(__name__)
 

@@ -31,6 +31,7 @@ def mfa_user(db_session, person):
     setup = AuthFlow.mfa_setup(db_session, str(person.id), label="test-device")
     code = pyotp.TOTP(setup["secret"]).now()
     AuthFlow.mfa_confirm(db_session, str(setup["method_id"]), code)
+    db_session.commit()
 
     return person, credential, setup["secret"]
 
@@ -179,7 +180,7 @@ class TestAdminMfaVerify:
         response = client.post(
             "/admin/login",
             data={
-                "username": credential.username,
+                "email": credential.username,
                 "password": "testpass123",
                 "csrf_token": csrf_token,
                 "next": "/admin",
@@ -202,7 +203,7 @@ class TestAdminMfaVerify:
         login_resp = client.post(
             "/admin/login",
             data={
-                "username": credential.username,
+                "email": credential.username,
                 "password": "testpass123",
                 "csrf_token": csrf_token,
                 "next": "/admin",
@@ -242,7 +243,7 @@ class TestAdminMfaVerify:
         login_resp = client.post(
             "/admin/login",
             data={
-                "username": credential.username,
+                "email": credential.username,
                 "password": "testpass123",
                 "csrf_token": csrf_token,
                 "next": "/admin",

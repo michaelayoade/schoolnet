@@ -1,6 +1,7 @@
 """Applications REST API — thin wrappers."""
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -114,7 +115,7 @@ def school_applications(
     school_id: UUID,
     db: Session = Depends(get_db),
     auth: dict = Depends(require_permission("applications:review")),
-) -> list:
+) -> dict[str, Any]:
     from app.models.school import School
 
     school = db.get(School, school_id)

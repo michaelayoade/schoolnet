@@ -3,6 +3,8 @@ import os
 from datetime import timedelta
 from typing import Any, cast
 
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -30,12 +32,11 @@ def _env_int(name: str) -> int | None:
 
 
 def _get_setting_value(db: Session, domain: SettingDomain, key: str) -> str | None:
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == domain)
-        .filter(DomainSetting.key == key)
-        .filter(DomainSetting.is_active.is_(True))
-        .first()
+    setting = db.scalar(
+        select(DomainSetting)
+        .where(DomainSetting.domain == domain)
+        .where(DomainSetting.key == key)
+        .where(DomainSetting.is_active.is_(True))
     )
     if not setting:
         return None
@@ -47,7 +48,7 @@ def _get_setting_value(db: Session, domain: SettingDomain, key: str) -> str | No
 
 
 def _effective_int(
-    db, domain: SettingDomain, key: str, env_key: str, default: int
+    db: Session, domain: SettingDomain, key: str, env_key: str, default: int
 ) -> int:
     env_value = _env_int(env_key)
     if env_value is not None:
@@ -62,7 +63,7 @@ def _effective_int(
 
 
 def _effective_str(
-    db, domain: SettingDomain, key: str, env_key: str, default: str | None
+    db: Session, domain: SettingDomain, key: str, env_key: str, default: str | None
 ) -> str | None:
     env_value = _env_value(env_key)
     if env_value is not None:
@@ -108,7 +109,7 @@ def get_celery_config() -> dict:
             "CELERY_BEAT_REFRESH_SECONDS",
             30,
         )
-    except Exception:
+    except SQLAlchemyError:
         logger.exception("Failed to load scheduler settings from database.")
     finally:
         session.close()
@@ -130,8 +131,10 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
     schedule: dict[str, dict[str, Any]] = {}
     session = SessionLocal()
     try:
-        tasks = (
-            session.query(ScheduledTask).filter(ScheduledTask.enabled.is_(True)).all()
+        tasks = list(
+            session.scalars(
+                select(ScheduledTask).where(ScheduledTask.enabled.is_(True))
+            ).all()
         )
         for task in tasks:
             if task.schedule_type != ScheduleType.interval:
@@ -143,7 +146,7 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
                 "args": task.args_json or [],
                 "kwargs": task.kwargs_json or {},
             }
-    except Exception:
+    except SQLAlchemyError:
         logger.exception("Failed to build Celery beat schedule.")
     finally:
         session.close()

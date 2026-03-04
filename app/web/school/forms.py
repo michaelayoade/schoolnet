@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
@@ -108,6 +109,19 @@ def create_form_page(
     )
 
 
+def _parse_datetime(value: str) -> datetime | None:
+    """Parse an HTML datetime-local input value."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
 @router.post("/create")
 def create_form_submit(
     request: Request,
@@ -116,6 +130,8 @@ def create_form_submit(
     price_amount: int = Form(...),
     description: str = Form(""),
     max_submissions: int | None = Form(default=None),
+    opens_at: str = Form(""),
+    closes_at: str = Form(""),
     form_fields_json: str = Form(""),
     required_documents_json: str = Form(""),
     db: Session = Depends(get_db),
@@ -139,6 +155,8 @@ def create_form_submit(
         price_amount=price_amount * 100,  # Convert naira to kobo
         description=description if description else None,
         max_submissions=max_submissions,
+        opens_at=_parse_datetime(opens_at),
+        closes_at=_parse_datetime(closes_at),
         form_fields=form_fields,
         required_documents=required_documents,
     )
@@ -157,11 +175,16 @@ def edit_form_page(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
+    school = _get_school_for_admin(db, auth)
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(
             url="/school/forms?error=Form+not+found", status_code=303
+        )
+    if not school or form.school_id != school.id:
+        return RedirectResponse(
+            url="/school/forms?error=Forbidden", status_code=303
         )
     price_amount = svc.get_price_amount(form)
     return templates.TemplateResponse(
@@ -178,16 +201,23 @@ def edit_form_submit(
     description: str = Form(""),
     max_submissions: int | None = Form(default=None),
     price_amount: int | None = Form(default=None),
+    opens_at: str = Form(""),
+    closes_at: str = Form(""),
     form_fields_json: str = Form(""),
     required_documents_json: str = Form(""),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
+    school = _get_school_for_admin(db, auth)
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(
             url="/school/forms?error=Form+not+found", status_code=303
+        )
+    if not school or form.school_id != school.id:
+        return RedirectResponse(
+            url="/school/forms?error=Forbidden", status_code=303
         )
 
     from app.schemas.school import AdmissionFormUpdate
@@ -199,7 +229,9 @@ def edit_form_submit(
         title=title,
         description=description if description else None,
         max_submissions=max_submissions,
-        price_amount=price_amount * 100 if price_amount else None,
+        price_amount=price_amount * 100 if price_amount is not None else None,
+        opens_at=_parse_datetime(opens_at),
+        closes_at=_parse_datetime(closes_at),
         form_fields=form_fields,
         required_documents=required_documents,
     )
@@ -215,11 +247,16 @@ def activate_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
+    school = _get_school_for_admin(db, auth)
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(
             url="/school/forms?error=Form+not+found", status_code=303
+        )
+    if not school or form.school_id != school.id:
+        return RedirectResponse(
+            url="/school/forms?error=Forbidden", status_code=303
         )
     svc.activate(form)
     db.commit()
@@ -233,11 +270,16 @@ def close_form(
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
+    school = _get_school_for_admin(db, auth)
     svc = AdmissionFormService(db)
     form = svc.get_by_id(require_uuid(form_id))
     if not form:
         return RedirectResponse(
             url="/school/forms?error=Form+not+found", status_code=303
+        )
+    if not school or form.school_id != school.id:
+        return RedirectResponse(
+            url="/school/forms?error=Forbidden", status_code=303
         )
     svc.close(form)
     db.commit()

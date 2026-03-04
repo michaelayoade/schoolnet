@@ -11,6 +11,7 @@ import re
 from datetime import date, datetime, timezone
 
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 
 templates = Jinja2Templates(directory="templates")
 
@@ -27,12 +28,12 @@ def _sanitize_html(value: str | None) -> str:
     return html.escape(clean)
 
 
-def _nl2br(value: str | None) -> str:
+def _nl2br(value: str | None) -> Markup:
     """Convert newlines to ``<br>`` tags for display."""
     if not value:
-        return ""
+        return Markup("")
     escaped = html.escape(str(value))
-    return escaped.replace("\n", "<br>\n")
+    return Markup(escaped.replace("\n", "<br>\n"))
 
 
 def _format_date(value: date | datetime | None, fmt: str = "%d %b %Y") -> str:
@@ -65,6 +66,19 @@ def _format_currency(
         return ""
     formatted = f"{value:,.{decimals}f}"
     return f"{symbol}{formatted}"
+
+
+def _format_naira(value: float | int | None, from_kobo: bool = True) -> str:
+    """Format a number as Nigerian Naira (₦).
+
+    Args:
+        value: The amount to format.
+        from_kobo: If True, divides by 100 first (amounts stored in kobo).
+    """
+    if value is None:
+        return ""
+    amount = value / 100 if from_kobo else value
+    return f"\u20a6{amount:,.0f}"
 
 
 def _format_number(value: float | int | None, decimals: int = 2) -> str:
@@ -109,5 +123,7 @@ templates.env.filters["nl2br"] = _nl2br
 templates.env.filters["format_date"] = _format_date
 templates.env.filters["format_datetime"] = _format_datetime
 templates.env.filters["format_currency"] = _format_currency
+templates.env.filters["format_naira"] = _format_naira
 templates.env.filters["format_number"] = _format_number
 templates.env.filters["timeago"] = _timeago
+templates.env.globals["current_year"] = datetime.now(UTC).year

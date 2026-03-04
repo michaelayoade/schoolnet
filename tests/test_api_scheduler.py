@@ -3,6 +3,11 @@ import uuid
 from app.models.scheduler import ScheduledTask, ScheduleType
 
 
+@pytest.fixture()
+def auth_headers(admin_headers):
+    return admin_headers
+
+
 class TestScheduledTasksAPI:
     """Tests for the /scheduler/tasks endpoints."""
 

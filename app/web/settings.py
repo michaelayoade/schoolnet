@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -99,16 +99,23 @@ def edit_setting_form(
 
 
 @router.post("/{setting_id}/edit", response_model=None)
-async def edit_setting_submit(
+def edit_setting_submit(
     request: Request,
     setting_id: UUID,
+    value_text: str | None = Form(None),
+    value_json: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle setting edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "value_text": value_text,
+        "value_json": value_json,
+        "is_active": is_active,
+    }
 
     setting = db.get(DomainSetting, setting_id)
     if not setting:
@@ -119,8 +126,8 @@ async def edit_setting_submit(
 
     try:
         # Update value fields based on what was submitted
-        value_text_raw = data.get("value_text")
-        value_json_raw = data.get("value_json")
+        value_text_raw = value_text
+        value_json_raw = value_json
 
         if value_text_raw is not None:
             value_text = str(value_text_raw)
@@ -132,8 +139,7 @@ async def edit_setting_submit(
 
                 setting.value_json = json.loads(value_json_str)
 
-        if "is_active" in data:
-            setting.is_active = data["is_active"] == "on"
+        setting.is_active = is_active == "on"
 
         db.commit()
         db.refresh(setting)
@@ -142,7 +148,7 @@ async def edit_setting_submit(
             url="/admin/settings?success=Setting+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
         logger.warning("Failed to update setting %s: %s", setting_id, exc)
         db.rollback()
         ctx = _base_context(

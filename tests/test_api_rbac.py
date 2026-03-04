@@ -1,6 +1,13 @@
 import uuid
 
+import pytest
+
 from app.models.rbac import Permission, PersonRole, Role, RolePermission
+
+
+@pytest.fixture()
+def auth_headers(admin_headers):
+    return admin_headers
 
 
 class TestRolesAPI:

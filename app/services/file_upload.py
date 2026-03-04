@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.config import settings
 from app.models.file_upload import FileUpload, FileUploadStatus
@@ -62,6 +63,32 @@ class FileUploadService:
         self.db.flush()
         logger.info("Uploaded file: %s (id=%s)", filename, record.id)
         return record
+
+    def upload_from_form_file(
+        self,
+        uploaded_file: UploadFile,
+        *,
+        uploaded_by: UUID | None = None,
+        category: str = "document",
+        entity_type: str | None = None,
+        entity_id: str | None = None,
+        metadata_: dict | None = None,
+    ) -> FileUpload:
+        """Read an uploaded form file and persist it via the regular upload flow."""
+        filename = uploaded_file.filename
+        if not filename:
+            raise ValueError("Please select a file to upload")
+        content = uploaded_file.file.read()
+        return self.upload(
+            content=content,
+            filename=filename,
+            content_type=uploaded_file.content_type or "application/octet-stream",
+            uploaded_by=uploaded_by,
+            category=category,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            metadata_=metadata_,
+        )
 
     def get_by_id(self, file_id: UUID) -> FileUpload | None:
         """Get a file upload by ID."""
@@ -124,7 +151,7 @@ class FileUploadService:
             raise ValueError("File upload not found")
         try:
             self.storage.delete(record.storage_key)
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             logger.exception(
                 "Failed to delete file from storage: %s", record.storage_key
             )

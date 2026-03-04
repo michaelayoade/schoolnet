@@ -2,7 +2,7 @@
     <div class="flex items-center justify-between px-6 py-3">
         <div class="flex items-center gap-3">
             <!-- Mobile menu button -->
-            <button x-on:click="$dispatch('toggle-sidebar')" class="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <button x-on:click="$dispatch('toggle-sidebar')" aria-label="Open menu" class="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
                 <svg class="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -15,7 +15,7 @@
         <div class="flex items-center gap-3">
             <!-- Notification bell -->
             <div id="notification-bell" x-data="notificationBell()" class="relative">
-                <button x-on:click="toggle()" class="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                <button x-on:click="toggle()" aria-label="Notifications" class="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                     <svg class="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                     </svg>
@@ -56,7 +56,7 @@
             </div>
 
             <!-- Dark mode toggle -->
-            <button x-on:click="darkMode = !darkMode"
+            <button x-on:click="darkMode = !darkMode" aria-label="Toggle dark mode"
                     class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                 <svg x-show="!darkMode" class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
@@ -87,7 +87,10 @@
                         <p class="text-xs text-slate-500 dark:text-slate-400">{{ current_user.email if current_user else '' }}</p>
                     </div>
                     <a href="/" class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Home</a>
-                    <a href="/admin/logout" class="block px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700">Sign Out</a>
+                    <form method="POST" action="/admin/logout">
+                        {{ request.state.csrf_form | safe }}
+                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700">Sign Out</button>
+                    </form>
                 </div>
             </div>
         </div>

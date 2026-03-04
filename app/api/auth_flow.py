@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -41,12 +42,25 @@ from app.services.auth_flow import (
     request_password_reset,
     reset_password,
     revoke_sessions_for_person,
+    validate_password_strength,
     verify_password,
 )
 from app.services.common import coerce_uuid
 from app.services.email import send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _raise_auth_flow_http(exc: auth_flow_service.AuthFlowServiceError) -> None:
+    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+def _auth_flow_error_requires_commit(exc: auth_flow_service.AuthFlowServiceError) -> bool:
+    return str(exc.detail) in {
+        "Invalid credentials",
+        "Refresh token reuse detected",
+        "Refresh token expired",
+    }
 
 
 @router.post(
@@ -71,9 +85,18 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     },
 )
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.login_response(
-        db, payload.username, payload.password, request, payload.provider
-    )
+    try:
+        result = auth_flow_service.auth_flow.login_response(
+            db, payload.username, payload.password, request, payload.provider
+        )
+        db.commit()
+        return result
+    except auth_flow_service.AuthFlowServiceError as exc:
+        if _auth_flow_error_requires_commit(exc):
+            db.commit()
+        else:
+            db.rollback()
+        _raise_auth_flow_http(exc)
 
 
 @router.post(
@@ -92,7 +115,15 @@ def mfa_setup(
 ):
     if str(payload.person_id) != auth["person_id"]:
         raise HTTPException(status_code=403, detail="Forbidden")
-    return auth_flow_service.auth_flow.mfa_setup(db, auth["person_id"], payload.label)
+    try:
+        result = auth_flow_service.auth_flow.mfa_setup(
+            db, auth["person_id"], payload.label
+        )
+        db.commit()
+        return result
+    except auth_flow_service.AuthFlowServiceError as exc:
+        db.rollback()
+        _raise_auth_flow_http(exc)
 
 
 @router.post(
@@ -110,9 +141,15 @@ def mfa_confirm(
     auth: dict = Depends(require_user_auth),
     db: Session = Depends(get_db),
 ):
-    return auth_flow_service.auth_flow.mfa_confirm(
-        db, str(payload.method_id), payload.code, auth["person_id"]
-    )
+    try:
+        result = auth_flow_service.auth_flow.mfa_confirm(
+            db, str(payload.method_id), payload.code, auth["person_id"]
+        )
+        db.commit()
+        return result
+    except auth_flow_service.AuthFlowServiceError as exc:
+        db.rollback()
+        _raise_auth_flow_http(exc)
 
 
 @router.post(
@@ -127,9 +164,15 @@ def mfa_confirm(
 def mfa_verify(
     payload: MfaVerifyRequest, request: Request, db: Session = Depends(get_db)
 ):
-    return auth_flow_service.auth_flow.mfa_verify_response(
-        db, payload.mfa_token, payload.code, request
-    )
+    try:
+        result = auth_flow_service.auth_flow.mfa_verify_response(
+            db, payload.mfa_token, payload.code, request
+        )
+        db.commit()
+        return result
+    except auth_flow_service.AuthFlowServiceError as exc:
+        db.rollback()
+        _raise_auth_flow_http(exc)
 
 
 @router.post(
@@ -141,9 +184,18 @@ def mfa_verify(
     },
 )
 def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.refresh_response(
-        db, payload.refresh_token, request
-    )
+    try:
+        result = auth_flow_service.auth_flow.refresh_response(
+            db, payload.refresh_token, request
+        )
+        db.commit()
+        return result
+    except auth_flow_service.AuthFlowServiceError as exc:
+        if _auth_flow_error_requires_commit(exc):
+            db.commit()
+        else:
+            db.rollback()
+        _raise_auth_flow_http(exc)
 
 
 @router.post(
@@ -155,9 +207,15 @@ def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get
     },
 )
 def logout(payload: LogoutRequest, request: Request, db: Session = Depends(get_db)):
-    return auth_flow_service.auth_flow.logout_response(
-        db, payload.refresh_token, request
-    )
+    try:
+        result = auth_flow_service.auth_flow.logout_response(
+            db, payload.refresh_token, request
+        )
+        db.commit()
+        return result
+    except auth_flow_service.AuthFlowServiceError as exc:
+        db.rollback()
+        _raise_auth_flow_http(exc)
 
 
 @router.get(
@@ -306,13 +364,14 @@ def list_sessions(
     db: Session = Depends(get_db),
 ):
     person_id = coerce_uuid(auth["person_id"])
-    sessions = (
-        db.query(AuthSession)
-        .filter(AuthSession.person_id == person_id)
-        .filter(AuthSession.status == SessionStatus.active)
-        .filter(AuthSession.revoked_at.is_(None))
-        .order_by(AuthSession.created_at.desc())
-        .all()
+    sessions = list(
+        db.scalars(
+            select(AuthSession)
+            .where(AuthSession.person_id == person_id)
+            .where(AuthSession.status == SessionStatus.active)
+            .where(AuthSession.revoked_at.is_(None))
+            .order_by(AuthSession.created_at.desc())
+        )
     )
 
     current_session_id = auth.get("session_id")
@@ -349,11 +408,10 @@ def revoke_session(
     auth: dict = Depends(require_user_auth),
     db: Session = Depends(get_db),
 ):
-    session = (
-        db.query(AuthSession)
-        .filter(AuthSession.id == coerce_uuid(session_id))
-        .filter(AuthSession.person_id == coerce_uuid(auth["person_id"]))
-        .first()
+    session = db.scalar(
+        select(AuthSession)
+        .where(AuthSession.id == coerce_uuid(session_id))
+        .where(AuthSession.person_id == coerce_uuid(auth["person_id"]))
     )
 
     if not session:
@@ -362,7 +420,7 @@ def revoke_session(
     if session.status == SessionStatus.revoked:
         raise HTTPException(status_code=400, detail="Session already revoked")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.status = SessionStatus.revoked
     session.revoked_at = now
     db.commit()
@@ -386,16 +444,17 @@ def revoke_all_other_sessions(
     if current_session_id:
         current_session_id = coerce_uuid(current_session_id)
 
-    sessions = (
-        db.query(AuthSession)
-        .filter(AuthSession.person_id == coerce_uuid(auth["person_id"]))
-        .filter(AuthSession.status == SessionStatus.active)
-        .filter(AuthSession.revoked_at.is_(None))
-        .filter(AuthSession.id != current_session_id)
-        .all()
+    sessions = list(
+        db.scalars(
+            select(AuthSession)
+            .where(AuthSession.person_id == coerce_uuid(auth["person_id"]))
+            .where(AuthSession.status == SessionStatus.active)
+            .where(AuthSession.revoked_at.is_(None))
+            .where(AuthSession.id != current_session_id)
+        )
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for session in sessions:
         session.status = SessionStatus.revoked
         session.revoked_at = now
@@ -420,11 +479,10 @@ def change_password(
     auth: dict = Depends(require_user_auth),
     db: Session = Depends(get_db),
 ):
-    credential = (
-        db.query(UserCredential)
-        .filter(UserCredential.person_id == coerce_uuid(auth["person_id"]))
-        .filter(UserCredential.is_active.is_(True))
-        .first()
+    credential = db.scalar(
+        select(UserCredential)
+        .where(UserCredential.person_id == coerce_uuid(auth["person_id"]))
+        .where(UserCredential.is_active.is_(True))
     )
 
     if not credential:
@@ -436,7 +494,12 @@ def change_password(
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password must be different")
 
-    now = datetime.now(timezone.utc)
+    try:
+        validate_password_strength(payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    now = datetime.now(UTC)
     credential.password_hash = hash_password(payload.new_password)
     credential.password_updated_at = now
     credential.must_change_password = False
@@ -459,7 +522,11 @@ def forgot_password(
     Request a password reset email.
     Always returns success to prevent email enumeration.
     """
-    result = request_password_reset(db, payload.email)
+    try:
+        result = request_password_reset(db, payload.email)
+    except auth_flow_service.AuthFlowServiceError as exc:
+        db.rollback()
+        _raise_auth_flow_http(exc)
 
     if result:
         send_password_reset_email(
@@ -477,6 +544,7 @@ def forgot_password(
     response_model=ResetPasswordResponse,
     status_code=status.HTTP_200_OK,
     responses={
+        400: {"model": ErrorResponse},
         401: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
     },
@@ -488,5 +556,10 @@ def reset_password_endpoint(
     """
     Reset password using the token from forgot-password email.
     """
-    reset_at = reset_password(db, payload.token, payload.new_password)
+    try:
+        reset_at = reset_password(db, payload.token, payload.new_password)
+        db.commit()
+    except auth_flow_service.AuthFlowServiceError as exc:
+        db.rollback()
+        _raise_auth_flow_http(exc)
     return ResetPasswordResponse(reset_at=reset_at)

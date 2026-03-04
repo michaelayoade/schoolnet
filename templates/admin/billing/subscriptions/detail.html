@@ -37,11 +37,11 @@
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Current Period Start</label>
-            <p class="text-sm text-slate-900 dark:text-white">{{ subscription.current_period_start.strftime('%Y-%m-%d %H:%M') if subscription.current_period_start else '-' }}</p>
+            <p class="text-sm text-slate-900 dark:text-white">{{ subscription.current_period_start | format_datetime if subscription.current_period_start else '-' }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Current Period End</label>
-            <p class="text-sm text-slate-900 dark:text-white">{{ subscription.current_period_end.strftime('%Y-%m-%d %H:%M') if subscription.current_period_end else '-' }}</p>
+            <p class="text-sm text-slate-900 dark:text-white">{{ subscription.current_period_end | format_datetime if subscription.current_period_end else '-' }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Cancel at Period End</label>
@@ -49,7 +49,7 @@
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Canceled At</label>
-            <p class="text-sm text-slate-900 dark:text-white">{{ subscription.canceled_at.strftime('%Y-%m-%d %H:%M') if subscription.canceled_at else '-' }}</p>
+            <p class="text-sm text-slate-900 dark:text-white">{{ subscription.canceled_at | format_datetime if subscription.canceled_at else '-' }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">External ID</label>
@@ -124,7 +124,7 @@
                         {{ tables.status_badge(invoice.status | replace('_', ' ') if invoice.status else '') }}
                     </td>
                     <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">${{ "%.2f"|format(invoice.total / 100) if invoice.total else '0.00' }}</td>
-                    <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}</td>
+                    <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ invoice.due_date | format_date if invoice.due_date else '-' }}</td>
                     <td class="px-4 py-3 text-right">
                         {% set csrf = request.state.csrf_token if request.state.csrf_token is defined else '' %}
                         {{ tables.action_buttons(

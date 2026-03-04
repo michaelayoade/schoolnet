@@ -1,6 +1,7 @@
 import enum
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -129,16 +130,17 @@ class School(Base):
     commission_rate: Mapped[int | None] = mapped_column(Integer)
     settlement_bank_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     owner = relationship("Person", foreign_keys=[owner_id])
@@ -178,19 +180,19 @@ class AdmissionForm(Base):
     opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    required_documents: Mapped[dict | None] = mapped_column(JSON)
-    form_fields: Mapped[dict | None] = mapped_column(JSON)
+    required_documents: Mapped[list[Any] | None] = mapped_column(JSON)
+    form_fields: Mapped[list[Any] | None] = mapped_column(JSON)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     school = relationship("School", back_populates="admission_forms")
@@ -252,12 +254,12 @@ class Application(Base):
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     admission_form = relationship("AdmissionForm", back_populates="applications")
@@ -292,12 +294,12 @@ class Rating(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     school = relationship("School", back_populates="ratings")

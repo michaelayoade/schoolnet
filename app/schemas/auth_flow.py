@@ -6,6 +6,9 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 from app.models.auth import AuthProvider
+from app.schemas.error import ErrorResponse
+
+__all__ = ["ErrorResponse"]
 
 
 class LoginRequest(BaseModel):
@@ -59,15 +62,6 @@ class LogoutRequest(BaseModel):
 
 class LogoutResponse(BaseModel):
     revoked_at: datetime
-
-
-class ErrorDetail(BaseModel):
-    code: str
-    message: str
-
-
-class ErrorResponse(BaseModel):
-    detail: ErrorDetail
 
 
 class MeResponse(BaseModel):

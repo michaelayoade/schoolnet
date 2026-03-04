@@ -147,6 +147,7 @@ from app.models.domain_settings import DomainSetting, SettingDomain
 from app.models.scheduler import ScheduledTask, ScheduleType
 from app.models.file_upload import FileUpload, FileUploadStatus
 from app.models.notification import Notification, NotificationType
+from app.models.ward import Ward  # noqa: F401 — imported for table creation
 from app.models.billing import (
     Product,
     Price,
@@ -232,10 +233,32 @@ def person(db_session):
 
 
 @pytest.fixture(autouse=True)
-def auth_env():
+def auth_env(monkeypatch):
     # Environment variables are set at module level above
-    # This fixture ensures they're available for each test
-    pass
+    # This fixture ensures they're available for each test and keeps Celery
+    # task dispatch as a no-op in the test environment.
+    from app.tasks import notifications as notification_tasks
+
+    monkeypatch.setattr(
+        notification_tasks.send_notification_email_task,
+        "delay",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        notification_tasks.send_application_status_email_task,
+        "delay",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        notification_tasks.send_payment_receipt_email_task,
+        "delay",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        notification_tasks.send_new_application_email_task,
+        "delay",
+        lambda *args, **kwargs: None,
+    )
 
 
 # ============ FastAPI Test Client Fixtures ============
@@ -297,6 +320,7 @@ def client(db_session):
     # Override shared db dependencies
     app.dependency_overrides[api_get_db] = override_get_db
     app.dependency_overrides[auth_deps_get_db] = override_get_db
+    app.state.disable_rate_limit = True
 
     # Ensure default settings exist for routes that expect them.
     seed_auth_settings(db_session)
@@ -323,6 +347,7 @@ def client(db_session):
         asyncio.set_event_loop(None)
 
     app.dependency_overrides.clear()
+    app.state.disable_rate_limit = False
 
 
 def _create_access_token(person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None) -> str:

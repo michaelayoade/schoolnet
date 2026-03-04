@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 from uuid import UUID
@@ -15,6 +16,33 @@ from app.schemas.notification import NotificationCreate
 logger = logging.getLogger(__name__)
 
 
+def _push_ws(recipient_id: UUID, notification: Notification) -> None:
+    """Best-effort WebSocket push from a sync context.
+
+    Only pushes if an asyncio event loop is already running (i.e. inside
+    a FastAPI/uvicorn request).  Silently skips in Celery workers or CLI.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return  # No event loop — nothing to push to
+
+    try:
+        from app.services.websocket_manager import ws_manager
+
+        data = {
+            "type": "notification",
+            "id": str(notification.id),
+            "title": notification.title,
+            "message": notification.message or "",
+            "notification_type": notification.type.value if notification.type else "info",
+            "action_url": notification.action_url or "",
+        }
+        loop.create_task(ws_manager.send_to_person(recipient_id, data))
+    except (ImportError, RuntimeError, ValueError) as e:
+        logger.debug("WebSocket push skipped: %s", e)
+
+
 class NotificationService:
     """Manages notification records."""
 
@@ -22,7 +50,7 @@ class NotificationService:
         self.db = db
 
     def create(self, data: NotificationCreate) -> Notification:
-        """Create a new notification."""
+        """Create a new notification and push via WebSocket."""
         notification = Notification(
             recipient_id=data.recipient_id,
             sender_id=data.sender_id,
@@ -36,6 +64,10 @@ class NotificationService:
         self.db.add(notification)
         self.db.flush()
         logger.info("Created notification for %s: %s", data.recipient_id, data.title)
+
+        # Best-effort WebSocket push
+        _push_ws(data.recipient_id, notification)
+
         return notification
 
     def get_by_id(self, notification_id: UUID) -> Notification | None:

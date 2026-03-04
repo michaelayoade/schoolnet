@@ -21,14 +21,13 @@ class UserCredentialBase(BaseModel):
 
 
 class UserCredentialCreate(UserCredentialBase):
-    password_hash: str | None = Field(default=None, max_length=255)
+    pass
 
 
 class UserCredentialUpdate(BaseModel):
     person_id: UUID | None = None
     provider: AuthProvider | None = None
     username: str | None = Field(default=None, max_length=150)
-    password_hash: str | None = Field(default=None, max_length=255)
     must_change_password: bool | None = None
     password_updated_at: datetime | None = None
     failed_login_attempts: int | None = None
@@ -87,7 +86,6 @@ class MFAMethodRead(MFAMethodBase):
 class SessionBase(BaseModel):
     person_id: UUID
     status: SessionStatus = SessionStatus.active
-    token_hash: str = Field(min_length=1, max_length=255)
     ip_address: str | None = Field(default=None, max_length=64)
     user_agent: str | None = Field(default=None, max_length=512)
     last_seen_at: datetime | None = None
@@ -96,7 +94,7 @@ class SessionBase(BaseModel):
 
 
 class SessionCreate(SessionBase):
-    pass
+    token_hash: str = Field(min_length=1, max_length=255)
 
 
 class SessionUpdate(BaseModel):
@@ -110,10 +108,17 @@ class SessionUpdate(BaseModel):
     revoked_at: datetime | None = None
 
 
-class SessionRead(SessionBase):
+class SessionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    person_id: UUID
+    status: SessionStatus
+    ip_address: str | None = None
+    user_agent: str | None = None
+    last_seen_at: datetime | None = None
+    expires_at: datetime
+    revoked_at: datetime | None = None
     created_at: datetime
 
 

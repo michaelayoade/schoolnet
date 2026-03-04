@@ -8,10 +8,12 @@
     <form method="GET" action="/schools" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-8">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-2">
-                <input type="text" name="q" value="{{ q }}" placeholder="Search by name..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <label for="search-q" class="sr-only">Search by name</label>
+                <input type="text" name="q" id="search-q" value="{{ q }}" placeholder="Search by name..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
             </div>
             <div>
-                <select name="state" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="search-state" class="sr-only">State</label>
+                <select name="state" id="search-state" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
                     <option value="">All States</option>
                     {% for s in ["Lagos", "Abuja", "Rivers", "Ogun", "Oyo", "Kano", "Kaduna", "Enugu", "Delta", "Anambra", "Edo", "Imo", "Abia", "Kwara", "Osun", "Ekiti", "Ondo"] %}
                     <option value="{{ s }}" {{ 'selected' if state == s else '' }}>{{ s }}</option>
@@ -19,7 +21,8 @@
                 </select>
             </div>
             <div>
-                <select name="school_type" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="search-type" class="sr-only">School type</label>
+                <select name="school_type" id="search-type" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
                     <option value="">All Types</option>
                     <option value="nursery" {{ 'selected' if school_type == 'nursery' else '' }}>Nursery</option>
                     <option value="nursery_primary" {{ 'selected' if school_type == 'nursery_primary' else '' }}>Nursery & Primary</option>
@@ -31,10 +34,12 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
             <div>
-                <input type="text" name="city" value="{{ city }}" placeholder="City..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400">
+                <label for="search-city" class="sr-only">City</label>
+                <input type="text" name="city" id="search-city" value="{{ city }}" placeholder="City..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400">
             </div>
             <div>
-                <select name="category" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="search-category" class="sr-only">Category</label>
+                <select name="category" id="search-category" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
                     <option value="">All Categories</option>
                     <option value="private" {{ 'selected' if category == 'private' else '' }}>Private</option>
                     <option value="public" {{ 'selected' if category == 'public' else '' }}>Public</option>
@@ -43,16 +48,21 @@
                 </select>
             </div>
             <div>
-                <select name="gender" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="search-gender" class="sr-only">Gender</label>
+                <select name="gender" id="search-gender" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
                     <option value="">All Genders</option>
                     <option value="mixed" {{ 'selected' if gender == 'mixed' else '' }}>Mixed</option>
                     <option value="boys_only" {{ 'selected' if gender == 'boys_only' else '' }}>Boys Only</option>
                     <option value="girls_only" {{ 'selected' if gender == 'girls_only' else '' }}>Girls Only</option>
                 </select>
             </div>
-            <div>
-                <button type="submit" class="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition">Search</button>
+            <div class="flex gap-2">
+                <input type="number" name="fee_min" value="{{ fee_min }}" placeholder="Min fee (&#8358;)" min="0" class="w-1/2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400">
+                <input type="number" name="fee_max" value="{{ fee_max }}" placeholder="Max fee (&#8358;)" min="0" class="w-1/2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400">
             </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2 text-sm font-medium text-white hover:bg-primary-700 transition">Search</button>
         </div>
     </form>
 
@@ -65,7 +75,7 @@
         <a href="/schools/{{ school.slug }}" class="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden card-hover">
             <div class="h-28 bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/30 dark:to-accent-900/30 flex items-center justify-center">
                 {% if school.logo_url %}
-                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-14 w-14 rounded-full object-cover">
+                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-14 w-14 rounded-full object-cover" loading="lazy">
                 {% else %}
                 <div class="h-14 w-14 rounded-full bg-primary-600 flex items-center justify-center text-white text-lg font-bold">
                     {{ school.name[0] | upper }}
@@ -82,7 +92,7 @@
                 </p>
                 {% if school.fee_range_min %}
                 <p class="text-xs text-primary-600 dark:text-primary-400 mt-2 font-medium">
-                    From &#8358;{{ "{:,.0f}".format(school.fee_range_min / 100) }}
+                    From {{ school.fee_range_min | format_naira }}
                 </p>
                 {% endif %}
             </div>
@@ -91,21 +101,16 @@
     </div>
 
     <!-- Pagination -->
-    {% if total_pages > 1 %}
-    <div class="flex justify-center mt-8 gap-2">
-        {% if page > 1 %}
-        <a href="/schools?q={{ q }}&state={{ state }}&city={{ city }}&school_type={{ school_type }}&category={{ category }}&gender={{ gender }}&page={{ page - 1 }}" class="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Previous</a>
-        {% endif %}
-        <span class="px-4 py-2 text-sm text-slate-600 dark:text-slate-300">Page {{ page }} of {{ total_pages }}</span>
-        {% if page < total_pages %}
-        <a href="/schools?q={{ q }}&state={{ state }}&city={{ city }}&school_type={{ school_type }}&category={{ category }}&gender={{ gender }}&page={{ page + 1 }}" class="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Next</a>
-        {% endif %}
-    </div>
-    {% endif %}
+    {% from "macros/ui_macros.html" import enhanced_pagination %}
+    {{ enhanced_pagination(page, total_pages, "/schools", {"q": q if q else "", "state": state if state else "", "city": city if city else "", "school_type": school_type if school_type else "", "category": category if category else "", "gender": gender if gender else "", "fee_min": fee_min if fee_min else "", "fee_max": fee_max if fee_max else ""}) }}
     {% else %}
     <div class="text-center py-12">
-        <p class="text-slate-500 dark:text-slate-400">No schools found matching your criteria.</p>
-        <a href="/schools" class="mt-4 inline-block text-primary-600 dark:text-primary-400 font-medium hover:underline">Clear filters</a>
+        <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-1">No schools found</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Try adjusting your search filters or browse all schools.</p>
+        <a href="/schools" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium">Clear Filters</a>
     </div>
     {% endif %}
 </div>

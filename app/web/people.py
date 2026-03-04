@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -98,35 +99,50 @@ def create_person_form(
 
 
 @router.post("/create", response_model=None)
-async def create_person_submit(
+def create_person_submit(
     request: Request,
+    first_name: str = Form(""),
+    last_name: str = Form(""),
+    email: str = Form(""),
+    display_name: str | None = Form(None),
+    phone: str | None = Form(None),
+    status: str = Form("active"),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle person creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+        "display_name": display_name,
+        "phone": phone,
+        "status": status,
+        "is_active": is_active,
+    }
 
     try:
         payload = PersonCreate(
-            first_name=str(data.get("first_name", "")),
-            last_name=str(data.get("last_name", "")),
-            email=str(data.get("email", "")),
-            display_name=str(data["display_name"])
-            if data.get("display_name")
-            else None,
-            phone=str(data["phone"]) if data.get("phone") else None,
-            status=str(data.get("status", "active")),
-            is_active=data.get("is_active") == "on",
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            display_name=display_name if display_name else None,
+            phone=phone if phone else None,
+            status=status,
+            is_active=is_active == "on",
         )
         people.create(db, payload)
+        db.commit()
         logger.info("Created person via web: %s", payload.email)
         return RedirectResponse(
             url="/admin/people?success=Person+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create person: %s", exc)
         ctx = _base_context(
             request, db, auth, title="Create Person", page_title="Create Person"
@@ -173,36 +189,51 @@ def edit_person_form(
 
 
 @router.post("/{person_id}/edit", response_model=None)
-async def edit_person_submit(
+def edit_person_submit(
     request: Request,
     person_id: UUID,
+    first_name: str | None = Form(None),
+    last_name: str | None = Form(None),
+    email: str | None = Form(None),
+    display_name: str | None = Form(None),
+    phone: str | None = Form(None),
+    status: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle person edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+        "display_name": display_name,
+        "phone": phone,
+        "status": status,
+        "is_active": is_active,
+    }
 
     try:
         payload = PersonUpdate(
-            first_name=str(data["first_name"]) if data.get("first_name") else None,
-            last_name=str(data["last_name"]) if data.get("last_name") else None,
-            email=str(data["email"]) if data.get("email") else None,
-            display_name=str(data["display_name"])
-            if data.get("display_name")
-            else None,
-            phone=str(data["phone"]) if data.get("phone") else None,
-            status=str(data["status"]) if data.get("status") else None,
-            is_active="is_active" in data,
+            first_name=first_name if first_name else None,
+            last_name=last_name if last_name else None,
+            email=email if email else None,
+            display_name=display_name if display_name else None,
+            phone=phone if phone else None,
+            status=status if status else None,
+            is_active=is_active == "on",
         )
         people.update(db, str(person_id), payload)
+        db.commit()
         logger.info("Updated person via web: %s", person_id)
         return RedirectResponse(
             url=f"/admin/people/{person_id}?success=Person+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update person %s: %s", person_id, exc)
         person = db.get(Person, person_id)
         ctx = _base_context(
@@ -214,26 +245,28 @@ async def edit_person_submit(
 
 
 @router.post("/{person_id}/delete", response_model=None)
-async def delete_person(
+def delete_person(
     request: Request,
     person_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle person deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         people.delete(db, str(person_id))
+        db.commit()
         logger.info("Deleted person via web: %s", person_id)
         return RedirectResponse(
             url="/admin/people?success=Person+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete person %s: %s", person_id, exc)
         return RedirectResponse(
-            url=f"/admin/people?error={exc}",
+            url=f"/admin/people?error={quote_plus(str(exc))}",
             status_code=302,
         )

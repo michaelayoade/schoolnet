@@ -17,6 +17,19 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+try:
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    S3_EXISTS_EXCEPTIONS: tuple[type[BaseException], ...] = (
+        BotoCoreError,
+        ClientError,
+        OSError,
+        RuntimeError,
+        ValueError,
+    )
+except ImportError:
+    S3_EXISTS_EXCEPTIONS = (OSError, RuntimeError, ValueError)
+
 
 class StorageBackend(ABC):
     """Abstract interface for file storage."""
@@ -148,7 +161,7 @@ class S3Storage(StorageBackend):
         try:
             client.head_object(Bucket=self.bucket, Key=storage_key)
             return True
-        except Exception:
+        except S3_EXISTS_EXCEPTIONS:
             return False
 
 

@@ -1,19 +1,17 @@
 """Parent portal — applications and purchases."""
 
 import logging
-from collections.abc import Mapping
-from typing import Any
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
-from starlette.datastructures import UploadFile
+from starlette.datastructures import FormData
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
 from app.services.admission_form import AdmissionFormService
 from app.services.application import ApplicationService
 from app.services.common import require_uuid
-from app.services.file_upload import FileUploadService
 from app.services.school import SchoolService
 from app.services.ward import WardService
 from app.templates import templates
@@ -23,17 +21,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/parent/applications", tags=["parent-applications"])
 
 
-def _get_form_str(form_data: Mapping[str, Any], key: str) -> str:
-    """Extract a string value from form data.
-
-    Starlette's FormData can contain both text values and UploadFile objects.
-    For text fields, treat non-string values as empty.
-    """
-    value = form_data.get(key)
-    if value is None or isinstance(value, UploadFile):
-        return ""
-    return str(value)
-
+async def _load_form_data(request: Request) -> FormData:
+    return await request.form()
 
 @router.get("")
 def list_applications(
@@ -112,8 +101,9 @@ def purchase_submit(
         )
         db.commit()
     except ValueError as e:
+        db.rollback()
         return RedirectResponse(
-            url=f"/parent/applications/purchase/{form_id}?error={e}",
+            url=f"/parent/applications/purchase/{form_id}?error={quote_plus(str(e))}",
             status_code=303,
         )
 
@@ -176,13 +166,15 @@ def fill_application_page(
 
 
 @router.post("/fill/{app_id}")
-async def fill_application_submit(
+def fill_application_submit(
     request: Request,
     app_id: str,
+    form_data: FormData = Depends(_load_form_data),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
 ) -> Response:
     svc = ApplicationService(db)
+    person_uuid = require_uuid(auth["person_id"])
     application = svc.get_by_id(require_uuid(app_id))
     if not application:
         return RedirectResponse(
@@ -193,90 +185,12 @@ async def fill_application_submit(
             url="/parent/applications?error=Not+your+application", status_code=303
         )
 
-    # Parse multipart form data for dynamic fields + file uploads
-    form_data = await request.form()
-
-    # Check if an existing ward was selected
-    ward_id_str = form_data.get("ward_id", "")
-    if ward_id_str:
-        from app.services.common import coerce_uuid
-
-        ward_svc = WardService(db)
-        ward_uuid = coerce_uuid(str(ward_id_str))
-        ward = ward_svc.get_by_id(ward_uuid) if ward_uuid else None
-        if (
-            ward
-            and ward.parent_id == require_uuid(auth["person_id"])
-            and ward.is_active
-        ):
-            ward_first_name = ward.first_name
-            ward_last_name = ward.last_name
-            ward_date_of_birth = (
-                ward.date_of_birth.isoformat() if ward.date_of_birth else ""
-            )
-            ward_gender = ward.gender or ""
-        else:
-            ward_first_name = _get_form_str(form_data, "ward_first_name")
-            ward_last_name = _get_form_str(form_data, "ward_last_name")
-            ward_date_of_birth = _get_form_str(form_data, "ward_date_of_birth")
-            ward_gender = _get_form_str(form_data, "ward_gender")
-    else:
-        ward_first_name = _get_form_str(form_data, "ward_first_name")
-        ward_last_name = _get_form_str(form_data, "ward_last_name")
-        ward_date_of_birth = _get_form_str(form_data, "ward_date_of_birth")
-        ward_gender = _get_form_str(form_data, "ward_gender")
-
-    from datetime import date
-
     try:
-        dob = date.fromisoformat(str(ward_date_of_birth))
-    except (ValueError, TypeError):
-        return RedirectResponse(
-            url=f"/parent/applications/fill/{app_id}?error=Invalid+date+of+birth",
-            status_code=303,
+        ward_first_name, ward_last_name, dob, ward_gender = svc.resolve_ward_profile(
+            form_data, person_uuid
         )
-
-    # Collect dynamic form field responses (field_* keys)
-    form_responses: dict[str, str] = {}
-    for key in form_data:
-        if key.startswith("field_"):
-            field_name = key[6:]  # strip "field_" prefix
-            form_responses[field_name] = str(form_data[key])
-
-    # Process document uploads (doc_* keys)
-    document_urls: dict[str, str] = dict(application.document_urls or {})
-    upload_svc = FileUploadService(db)
-    person_uuid = require_uuid(auth["person_id"])
-    for key in form_data:
-        if key.startswith("doc_"):
-            doc_name = key[4:]  # strip "doc_" prefix
-            value = form_data[key]
-            if isinstance(value, UploadFile) and value.filename:
-                upload_file = value
-                filename = upload_file.filename
-                if not filename:
-                    continue
-                try:
-                    content = await upload_file.read()
-                    if content:
-                        record = upload_svc.upload(
-                            content=content,
-                            filename=filename,
-                            content_type=upload_file.content_type
-                            or "application/octet-stream",
-                            uploaded_by=person_uuid,
-                            category="application_document",
-                            entity_type="application",
-                            entity_id=str(application.id),
-                        )
-                        document_urls[doc_name] = record.url or ""
-                except ValueError as e:
-                    return RedirectResponse(
-                        url=f"/parent/applications/fill/{app_id}?error={e}",
-                        status_code=303,
-                    )
-
-    try:
+        form_responses = svc.collect_form_responses(form_data)
+        document_urls = svc.collect_document_upload_urls(form_data, application, person_uuid)
         svc.submit(
             application,
             ward_first_name=str(ward_first_name),
@@ -288,8 +202,9 @@ async def fill_application_submit(
         )
         db.commit()
     except ValueError as e:
+        db.rollback()
         return RedirectResponse(
-            url=f"/parent/applications/fill/{app_id}?error={e}",
+            url=f"/parent/applications/fill/{app_id}?error={quote_plus(str(e))}",
             status_code=303,
         )
 
@@ -311,6 +226,10 @@ def application_detail(
     if not application:
         return RedirectResponse(
             url="/parent/applications?error=Application+not+found", status_code=303
+        )
+    if str(application.parent_id) != auth["person_id"]:
+        return RedirectResponse(
+            url="/parent/applications?error=Not+your+application", status_code=303
         )
 
     form = application.admission_form
@@ -349,8 +268,9 @@ def withdraw_application(
         svc.withdraw(application)
         db.commit()
     except ValueError as e:
+        db.rollback()
         return RedirectResponse(
-            url=f"/parent/applications/{app_id}?error={e}",
+            url=f"/parent/applications/{app_id}?error={quote_plus(str(e))}",
             status_code=303,
         )
     return RedirectResponse(

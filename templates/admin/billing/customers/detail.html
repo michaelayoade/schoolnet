@@ -80,9 +80,9 @@
                         {{ tables.status_badge(subscription.status | replace('_', ' ') if subscription.status else '') }}
                     </td>
                     <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
-                        {{ subscription.current_period_start.strftime('%Y-%m-%d') if subscription.current_period_start else '-' }}
+                        {{ subscription.current_period_start | format_date if subscription.current_period_start else '-' }}
                         to
-                        {{ subscription.current_period_end.strftime('%Y-%m-%d') if subscription.current_period_end else '-' }}
+                        {{ subscription.current_period_end | format_date if subscription.current_period_end else '-' }}
                     </td>
                     <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{{ 'Yes' if subscription.cancel_at_period_end else 'No' }}</td>
                     <td class="px-4 py-3">

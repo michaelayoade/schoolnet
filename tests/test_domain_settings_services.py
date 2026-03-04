@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from fastapi import HTTPException
 
 from app.models.domain_settings import SettingDomain, SettingValueType
 from app.schemas.settings import DomainSettingCreate, DomainSettingUpdate
@@ -21,13 +20,13 @@ def test_domain_setting_domain_mismatch(db_session):
             value_json=True,
         ),
     )
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValueError) as exc:
         settings.update(
             db_session,
             str(created.id),
             DomainSettingUpdate(domain=SettingDomain.audit),
         )
-    assert exc.value.status_code == 400
+    assert str(exc.value) == "Setting domain mismatch"
 
 
 def test_settings_api_auth_upsert_and_validation(db_session):
@@ -45,6 +44,6 @@ def test_settings_api_auth_upsert_and_validation(db_session):
 
 
 def test_settings_api_invalid_key(db_session):
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValueError) as exc:
         settings_api_service.get_auth_setting(db_session, "bad_key")
-    assert exc.value.status_code == 400
+    assert "Invalid setting key" in str(exc.value)

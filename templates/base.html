@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="htmx-config" content='{"defaultSwapStyle":"innerHTML","globalViewTransitions":true}' />
     {% set csrf_value = csrf_token if csrf_token is defined else (request.state.csrf_token if request is defined and request.state is defined else "") %}
+    {% set csp_nonce = request.state.csp_nonce if request is defined and request.state is defined and request.state.csp_nonce is defined else "" %}
     <meta name="csrf-token" content="{{ csrf_value | default('', true) }}" />
     <title>{% block title %}{{ title | default("Starter Template") }}{% endblock %}</title>
 
@@ -18,8 +19,8 @@
     {% include "partials/_org_branding_head.html" %}
 
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
+    <script nonce="{{ csp_nonce }}" src="https://cdn.tailwindcss.com"></script>
+    <script nonce="{{ csp_nonce }}">
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -64,12 +65,13 @@
     </script>
 
     <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@2.0.0"></script>
-    <script src="https://unpkg.com/htmx-ext-loading-states@2.0.0/loading-states.js"></script>
+    <script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@2.0.0"></script>
+    <script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx-ext-loading-states@2.0.0/loading-states.js"></script>
 
     <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script>
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}">
         document.addEventListener("DOMContentLoaded", () => {
             if (window.Alpine) {
                 return;
@@ -106,6 +108,9 @@
             });
         });
     </script>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2306b6d4'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='18' font-weight='700' fill='white' text-anchor='middle'%3ESN%3C/text%3E%3C/svg%3E">
 
     <!-- Custom Styles -->
     <style>
@@ -225,6 +230,46 @@
             }
         }
 
+        /* Skeleton loading animation */
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s ease-in-out infinite;
+            border-radius: 0.5rem;
+        }
+        .dark .skeleton {
+            background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Form validation styling */
+        input:user-invalid,
+        select:user-invalid,
+        textarea:user-invalid {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 1px #ef4444;
+        }
+        .dark input:user-invalid,
+        .dark select:user-invalid,
+        .dark textarea:user-invalid {
+            border-color: #f87171;
+            box-shadow: 0 0 0 1px #f87171;
+        }
+        input:user-valid:not(:placeholder-shown),
+        select:user-valid,
+        textarea:user-valid:not(:placeholder-shown) {
+            border-color: #22c55e;
+        }
+        .dark input:user-valid:not(:placeholder-shown),
+        .dark select:user-valid,
+        .dark textarea:user-valid:not(:placeholder-shown) {
+            border-color: #4ade80;
+        }
+
         /* Scrollbar styling */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -240,6 +285,7 @@
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 antialiased"
       hx-ext="loading-states">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg">Skip to content</a>
     {% include "partials/_brand_context.html" %}
 
     {% block body %}
@@ -273,14 +319,14 @@
                 </div>
             </div>
         </header>
-        <main>
+        <main id="main-content">
             {% block content %}{% endblock %}
         </main>
     </div>
     {% endblock %}
 
     <!-- CSRF Auto-Injection: injects token into all POST forms, HTMX requests, and fetch() calls -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
         (function() {
             const meta = document.querySelector('meta[name="csrf-token"]');
             const token = meta ? meta.getAttribute('content') : '';
@@ -361,8 +407,66 @@
         </template>
     </div>
 
+    <!-- Global HTMX Loading Indicator -->
+    <div class="htmx-indicator fixed top-0 left-0 right-0 z-[70] h-1">
+        <div class="h-full bg-gradient-to-r from-primary-400 via-primary-500 to-accent-400 animate-pulse rounded-full"></div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div x-data="confirmDialog()"
+         x-on:confirm-action.window="show($event.detail)"
+         x-show="open" x-cloak
+         class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div x-show="open" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+             x-on:click="cancel()" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div x-show="open" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+             class="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 x-text="title" class="text-lg font-semibold text-slate-900 dark:text-white font-display"></h3>
+                    <p x-text="message" class="mt-1 text-sm text-slate-500 dark:text-slate-400"></p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button x-on:click="cancel()" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition">Cancel</button>
+                <button x-on:click="confirm()" class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition" x-text="confirmLabel"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Global Scripts -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
+        // Confirmation dialog store
+        function confirmDialog() {
+            return {
+                open: false,
+                title: '',
+                message: '',
+                confirmLabel: 'Confirm',
+                targetForm: null,
+                show(detail) {
+                    this.title = detail.title || 'Are you sure?';
+                    this.message = detail.message || 'This action cannot be undone.';
+                    this.confirmLabel = detail.confirmLabel || 'Confirm';
+                    this.targetForm = detail.form || null;
+                    this.open = true;
+                },
+                confirm() {
+                    if (this.targetForm) this.targetForm.submit();
+                    this.open = false;
+                },
+                cancel() {
+                    this.targetForm = null;
+                    this.open = false;
+                }
+            };
+        }
+
         // Toast notification store
         function toastStore() {
             return {
@@ -551,13 +655,13 @@
                 var btn = form.querySelector('button[type="submit"], input[type="submit"]');
                 if (btn && !btn.disabled) {
                     btn.disabled = true;
-                    btn.dataset.originalText = btn.textContent;
-                    btn.textContent = 'Processing\u2026';
+                    btn.dataset.originalHtml = btn.innerHTML;
+                    btn.innerHTML = '<svg class="animate-spin -ml-0.5 mr-1.5 h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing\u2026';
                     // Re-enable after 8s in case of error (no redirect)
                     setTimeout(function() {
                         btn.disabled = false;
-                        if (btn.dataset.originalText) {
-                            btn.textContent = btn.dataset.originalText;
+                        if (btn.dataset.originalHtml) {
+                            btn.innerHTML = btn.dataset.originalHtml;
                         }
                     }, 8000);
                 }
@@ -566,7 +670,7 @@
     </script>
 
     {% block scripts %}{% endblock %}
-    <script defer src="/static/js/typeahead.js"></script>
-    <script defer src="/static/js/avatar.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="/static/js/typeahead.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="/static/js/avatar.js"></script>
 </body>
 </html>

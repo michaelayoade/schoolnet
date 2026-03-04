@@ -198,6 +198,29 @@ Services:
 | `OTEL_SERVICE_NAME` | Service name for tracing | `starter_template` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | - |
 
+### Secret Rotation (Local `.env`)
+
+For local/self-hosted installs that keep secrets in `.env`, run:
+
+```bash
+python3 scripts/rotate_local_secrets.py --env-file .env --write
+```
+
+What it rotates:
+- `POSTGRES_PASSWORD`
+- `REDIS_PASSWORD`
+- `SECRET_KEY`
+- `JWT_SECRET` (unless it is an OpenBao reference)
+- `TOTP_ENCRYPTION_KEY` (unless it is an OpenBao reference)
+
+It also updates dependent URLs:
+- `DATABASE_URL`
+- `REDIS_URL`
+- `CELERY_BROKER_URL`
+- `CELERY_RESULT_BACKEND`
+
+After rotation, apply matching credential changes in PostgreSQL/Redis and restart services.
+
 ### OpenBao Integration
 
 Secrets can be resolved from OpenBao by using the `openbao://` prefix:

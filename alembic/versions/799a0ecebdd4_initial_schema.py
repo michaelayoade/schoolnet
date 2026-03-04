@@ -16,8 +16,30 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Core people + auth tables
-    op.create_table(
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    original_create_table = op.create_table
+    original_create_index = op.create_index
+
+    def _create_table_if_missing(name: str, *args, **kwargs):
+        if inspector.has_table(name):
+            return None
+        return original_create_table(name, *args, **kwargs)
+
+    def _create_index_if_missing(name: str, table_name: str, columns, **kwargs):
+        if inspector.has_table(table_name):
+            existing = {idx.get("name") for idx in inspector.get_indexes(table_name)}
+            if name in existing:
+                return None
+        return original_create_index(name, table_name, columns, **kwargs)
+
+    op.create_table = _create_table_if_missing  # type: ignore[assignment]
+    op.create_index = _create_index_if_missing  # type: ignore[assignment]
+
+    try:
+        # Core people + auth tables
+        op.create_table(
         "people",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("first_name", sa.String(length=80), nullable=False),
@@ -54,7 +76,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("email"),
     )
 
-    op.create_table(
+        op.create_table(
         "user_credentials",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("person_id", sa.UUID(), nullable=False),
@@ -73,7 +95,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table(
+        op.create_table(
         "mfa_methods",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("person_id", sa.UUID(), nullable=False),
@@ -92,7 +114,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["person_id"], ["people.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
+        op.create_index(
         "ix_mfa_methods_primary_per_person",
         "mfa_methods",
         ["person_id"],
@@ -101,7 +123,7 @@ def upgrade() -> None:
         sqlite_where=sa.text("is_primary"),
     )
 
-    op.create_table(
+        op.create_table(
         "sessions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("person_id", sa.UUID(), nullable=False),
@@ -118,10 +140,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["person_id"], ["people.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_sessions_token_hash", "sessions", ["token_hash"])
-    op.create_index("ix_sessions_previous_token_hash", "sessions", ["previous_token_hash"])
+        op.create_index("ix_sessions_token_hash", "sessions", ["token_hash"])
+        op.create_index(
+            "ix_sessions_previous_token_hash", "sessions", ["previous_token_hash"]
+        )
 
-    op.create_table(
+        op.create_table(
         "api_keys",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("person_id", sa.UUID(), nullable=True),
@@ -136,8 +160,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # RBAC tables
-    op.create_table(
+        # RBAC tables
+        op.create_table(
         "roles",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("name", sa.String(length=80), nullable=False),
@@ -148,7 +172,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name", name="uq_roles_name"),
     )
-    op.create_table(
+        op.create_table(
         "permissions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("key", sa.String(length=120), nullable=False),
@@ -159,7 +183,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("key", name="uq_permissions_key"),
     )
-    op.create_table(
+        op.create_table(
         "role_permissions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("role_id", sa.UUID(), nullable=False),
@@ -171,7 +195,7 @@ def upgrade() -> None:
             "role_id", "permission_id", name="uq_role_permissions_role_permission"
         ),
     )
-    op.create_table(
+        op.create_table(
         "person_roles",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("person_id", sa.UUID(), nullable=False),
@@ -183,8 +207,8 @@ def upgrade() -> None:
         sa.UniqueConstraint("person_id", "role_id", name="uq_person_roles_person_role"),
     )
 
-    # Audit events
-    op.create_table(
+        # Audit events
+        op.create_table(
         "audit_events",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
@@ -203,8 +227,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # Settings
-    op.create_table(
+        # Settings
+        op.create_table(
         "domain_settings",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("domain", sa.Enum("auth", "audit", "scheduler", name="settingdomain"), nullable=False),
@@ -220,8 +244,8 @@ def upgrade() -> None:
         sa.UniqueConstraint("domain", "key", name="uq_domain_settings_domain_key"),
     )
 
-    # Scheduler
-    op.create_table(
+        # Scheduler
+        op.create_table(
         "scheduled_tasks",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("name", sa.String(length=160), nullable=False),
@@ -235,7 +259,10 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-    )
+        )
+    finally:
+        op.create_table = original_create_table  # type: ignore[assignment]
+        op.create_index = original_create_index  # type: ignore[assignment]
 
 
 def downgrade() -> None:

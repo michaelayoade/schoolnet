@@ -11,7 +11,7 @@
         {% include "admin/components/topbar.html" %}
 
         <!-- Page content -->
-        <main class="flex-1 p-6">
+        <main id="main-content" class="flex-1 p-6">
             {{ flash_messages(success_message, error_message) }}
             {% block admin_content %}{% endblock %}
         </main>
@@ -25,15 +25,51 @@
      x-cloak
      class="lg:hidden fixed inset-0 z-50">
     <div x-on:click="sidebarOpen = false" class="absolute inset-0 bg-black/50"></div>
-    <div class="relative w-64 h-full">
-        {% include "admin/components/sidebar.html" %}
+    <div class="relative w-64 h-full bg-white dark:bg-slate-800 overflow-y-auto">
+        <div class="px-4 py-5 border-b border-slate-200 dark:border-slate-700">
+            <span class="text-lg font-semibold text-slate-900 dark:text-white font-display">Admin</span>
+        </div>
+        <nav class="px-3 py-4 space-y-1">
+            {% set current_path = request.url.path %}
+            {% macro mobile_nav(label, href) %}
+            <a href="{{ href }}"
+               class="block px-3 py-2 rounded-lg text-sm font-medium transition
+                      {{ 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400' if (href == '/admin' and current_path == '/admin') or (href != '/admin' and current_path.startswith(href)) else 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50' }}">
+                {{ label }}
+            </a>
+            {% endmacro %}
+            {{ mobile_nav("Dashboard", "/admin") }}
+            {{ mobile_nav("People", "/admin/people") }}
+            {{ mobile_nav("Roles", "/admin/roles") }}
+            {{ mobile_nav("Permissions", "/admin/permissions") }}
+            <div class="pt-2 pb-1 px-3"><p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">System</p></div>
+            {{ mobile_nav("Settings", "/admin/settings") }}
+            {{ mobile_nav("Scheduler", "/admin/scheduler") }}
+            {{ mobile_nav("Audit Log", "/admin/audit") }}
+            <div class="pt-2 pb-1 px-3"><p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Billing</p></div>
+            {{ mobile_nav("Products", "/admin/billing/products") }}
+            {{ mobile_nav("Prices", "/admin/billing/prices") }}
+            {{ mobile_nav("Customers", "/admin/billing/customers") }}
+            {{ mobile_nav("Subscriptions", "/admin/billing/subscriptions") }}
+            {{ mobile_nav("Invoices", "/admin/billing/invoices") }}
+            {{ mobile_nav("Payment Methods", "/admin/billing/payment-methods") }}
+            {{ mobile_nav("Coupons", "/admin/billing/coupons") }}
+            {{ mobile_nav("Entitlements", "/admin/billing/entitlements") }}
+            {{ mobile_nav("Webhook Events", "/admin/billing/webhook-events") }}
+            <div class="pt-2 pb-1 px-3"><p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">SchoolNet</p></div>
+            {{ mobile_nav("Schools", "/admin/schools") }}
+            <div class="pt-2 pb-1 px-3"><p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Content</p></div>
+            {{ mobile_nav("Notifications", "/admin/notifications") }}
+            {{ mobile_nav("File Uploads", "/admin/file-uploads") }}
+        </nav>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script>
+{% set csp_nonce = request.state.csp_nonce if request is defined and request.state is defined and request.state.csp_nonce is defined else "" %}
+<script nonce="{{ csp_nonce }}">
 function notificationBell() {
     return {
         open: false,

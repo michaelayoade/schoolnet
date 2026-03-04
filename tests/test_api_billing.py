@@ -2,6 +2,13 @@
 
 import uuid
 
+import pytest
+
+
+@pytest.fixture()
+def auth_headers(admin_headers):
+    return admin_headers
+
 
 def test_api_create_product(client, auth_headers):
     resp = client.post(

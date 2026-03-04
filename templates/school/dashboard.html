@@ -12,19 +12,19 @@
 
 {% if stats %}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
         <p class="text-sm text-slate-500 dark:text-slate-400">Active Forms</p>
         <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1 counter-animate">{{ stats.active_forms }}</p>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
         <p class="text-sm text-slate-500 dark:text-slate-400">Total Applications</p>
         <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1 counter-animate">{{ stats.total_applications }}</p>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
         <p class="text-sm text-slate-500 dark:text-slate-400">Pending Review</p>
         <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-1 counter-animate">{{ stats.pending_applications }}</p>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
         <p class="text-sm text-slate-500 dark:text-slate-400">Accepted</p>
         <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1 counter-animate">{{ stats.accepted_applications }}</p>
     </div>
@@ -63,7 +63,12 @@
 </div>
 {% else %}
 <div class="text-center py-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-    <p class="text-slate-500 dark:text-slate-400">No school registered yet.</p>
+    <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+    <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-1">No school registered</h3>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Complete your school profile to get started.</p>
+    <a href="/school/profile" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium">Set Up Profile</a>
 </div>
 {% endif %}
 {% endblock %}

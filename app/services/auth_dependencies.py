@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
+from typing import cast
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing import cast
 
 from app.db import SessionLocal
 from app.models.auth import ApiKey, SessionStatus

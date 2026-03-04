@@ -57,7 +57,7 @@
     <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div class="p-4">
             {% if event.payload %}
-            <pre class="text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 rounded-lg p-4 overflow-x-auto"><code>{{ event.payload | tojson(indent=2) | safe }}</code></pre>
+            <pre class="text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 rounded-lg p-4 overflow-x-auto"><code>{{ event.payload | tojson(indent=2) | string | e }}</code></pre>
             {% else %}
             <p class="text-sm text-slate-500 dark:text-slate-400">No payload data available</p>
             {% endif %}

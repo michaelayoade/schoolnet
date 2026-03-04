@@ -3,29 +3,17 @@
 from __future__ import annotations
 
 import logging
-from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.services.auth_flow import decode_access_token
+from app.services.auth_flow import AuthFlowServiceError, decode_access_token
 from app.services.websocket_manager import ws_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _token_from_subprotocol(websocket: WebSocket) -> str:
-    """Return the first WebSocket subprotocol value as bearer token."""
-    offered = websocket.scope.get("subprotocols")
-    if not isinstance(offered, list):
-        return ""
-    for value in offered:
-        if isinstance(value, str) and value:
-            return value
-    return ""
 
 
 def _authenticate_ws(token: str) -> str | None:
@@ -36,7 +24,7 @@ def _authenticate_ws(token: str) -> str | None:
     try:
         payload = decode_access_token(db, token)
         return payload.get("sub")
-    except Exception:
+    except AuthFlowServiceError:
         return None
     finally:
         db.close()
@@ -46,16 +34,22 @@ def _authenticate_ws(token: str) -> str | None:
 async def ws_notifications(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time notification push.
 
-    Authenticate via Sec-WebSocket-Protocol subprotocol value.
+    Authenticate via query param: /ws/notifications?token=<JWT>
     """
-    token = _token_from_subprotocol(websocket)
+    token = websocket.query_params.get("token", "")
     person_id_str = _authenticate_ws(token)
     if not person_id_str:
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
-    person_id = UUID(person_id_str)
-    await ws_manager.connect(person_id, websocket, subprotocol=token)
+    from uuid import UUID
+
+    try:
+        person_id = UUID(person_id_str)
+    except ValueError:
+        await websocket.close(code=4002, reason="Invalid user ID")
+        return
+    await ws_manager.connect(person_id, websocket)
     try:
         while True:
             # Keep connection alive; client can send pings
@@ -64,5 +58,5 @@ async def ws_notifications(websocket: WebSocket) -> None:
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         ws_manager.disconnect(person_id, websocket)
-    except Exception:
+    except (RuntimeError, ValueError):
         ws_manager.disconnect(person_id, websocket)

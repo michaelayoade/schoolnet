@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -101,15 +102,17 @@ def upload_form(
 
 
 @router.post("/upload", response_model=None)
-async def upload_submit(
+def upload_submit(
     request: Request,
+    file: UploadFile = File(...),
+    category: str = Form("document"),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle file upload form submission."""
-    form = await request.form()
-    uploaded_file: UploadFile | None = form.get("file")  # type: ignore[assignment]
-    category = str(form.get("category", "document"))
+    _ = csrf_token
+    uploaded_file = file
     person = auth["person"]
 
     if not uploaded_file or not uploaded_file.filename:
@@ -120,7 +123,7 @@ async def upload_submit(
         return templates.TemplateResponse("admin/file_uploads/upload.html", ctx)
 
     try:
-        content = await uploaded_file.read()
+        content = uploaded_file.file.read()
         svc = FileUploadService(db)
         svc.upload(
             content=content,
@@ -139,12 +142,13 @@ async def upload_submit(
         )
     except ValueError as exc:
         logger.warning("File upload validation failed: %s", exc)
+        db.rollback()
         ctx = _base_context(
             request, db, auth, title="Upload File", page_title="Upload File"
         )
         ctx["error"] = str(exc)
         return templates.TemplateResponse("admin/file_uploads/upload.html", ctx)
-    except Exception as exc:
+    except (RuntimeError, OSError, TypeError) as exc:
         logger.exception("File upload failed: %s", exc)
         db.rollback()
         ctx = _base_context(
@@ -155,15 +159,15 @@ async def upload_submit(
 
 
 @router.post("/{file_id}/delete", response_model=None)
-async def delete_file_upload(
+def delete_file_upload(
     request: Request,
     file_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle file upload deletion (soft delete)."""
-    form = await request.form()
-    _ = form.get("csrf_token")
+    _ = csrf_token
 
     try:
         svc = FileUploadService(db)
@@ -177,13 +181,13 @@ async def delete_file_upload(
     except ValueError as exc:
         logger.warning("Failed to delete file upload %s: %s", file_id, exc)
         return RedirectResponse(
-            url=f"/admin/file-uploads?error={exc}",
+            url=f"/admin/file-uploads?error={quote_plus(str(exc))}",
             status_code=302,
         )
-    except Exception as exc:
+    except (RuntimeError, OSError, TypeError) as exc:
         logger.exception("Failed to delete file upload %s: %s", file_id, exc)
         db.rollback()
         return RedirectResponse(
-            url=f"/admin/file-uploads?error={exc}",
+            url=f"/admin/file-uploads?error={quote_plus(str(exc))}",
             status_code=302,
         )

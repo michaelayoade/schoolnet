@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -94,15 +95,15 @@ def list_notifications(
 
 
 @router.post("/{notification_id}/read", response_model=None)
-async def mark_notification_read(
+def mark_notification_read(
     request: Request,
     notification_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Mark a notification as read."""
-    form = await request.form()
-    _ = form.get("csrf_token")
+    _ = csrf_token
 
     person = auth["person"]
     svc = NotificationService(db)
@@ -125,11 +126,12 @@ async def mark_notification_read(
                 url="/admin/notifications?error=Notification+not+found",
                 status_code=302,
             )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning(
             "Failed to mark notification %s as read: %s", notification_id, exc
         )
         return RedirectResponse(
-            url=f"/admin/notifications?error={exc}",
+            url=f"/admin/notifications?error={quote_plus(str(exc))}",
             status_code=302,
         )

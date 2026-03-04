@@ -7,8 +7,10 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.config import settings
+from app.models.billing import Invoice, InvoiceStatus
 from app.models.school import (
     AdmissionForm,
     AdmissionFormStatus,
@@ -19,6 +21,8 @@ from app.models.school import (
     SchoolStatus,
 )
 from app.schemas.school import SchoolCreate, SchoolDashboardStats, SchoolUpdate
+from app.services.common import escape_like
+from app.services.file_upload import FileUploadService
 from app.services.payment_gateway import paystack_gateway
 
 logger = logging.getLogger(__name__)
@@ -126,6 +130,51 @@ class SchoolService:
         )
         return self.db.scalar(stmt)
 
+    def upload_verification_document(
+        self,
+        school: School,
+        document: UploadFile,
+        uploaded_by: UUID,
+    ) -> dict[str, str | None]:
+        """Upload a verification document and append it to school metadata."""
+        filename = document.filename or "document"
+        content = document.file.read()
+        record = FileUploadService(self.db).upload(
+            content=content,
+            filename=filename,
+            content_type=document.content_type or "application/octet-stream",
+            uploaded_by=uploaded_by,
+            category="verification",
+            entity_type="school",
+            entity_id=str(school.id),
+        )
+        meta = dict(school.metadata_ or {})
+        docs = list(meta.get("verification_documents", []))
+        docs.append(
+            {
+                "file_id": str(record.id),
+                "filename": document.filename,
+                "url": record.url,
+            }
+        )
+        meta["verification_documents"] = docs
+        school.metadata_ = meta
+        self.db.flush()
+        return {
+            "file_id": str(record.id),
+            "filename": document.filename,
+            "url": record.url,
+        }
+
+    def list_admission_forms(self, school_id: UUID) -> list[AdmissionForm]:
+        """List all active admission forms for a school."""
+        stmt = (
+            select(AdmissionForm)
+            .where(AdmissionForm.school_id == school_id, AdmissionForm.is_active.is_(True))
+            .order_by(AdmissionForm.title)
+        )
+        return list(self.db.scalars(stmt).all())
+
     def search(
         self,
         *,
@@ -145,11 +194,11 @@ class SchoolService:
             School.is_active.is_(True),
         )
         if query:
-            stmt = stmt.where(School.name.ilike(f"%{query}%"))
+            stmt = stmt.where(School.name.ilike(f"%{escape_like(query)}%"))
         if state:
-            stmt = stmt.where(School.state.ilike(f"%{state}%"))
+            stmt = stmt.where(School.state.ilike(f"%{escape_like(state)}%"))
         if city:
-            stmt = stmt.where(School.city.ilike(f"%{city}%"))
+            stmt = stmt.where(School.city.ilike(f"%{escape_like(city)}%"))
         if school_type:
             stmt = stmt.where(School.school_type == school_type)
         if category:
@@ -164,9 +213,32 @@ class SchoolService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.scalar(count_stmt) or 0
 
-        stmt = stmt.order_by(School.name).limit(limit).offset(offset)
+        stmt = stmt.order_by(School.is_featured.desc(), School.name).limit(limit).offset(offset)
         schools = list(self.db.scalars(stmt).all())
         return schools, total
+
+    def get_featured(self, limit: int = 6) -> list[School]:
+        """Get featured schools, falling back to recently verified active schools."""
+        stmt = select(School).where(
+            School.status == SchoolStatus.active,
+            School.is_active.is_(True),
+            School.is_featured.is_(True),
+        ).order_by(School.name).limit(limit)
+        featured = list(self.db.scalars(stmt).all())
+        if len(featured) < limit:
+            # Fill with non-featured active schools
+            existing_ids = [s.id for s in featured]
+            fill_stmt = select(School).where(
+                School.status == SchoolStatus.active,
+                School.is_active.is_(True),
+            )
+            if existing_ids:
+                fill_stmt = fill_stmt.where(School.id.notin_(existing_ids))
+            fill_stmt = fill_stmt.order_by(
+                School.verified_at.desc().nulls_last()
+            ).limit(limit - len(featured))
+            featured.extend(list(self.db.scalars(fill_stmt).all()))
+        return featured
 
     def update(self, school: School, payload: SchoolUpdate) -> School:
         update_data = payload.model_dump(exclude_unset=True)
@@ -178,8 +250,7 @@ class SchoolService:
                 bank_changed = True
 
         for key, value in update_data.items():
-            if value is not None:
-                setattr(school, key, value)
+            setattr(school, key, value)
 
         if bank_changed and school.bank_code and school.account_number:
             if paystack_gateway.is_configured():
@@ -224,7 +295,7 @@ class SchoolService:
                 school.owner_id,
                 school.name,
             )
-        except Exception as e:
+        except (ImportError, RuntimeError, ValueError) as e:
             logger.warning("Failed to send approval notification: %s", e)
 
         return school
@@ -241,7 +312,7 @@ class SchoolService:
                 school.owner_id,
                 school.name,
             )
-        except Exception as e:
+        except (ImportError, RuntimeError, ValueError) as e:
             logger.warning("Failed to send suspension notification: %s", e)
 
         return school
@@ -346,6 +417,24 @@ class SchoolService:
             or 0
         )
 
+        # Revenue — sum of paid invoices linked to this school's applications
+        invoice_ids_stmt = (
+            select(Application.invoice_id)
+            .where(
+                Application.admission_form_id.in_(form_ids_stmt),
+                Application.invoice_id.isnot(None),
+            )
+        )
+        total_revenue: int = (
+            self.db.scalar(
+                select(func.coalesce(func.sum(Invoice.amount_paid), 0)).where(
+                    Invoice.id.in_(invoice_ids_stmt),
+                    Invoice.status == InvoiceStatus.paid,
+                )
+            )
+            or 0
+        )
+
         avg_rating = self.get_average_rating(school_id)
 
         return SchoolDashboardStats(
@@ -355,5 +444,49 @@ class SchoolService:
             pending_applications=pending_apps,
             accepted_applications=accepted_apps,
             rejected_applications=rejected_apps,
+            total_revenue=total_revenue,
             average_rating=avg_rating,
         )
+
+    def list_payments(
+        self,
+        school_id: UUID,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """List paid invoices for a school's applications."""
+        import math
+
+        form_ids_stmt = select(AdmissionForm.id).where(
+            AdmissionForm.school_id == school_id
+        )
+        invoice_ids_stmt = select(Application.invoice_id).where(
+            Application.admission_form_id.in_(form_ids_stmt),
+            Application.invoice_id.isnot(None),
+        )
+        stmt = select(Invoice).where(
+            Invoice.id.in_(invoice_ids_stmt),
+            Invoice.status == InvoiceStatus.paid,
+        )
+
+        total: int = (
+            self.db.scalar(
+                select(func.count()).select_from(stmt.order_by(None).subquery())
+            )
+            or 0
+        )
+
+        page = max(1, page)
+        page_size = min(max(1, page_size), 100)
+        offset = (page - 1) * page_size
+        stmt = stmt.order_by(Invoice.paid_at.desc()).limit(page_size).offset(offset)
+        items = list(self.db.scalars(stmt).all())
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "pages": math.ceil(total / page_size) if page_size else 0,
+        }

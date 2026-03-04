@@ -6,6 +6,7 @@ Revises: 004_notifications
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "005_schoolnet"
@@ -39,9 +40,9 @@ def upgrade() -> None:
             sa.Column("owner_id", UUID(as_uuid=True), sa.ForeignKey("people.id"), nullable=False, index=True),
             sa.Column("name", sa.String(255), nullable=False),
             sa.Column("slug", sa.String(255), nullable=False),
-            sa.Column("school_type", sa.Enum("primary", "secondary", "primary_secondary", "nursery", "nursery_primary", name="schooltype", create_type=False), nullable=False),
-            sa.Column("category", sa.Enum("public", "private", "federal", "missionary", name="schoolcategory", create_type=False), nullable=False),
-            sa.Column("gender", sa.Enum("mixed", "boys_only", "girls_only", name="schoolgender", create_type=False), default="mixed"),
+            sa.Column("school_type", postgresql.ENUM("primary", "secondary", "primary_secondary", "nursery", "nursery_primary", name="schooltype", create_type=False), nullable=False),
+            sa.Column("category", postgresql.ENUM("public", "private", "federal", "missionary", name="schoolcategory", create_type=False), nullable=False),
+            sa.Column("gender", postgresql.ENUM("mixed", "boys_only", "girls_only", name="schoolgender", create_type=False), default="mixed"),
             sa.Column("description", sa.Text),
             sa.Column("address", sa.String(255)),
             sa.Column("city", sa.String(120)),
@@ -55,7 +56,7 @@ def upgrade() -> None:
             sa.Column("fee_range_max", sa.Integer),
             sa.Column("logo_url", sa.String(512)),
             sa.Column("cover_image_url", sa.String(512)),
-            sa.Column("status", sa.Enum("pending", "active", "suspended", "verification_expired", name="schoolstatus", create_type=False), default="pending"),
+            sa.Column("status", postgresql.ENUM("pending", "active", "suspended", "verification_expired", name="schoolstatus", create_type=False), default="pending"),
             sa.Column("verified_at", sa.DateTime(timezone=True)),
             sa.Column("verified_by", UUID(as_uuid=True), sa.ForeignKey("people.id")),
             sa.Column("year_established", sa.Integer),
@@ -85,7 +86,7 @@ def upgrade() -> None:
             sa.Column("title", sa.String(255), nullable=False),
             sa.Column("description", sa.Text),
             sa.Column("academic_year", sa.String(20), nullable=False),
-            sa.Column("status", sa.Enum("draft", "active", "closed", "archived", name="admissionformstatus", create_type=False), default="draft"),
+            sa.Column("status", postgresql.ENUM("draft", "active", "closed", "archived", name="admissionformstatus", create_type=False), default="draft"),
             sa.Column("max_submissions", sa.Integer),
             sa.Column("current_submissions", sa.Integer, default=0),
             sa.Column("opens_at", sa.DateTime(timezone=True)),
@@ -114,7 +115,7 @@ def upgrade() -> None:
             sa.Column("ward_passport_url", sa.String(512)),
             sa.Column("form_responses", sa.JSON),
             sa.Column("document_urls", sa.JSON),
-            sa.Column("status", sa.Enum("draft", "submitted", "under_review", "accepted", "rejected", "withdrawn", name="applicationstatus", create_type=False), default="draft"),
+            sa.Column("status", postgresql.ENUM("draft", "submitted", "under_review", "accepted", "rejected", "withdrawn", name="applicationstatus", create_type=False), default="draft"),
             sa.Column("submitted_at", sa.DateTime(timezone=True)),
             sa.Column("reviewed_at", sa.DateTime(timezone=True)),
             sa.Column("reviewed_by", UUID(as_uuid=True), sa.ForeignKey("people.id")),
@@ -155,4 +156,4 @@ def downgrade() -> None:
         "schooltype",
         "schoolstatus",
     ]:
-        sa.Enum(name=enum_name).drop(op.get_bind())
+        sa.Enum(name=enum_name).drop(op.get_bind(), checkfirst=True)

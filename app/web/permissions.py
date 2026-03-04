@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -99,29 +100,38 @@ def create_permission_form(
 
 
 @router.post("/create", response_model=None)
-async def create_permission_submit(
+def create_permission_submit(
     request: Request,
+    key: str = Form(""),
+    description: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle permission creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "key": key,
+        "description": description,
+        "is_active": is_active,
+    }
 
     try:
         payload = PermissionCreate(
-            key=str(data.get("key", "")),
-            description=str(data["description"]) if data.get("description") else None,
-            is_active=data.get("is_active") == "on",
+            key=key,
+            description=description if description else None,
+            is_active=is_active == "on",
         )
         permissions.create(db, payload)
+        db.commit()
         logger.info("Created permission via web: %s", payload.key)
         return RedirectResponse(
             url="/admin/permissions?success=Permission+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create permission: %s", exc)
         ctx = _base_context(
             request,
@@ -152,30 +162,39 @@ def edit_permission_form(
 
 
 @router.post("/{permission_id}/edit", response_model=None)
-async def edit_permission_submit(
+def edit_permission_submit(
     request: Request,
     permission_id: UUID,
+    key: str | None = Form(None),
+    description: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle permission edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "key": key,
+        "description": description,
+        "is_active": is_active,
+    }
 
     try:
         payload = PermissionUpdate(
-            key=str(data["key"]) if data.get("key") else None,
-            description=str(data["description"]) if data.get("description") else None,
-            is_active="is_active" in data,
+            key=key if key else None,
+            description=description if description else None,
+            is_active=is_active == "on",
         )
         permissions.update(db, str(permission_id), payload)
+        db.commit()
         logger.info("Updated permission via web: %s", permission_id)
         return RedirectResponse(
             url="/admin/permissions?success=Permission+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update permission %s: %s", permission_id, exc)
         permission = db.get(Permission, permission_id)
         ctx = _base_context(
@@ -187,26 +206,28 @@ async def edit_permission_submit(
 
 
 @router.post("/{permission_id}/delete", response_model=None)
-async def delete_permission(
+def delete_permission(
     request: Request,
     permission_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle permission deletion (soft delete via is_active=False)."""
-    form = await request.form()
-    _ = form.get("csrf_token")
+    _ = csrf_token
 
     try:
         permissions.delete(db, str(permission_id))
+        db.commit()
         logger.info("Deleted permission via web: %s", permission_id)
         return RedirectResponse(
             url="/admin/permissions?success=Permission+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete permission %s: %s", permission_id, exc)
         return RedirectResponse(
-            url=f"/admin/permissions?error={exc}",
+            url=f"/admin/permissions?error={quote_plus(str(exc))}",
             status_code=302,
         )

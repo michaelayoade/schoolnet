@@ -2,13 +2,15 @@
 
 import logging
 from datetime import date
+from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
 from app.services.common import require_uuid
+from app.services.file_upload import FileUploadService
 from app.services.ward import WardService
 from app.templates import templates
 from app.web.schoolnet_deps import require_parent_auth
@@ -52,6 +54,7 @@ def create_ward_submit(
     last_name: str = Form(...),
     date_of_birth: str = Form(""),
     gender: str = Form(""),
+    passport: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
 ) -> Response:
@@ -68,6 +71,27 @@ def create_ward_submit(
                 status_code=303,
             )
 
+    passport_url: str | None = None
+    if passport and passport.filename:
+        try:
+            upload_svc = FileUploadService(db)
+            content = passport.file.read()
+            upload = upload_svc.upload(
+                content=content,
+                filename=passport.filename,
+                content_type=passport.content_type or "image/jpeg",
+                uploaded_by=parent_id,
+                category="passport",
+                entity_type="ward",
+            )
+            passport_url = upload.url
+        except (ValueError, RuntimeError) as e:
+            logger.warning("Passport upload failed: %s", e)
+            return RedirectResponse(
+                url=f"/parent/wards/create?error={quote_plus('Passport upload failed')}",
+                status_code=303,
+            )
+
     svc = WardService(db)
     svc.create(
         parent_id=parent_id,
@@ -75,6 +99,7 @@ def create_ward_submit(
         last_name=last_name.strip(),
         date_of_birth=dob,
         gender=gender if gender else None,
+        passport_url=passport_url,
     )
     db.commit()
 
@@ -115,6 +140,7 @@ def edit_ward_submit(
     last_name: str = Form(...),
     date_of_birth: str = Form(""),
     gender: str = Form(""),
+    passport: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
 ) -> Response:
@@ -138,12 +164,35 @@ def edit_ward_submit(
                 status_code=303,
             )
 
+    passport_url: str | None = None
+    if passport and passport.filename:
+        try:
+            upload_svc = FileUploadService(db)
+            content = passport.file.read()
+            upload = upload_svc.upload(
+                content=content,
+                filename=passport.filename,
+                content_type=passport.content_type or "image/jpeg",
+                uploaded_by=parent_id,
+                category="passport",
+                entity_type="ward",
+                entity_id=str(ward.id),
+            )
+            passport_url = upload.url
+        except (ValueError, RuntimeError) as e:
+            logger.warning("Passport upload failed: %s", e)
+            return RedirectResponse(
+                url=f"/parent/wards/edit/{ward_id}?error={quote_plus('Passport upload failed')}",
+                status_code=303,
+            )
+
     svc.update(
         ward,
         first_name=first_name.strip(),
         last_name=last_name.strip(),
         date_of_birth=dob,
         gender=gender if gender else None,
+        passport_url=passport_url,
     )
     db.commit()
 

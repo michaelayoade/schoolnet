@@ -4,12 +4,12 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
 
-class Gender(enum.Enum):
+class Gender(str, enum.Enum):
     unknown = "unknown"
     female = "female"
     male = "male"
@@ -17,14 +17,14 @@ class Gender(enum.Enum):
     other = "other"
 
 
-class ContactMethod(enum.Enum):
+class ContactMethod(str, enum.Enum):
     email = "email"
     phone = "phone"
     sms = "sms"
     push = "push"
 
 
-class PersonStatus(enum.Enum):
+class PersonStatus(str, enum.Enum):
     active = "active"
     inactive = "inactive"
     archived = "archived"
@@ -80,3 +80,5 @@ class Person(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+    person_roles = relationship("PersonRole", back_populates="person")

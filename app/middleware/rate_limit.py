@@ -16,18 +16,52 @@ from starlette.responses import JSONResponse, Response
 
 logger = logging.getLogger(__name__)
 
+try:
+    from redis.exceptions import RedisError as _RedisError
+except ImportError:
+    class _RedisError(Exception):  # type: ignore[no-redef]
+        pass
+
+RedisError = _RedisError
+
 # Paths and their rate limit configs: (max_requests, window_seconds)
 _RATE_LIMIT_PATHS: dict[str, tuple[int, int]] = {
     "/auth/login": (10, 60),  # 10 attempts per minute
-    "/auth/password-reset": (5, 300),  # 5 attempts per 5 minutes
+    "/auth/forgot-password": (5, 300),  # 5 requests per 5 minutes
+    "/auth/reset-password": (5, 300),  # 5 reset attempts per 5 minutes
     "/auth/mfa/verify": (10, 60),  # 10 attempts per minute
-    "/auth/register": (5, 300),  # 5 registrations per 5 minutes
+    "/login": (10, 60),  # Public web login
+    "/admin/login": (10, 60),  # Admin web login
+    "/forgot-password": (5, 300),  # Public password reset request
+    "/reset-password": (5, 300),  # Public password reset submit
+    "/mfa-verify": (10, 60),  # Public MFA verify
+    "/admin/mfa-verify": (10, 60),  # Admin MFA verify
+    "/register/parent": (5, 300),  # Parent registration
+    "/register/school": (5, 300),  # School registration
 }
 
 
+def _truthy_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _trust_proxy_headers() -> bool:
+    return _truthy_env("TRUST_PROXY_HEADERS", False)
+
+
+def _fail_closed() -> bool:
+    return _truthy_env("RATE_LIMIT_FAIL_CLOSED", True)
+
+
 def _get_client_ip(request: Request) -> str:
-    """Extract client IP, respecting X-Forwarded-For behind a proxy."""
-    forwarded = request.headers.get("x-forwarded-for")
+    """Extract client IP, optionally respecting X-Forwarded-For."""
+    if _trust_proxy_headers():
+        forwarded = request.headers.get("x-forwarded-for")
+    else:
+        forwarded = None
     if forwarded:
         return forwarded.split(",")[0].strip()
     client = request.client
@@ -45,7 +79,7 @@ def _get_redis() -> Any | None:
             Any,
             redis_lib.Redis.from_url(url, decode_responses=True, socket_timeout=1),
         )
-    except Exception:
+    except (ImportError, RedisError, OSError, ValueError, TypeError):
         logger.debug("Rate limiter: Redis unavailable, skipping")
         return None
 
@@ -67,6 +101,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        if getattr(request.app.state, "disable_rate_limit", False):
+            return await call_next(request)
+
         # Only rate-limit POST requests to auth paths
         if request.method != "POST":
             return await call_next(request)
@@ -84,8 +121,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         max_requests, window_seconds = config
         r = self._ensure_redis()
         if r is None:
-            # If Redis is unavailable, allow the request (fail-open)
-            return await call_next(request)
+            if not _fail_closed():
+                return await call_next(request)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "code": "rate_limit_unavailable",
+                    "message": "Rate limiting is temporarily unavailable.",
+                    "details": None,
+                },
+            )
 
         client_ip = _get_client_ip(request)
         key = f"rate_limit:{clean_path}:{client_ip}"
@@ -103,9 +148,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             pipe.expire(key, window_seconds)
             results = pipe.execute()
             current_count = int(results[1])
-        except Exception:
-            logger.debug("Rate limiter: Redis error, allowing request")
-            return await call_next(request)
+        except (RedisError, OSError, ValueError, TypeError):
+            logger.debug("Rate limiter: Redis error")
+            if not _fail_closed():
+                return await call_next(request)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "code": "rate_limit_unavailable",
+                    "message": "Rate limiting is temporarily unavailable.",
+                    "details": None,
+                },
+            )
 
         if current_count >= max_requests:
             retry_after = str(window_seconds)

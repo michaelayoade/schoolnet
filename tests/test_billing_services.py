@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-from fastapi import HTTPException
 
 from app.schemas.billing import (
     CouponCreate,
@@ -55,9 +54,9 @@ def test_get_product(db_session):
 
 
 def test_get_product_not_found(db_session):
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(billing_service.ProductNotFoundError) as exc_info:
         billing_service.products.get(db_session, str(uuid.uuid4()))
-    assert exc_info.value.status_code == 404
+    assert str(exc_info.value) == "Product not found"
 
 
 def test_list_products(db_session):
@@ -601,7 +600,7 @@ def test_delete_discount(db_session, billing_coupon, billing_customer):
         ),
     )
     billing_service.discounts.delete(db_session, str(disc.id))
-    with pytest.raises(HTTPException):
+    with pytest.raises(billing_service.DiscountNotFoundError):
         billing_service.discounts.get(db_session, str(disc.id))
 
 
@@ -669,7 +668,7 @@ def test_delete_entitlement(db_session, billing_product):
         ),
     )
     billing_service.entitlements.delete(db_session, str(ent.id))
-    with pytest.raises(HTTPException):
+    with pytest.raises(billing_service.EntitlementNotFoundError):
         billing_service.entitlements.get(db_session, str(ent.id))
 
 

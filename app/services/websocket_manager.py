@@ -53,7 +53,7 @@ class ConnectionManager:
             try:
                 if ws.client_state == WebSocketState.CONNECTED:
                     await ws.send_text(json.dumps(data))
-            except Exception:
+            except (RuntimeError, ValueError, TypeError):
                 dead.append(ws)
         for ws in dead:
             connections.discard(ws)

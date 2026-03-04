@@ -18,7 +18,7 @@
 {% if wards %}
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {% for ward in wards %}
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 card-hover">
         <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-3">
                 <div class="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
@@ -38,7 +38,7 @@
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>DOB: {{ ward.date_of_birth.strftime('%d %b %Y') }}</span>
+            <span>DOB: {{ ward.date_of_birth | format_date }}</span>
         </div>
         {% endif %}
 
@@ -51,7 +51,8 @@
                 Edit
             </a>
             <form method="POST" action="/parent/wards/delete/{{ ward.id }}" class="ml-auto"
-                  onsubmit="return confirm('Are you sure you want to remove this ward?');">
+                  x-data
+                  x-on:submit.prevent="$dispatch('confirm-action', { title: 'Remove Ward', message: 'Are you sure you want to remove this ward? This action cannot be undone.', confirmLabel: 'Remove', form: $el })">
                 {{ request.state.csrf_form | safe }}
                 <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400 hover:underline">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

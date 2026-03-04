@@ -1,17 +1,18 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pyotp
 import pytest
 from cryptography.fernet import Fernet
-from fastapi import HTTPException
 from jose import jwt
 from starlette.requests import Request
 
-from app.models.auth import AuthProvider, SessionStatus, UserCredential
-from app.models.auth import Session as AuthSession
+from app.models.auth import Session as AuthSession, SessionStatus, UserCredential
+from app.models.auth import AuthProvider
 from app.services.auth_flow import (
+    AuthFlowServiceError,
     AuthFlow,
+    _decrypt_secret,
     decode_access_token,
     hash_password,
     request_password_reset,
@@ -55,14 +56,12 @@ def test_login_and_refresh_reuse_detection(db_session, person, monkeypatch):
     rotated = AuthFlow.refresh(db_session, old_refresh, request)
     assert rotated["refresh_token"] != old_refresh
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(AuthFlowServiceError) as exc:
         AuthFlow.refresh(db_session, old_refresh, request)
     assert exc.value.status_code == 401
     assert "reuse" in str(exc.value.detail).lower()
 
-    session = (
-        db_session.query(AuthSession).filter(AuthSession.person_id == person.id).first()
-    )
+    session = db_session.query(AuthSession).filter(AuthSession.person_id == person.id).first()
     assert session.status == SessionStatus.revoked
     assert session.revoked_at is not None
 
@@ -90,6 +89,15 @@ def test_mfa_setup_confirm(db_session, person, monkeypatch):
     assert method.is_primary is True
     assert method.is_active is True
     assert method.verified_at is not None
+    # EncryptedSecretString decrypts transparently on read
+    assert method.secret == setup["secret"]
+
+
+def test_decrypt_secret_accepts_legacy_plaintext_base32(db_session, monkeypatch):
+    key = Fernet.generate_key().decode("utf-8")
+    monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)
+    # Legacy plaintext is returned as-is (no uppercasing)
+    assert _decrypt_secret(db_session, "jbswy3dpehpk3pxp") == "jbswy3dpehpk3pxp"
 
 
 def test_decode_access_token_uses_openbao_secret(monkeypatch):
@@ -110,7 +118,7 @@ def test_decode_access_token_uses_openbao_secret(monkeypatch):
 
     monkeypatch.setattr(httpx, "get", mock_get)
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": "user-id",
         "session_id": "session-id",
@@ -125,19 +133,24 @@ def test_decode_access_token_uses_openbao_secret(monkeypatch):
     assert decoded["typ"] == "access"
 
 
-def test_reset_password_rejects_short_password(db_session, person):
+def test_password_reset_token_single_use(db_session, person):
     credential = UserCredential(
         person_id=person.id,
         provider=AuthProvider.local,
         username=_unique_username(),
-        password_hash=hash_password("oldpassword123"),
+        password_hash=hash_password("old-password"),
         is_active=True,
     )
     db_session.add(credential)
     db_session.commit()
 
-    reset = request_password_reset(db_session, person.email)
-    assert reset is not None
+    req = request_password_reset(db_session, person.email)
+    assert req is not None
+    token = req["token"]
 
-    with pytest.raises(ValueError, match="Password must be at least 8 characters"):
-        reset_password(db_session, reset["token"], "short")
+    reset_password(db_session, token, "New-password-1")
+    db_session.commit()
+
+    with pytest.raises(AuthFlowServiceError) as exc:
+        reset_password(db_session, token, "New-password-2")
+    assert exc.value.status_code == 401

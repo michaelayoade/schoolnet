@@ -4,6 +4,7 @@ import colorsys
 import re
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -60,12 +61,20 @@ def _default_branding() -> dict[str, Any]:
 
 def get_branding(db: Session) -> dict[str, Any]:
     defaults = _default_branding()
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == SettingDomain.scheduler)
-        .filter(DomainSetting.key == _SETTING_KEY)
-        .first()
+    setting = db.scalar(
+        select(DomainSetting)
+        .where(DomainSetting.domain == SettingDomain.branding)
+        .where(DomainSetting.key == _SETTING_KEY)
+        .limit(1)
     )
+    if not setting:
+        # Backward compatibility for legacy records created under scheduler.
+        setting = db.scalar(
+            select(DomainSetting)
+            .where(DomainSetting.domain == SettingDomain.scheduler)
+            .where(DomainSetting.key == _SETTING_KEY)
+            .limit(1)
+        )
     if not setting or not isinstance(setting.value_json, dict):
         return defaults
     data = setting.value_json
@@ -81,15 +90,23 @@ def save_branding(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
     current["primary_color"] = _normalize_hex(current.get("primary_color"), "#06B6D4")
     current["accent_color"] = _normalize_hex(current.get("accent_color"), "#F97316")
 
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == SettingDomain.scheduler)
-        .filter(DomainSetting.key == _SETTING_KEY)
-        .first()
+    setting = db.scalar(
+        select(DomainSetting)
+        .where(DomainSetting.domain == SettingDomain.branding)
+        .where(DomainSetting.key == _SETTING_KEY)
+        .limit(1)
     )
     if not setting:
+        # Pick up legacy scheduler-scoped setting and re-home it.
+        setting = db.scalar(
+            select(DomainSetting)
+            .where(DomainSetting.domain == SettingDomain.scheduler)
+            .where(DomainSetting.key == _SETTING_KEY)
+            .limit(1)
+        )
+    if not setting:
         setting = DomainSetting(
-            domain=SettingDomain.scheduler,
+            domain=SettingDomain.branding,
             key=_SETTING_KEY,
             value_type=SettingValueType.json,
             is_secret=False,
@@ -98,12 +115,13 @@ def save_branding(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
         )
         db.add(setting)
     else:
+        setting.domain = SettingDomain.branding
         setting.value_type = SettingValueType.json
         setting.value_text = None
         setting.value_json = current
         setting.is_active = True
 
-    db.commit()
+    db.flush()
     return current
 
 

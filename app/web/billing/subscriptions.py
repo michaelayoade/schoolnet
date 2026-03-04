@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -178,31 +179,42 @@ def edit_subscription_form(
 
 
 @router.post("/{item_id}/edit", response_model=None)
-async def edit_subscription_submit(
+def edit_subscription_submit(
     request: Request,
     item_id: UUID,
+    status: str | None = Form(None),
+    cancel_at_period_end: str | None = Form(None),
+    external_id: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle subscription edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "status": status,
+        "cancel_at_period_end": cancel_at_period_end,
+        "external_id": external_id,
+        "is_active": is_active,
+    }
 
     try:
         payload = SubscriptionUpdate(
-            status=str(data["status"]) if data.get("status") else None,  # type: ignore[arg-type]
-            cancel_at_period_end="cancel_at_period_end" in data,
-            external_id=str(data["external_id"]) if data.get("external_id") else None,
-            is_active="is_active" in data,
+            status=status if status else None,  # type: ignore[arg-type]
+            cancel_at_period_end=cancel_at_period_end == "on",
+            external_id=external_id if external_id else None,
+            is_active=is_active == "on",
         )
         billing_service.subscriptions.update(db, str(item_id), payload)
+        db.commit()
         logger.info("Updated subscription via web: %s", item_id)
         return RedirectResponse(
             url=f"/admin/billing/subscriptions/{item_id}?success=Subscription+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update subscription %s: %s", item_id, exc)
         item = billing_service.subscriptions.get(db, str(item_id))
         customer = billing_service.customers.get(db, str(item.customer_id))
@@ -221,26 +233,28 @@ async def edit_subscription_submit(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_subscription(
+def delete_subscription(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle subscription deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.subscriptions.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted subscription via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/subscriptions?success=Subscription+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete subscription %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/subscriptions?error={exc}",
+            url=f"/admin/billing/subscriptions?error={quote_plus(str(exc))}",
             status_code=302,
         )

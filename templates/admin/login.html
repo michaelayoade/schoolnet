@@ -1,45 +1,126 @@
 {% extends "base.html" %}
-{% block title %}Login — {{ brand.name if brand else 'Admin' }}{% endblock %}
+{% block title %}Login — {{ brand.name if brand else 'SchoolNet Admin' }}{% endblock %}
 {% block body %}
-<div class="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 bg-mesh">
-    <div class="w-full max-w-md px-6">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-200 dark:border-slate-700">
-            <div class="text-center mb-8">
+<div class="min-h-screen flex bg-slate-50 dark:bg-slate-900">
+    <!-- Left Panel — Branding -->
+    <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900">
+        <div class="absolute inset-0 opacity-10">
+            <svg class="w-full h-full" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="400" cy="400" r="300" stroke="white" stroke-width="1" opacity="0.3"/>
+                <circle cx="400" cy="400" r="200" stroke="white" stroke-width="1" opacity="0.2"/>
+                <circle cx="400" cy="400" r="100" stroke="white" stroke-width="1" opacity="0.1"/>
+                <path d="M100 600 Q400 100 700 600" stroke="white" stroke-width="1.5" fill="none" opacity="0.15"/>
+                <path d="M100 500 Q400 0 700 500" stroke="white" stroke-width="1.5" fill="none" opacity="0.1"/>
+            </svg>
+        </div>
+        <div class="relative z-10 flex flex-col justify-center px-12 xl:px-16">
+            <div class="flex items-center gap-3 mb-10">
+                {% if brand and brand.logo_url %}
+                    <img src="{{ brand.logo_url }}" alt="Logo" class="h-10 w-10 rounded-xl" />
+                {% else %}
+                    <div class="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                        {{ brand.mark if brand and brand.mark else 'SN' }}
+                    </div>
+                {% endif %}
+                <span class="text-xl font-semibold text-white font-display">{{ brand.name if brand else 'SchoolNet' }}</span>
+            </div>
+            <h2 class="text-3xl xl:text-4xl font-bold text-white font-display leading-tight">
+                Manage your<br>platform with ease
+            </h2>
+            <p class="mt-4 text-primary-200 text-base max-w-md leading-relaxed">
+                Access your admin dashboard to manage schools, applications, users, and platform settings.
+            </p>
+            <div class="mt-12 space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
+                        <svg class="w-4 h-4 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <span class="text-sm text-primary-100">Secure admin access with MFA support</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
+                        <svg class="w-4 h-4 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <span class="text-sm text-primary-100">Real-time dashboard analytics</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
+                        <svg class="w-4 h-4 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <span class="text-sm text-primary-100">Full user & school management</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel — Login Form -->
+    <div class="flex-1 flex items-center justify-center px-6 py-12">
+        <div class="w-full max-w-md">
+            <!-- Mobile logo -->
+            <div class="lg:hidden text-center mb-8">
                 {% if brand and brand.logo_url %}
                     <img src="{{ brand.logo_url }}" alt="Logo" class="h-12 w-12 mx-auto mb-4 rounded-xl" />
                 {% else %}
-                    <div class="h-12 w-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg">
-                        {{ brand.mark if brand and brand.mark else 'A' }}
+                    <div class="h-12 w-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-500/25">
+                        {{ brand.mark if brand and brand.mark else 'SN' }}
                     </div>
                 {% endif %}
-                <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">Admin Login</h1>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Sign in to your account</p>
+            </div>
+
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">Welcome back</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Sign in to the admin dashboard</p>
             </div>
 
             {% if error %}
-            <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
-                {{ error }}
+            <div class="mb-6 flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+                <svg class="w-5 h-5 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p class="text-sm text-red-700 dark:text-red-400">{{ error }}</p>
             </div>
             {% endif %}
 
-            <form method="POST" action="/admin/login" class="space-y-4">
-                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state.csrf_token is defined else '' }}" />
+            <form method="POST" action="/admin/login" class="space-y-5" x-data="{ showPassword: false }">
+                {{ request.state.csrf_form | safe }}
                 <input type="hidden" name="next" value="{{ next_url if next_url else '/admin' }}" />
+
                 <div>
-                    <label for="username" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
-                    <input type="text" id="username" name="username" required autofocus
-                           class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                    <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <svg class="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        </div>
+                        <input type="email" id="email" name="email" required autofocus
+                               placeholder="admin@example.com"
+                               class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow text-sm" />
+                    </div>
                 </div>
+
                 <div>
-                    <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
-                    <input type="password" id="password" name="password" required
-                           class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                    <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <svg class="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        </div>
+                        <input :type="showPassword ? 'text' : 'password'" id="password" name="password" required
+                               placeholder="Enter your password"
+                               class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow text-sm" />
+                        <button type="button" x-on:click="showPassword = !showPassword"
+                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition">
+                            <svg x-show="!showPassword" class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <svg x-show="showPassword" x-cloak class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                        </button>
+                    </div>
                 </div>
+
                 <button type="submit"
-                        class="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium shadow-lg shadow-primary-500/25 btn-hover">
+                        class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium text-sm shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:from-primary-500 hover:to-primary-400 transition-all duration-200 active:scale-[0.98]">
                     Sign In
                 </button>
             </form>
+
+            <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-8">
+                Protected by SchoolNet Admin Security
+            </p>
         </div>
     </div>
 </div>

@@ -1,15 +1,17 @@
 """Tests for auth_flow cookie settings - domain/samesite/secure and concurrent refresh."""
 
+import os
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
 import pytest
 from starlette.requests import Request
 
-from app.models.auth import Session as AuthSession
-from app.models.auth import SessionStatus, UserCredential
+from app.models.auth import Session as AuthSession, SessionStatus, UserCredential
 from app.models.domain_settings import DomainSetting, SettingDomain
 from app.services.auth_flow import (
+    AuthFlowServiceError,
     AuthFlow,
     _refresh_cookie_domain,
     _refresh_cookie_name,
@@ -191,9 +193,7 @@ class TestConcurrentRefreshRotation:
         db_session.commit()
 
         request = self._make_request()
-        tokens = AuthFlow.login(
-            db_session, credential.username, "password", request, None
-        )
+        tokens = AuthFlow.login(db_session, credential.username, "password", request, None)
         original_refresh = tokens["refresh_token"]
 
         # Perform refresh
@@ -203,11 +203,9 @@ class TestConcurrentRefreshRotation:
         assert "access_token" in rotated
 
         # Check session has previous_token_hash
-        session = (
-            db_session.query(AuthSession)
-            .filter(AuthSession.person_id == person.id)
-            .first()
-        )
+        session = db_session.query(AuthSession).filter(
+            AuthSession.person_id == person.id
+        ).first()
         assert session.previous_token_hash is not None
         assert session.token_rotated_at is not None
 
@@ -223,28 +221,22 @@ class TestConcurrentRefreshRotation:
         db_session.commit()
 
         request = self._make_request()
-        tokens = AuthFlow.login(
-            db_session, credential.username, "password", request, None
-        )
+        tokens = AuthFlow.login(db_session, credential.username, "password", request, None)
         old_refresh = tokens["refresh_token"]
 
         # First refresh - should succeed
         AuthFlow.refresh(db_session, old_refresh, request)
 
         # Second refresh with old token - should fail and revoke
-        from fastapi import HTTPException
-
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(AuthFlowServiceError) as exc:
             AuthFlow.refresh(db_session, old_refresh, request)
         assert exc.value.status_code == 401
         assert "reuse" in exc.value.detail.lower()
 
         # Session should be revoked
-        session = (
-            db_session.query(AuthSession)
-            .filter(AuthSession.person_id == person.id)
-            .first()
-        )
+        session = db_session.query(AuthSession).filter(
+            AuthSession.person_id == person.id
+        ).first()
         assert session.status == SessionStatus.revoked
         assert session.revoked_at is not None
 
@@ -260,9 +252,7 @@ class TestConcurrentRefreshRotation:
         db_session.commit()
 
         request = self._make_request()
-        tokens = AuthFlow.login(
-            db_session, credential.username, "password", request, None
-        )
+        tokens = AuthFlow.login(db_session, credential.username, "password", request, None)
         shared_refresh = tokens["refresh_token"]
 
         # Simulate concurrent refresh by using same token twice
@@ -271,9 +261,7 @@ class TestConcurrentRefreshRotation:
         assert "access_token" in result1
 
         # Second request with same token fails (reuse detection)
-        from fastapi import HTTPException
-
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(AuthFlowServiceError) as exc:
             AuthFlow.refresh(db_session, shared_refresh, request)
         assert exc.value.status_code == 401
 
@@ -289,20 +277,15 @@ class TestConcurrentRefreshRotation:
         db_session.commit()
 
         request1 = self._make_request(user_agent="client1")
-        tokens = AuthFlow.login(
-            db_session, credential.username, "password", request1, None
-        )
+        tokens = AuthFlow.login(db_session, credential.username, "password", request1, None)
 
-        session = (
-            db_session.query(AuthSession)
-            .filter(AuthSession.person_id == person.id)
-            .first()
-        )
+        session = db_session.query(AuthSession).filter(
+            AuthSession.person_id == person.id
+        ).first()
         original_last_seen = session.last_seen_at
 
         # Wait a tiny bit to ensure time difference
         import time
-
         time.sleep(0.01)
 
         request2 = self._make_request(user_agent="client2")
@@ -324,22 +307,16 @@ class TestConcurrentRefreshRotation:
         db_session.commit()
 
         request = self._make_request()
-        tokens = AuthFlow.login(
-            db_session, credential.username, "password", request, None
-        )
+        tokens = AuthFlow.login(db_session, credential.username, "password", request, None)
 
         # Manually expire the session
-        session = (
-            db_session.query(AuthSession)
-            .filter(AuthSession.person_id == person.id)
-            .first()
-        )
-        session.expires_at = datetime.now(UTC) - timedelta(hours=1)
+        session = db_session.query(AuthSession).filter(
+            AuthSession.person_id == person.id
+        ).first()
+        session.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
         db_session.commit()
 
-        from fastapi import HTTPException
-
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(AuthFlowServiceError) as exc:
             AuthFlow.refresh(db_session, tokens["refresh_token"], request)
         assert exc.value.status_code == 401
         assert "expired" in exc.value.detail.lower()

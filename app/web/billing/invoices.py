@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -166,41 +167,60 @@ def edit_invoice_form(
 
 
 @router.post("/{item_id}/edit", response_model=None)
-async def edit_invoice_submit(
+def edit_invoice_submit(
     request: Request,
     item_id: UUID,
+    number: str | None = Form(None),
+    status: str | None = Form(None),
+    currency: str | None = Form(None),
+    subtotal: str | None = Form(None),
+    tax: str | None = Form(None),
+    total: str | None = Form(None),
+    amount_due: str | None = Form(None),
+    amount_paid: str | None = Form(None),
+    external_id: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle invoice edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "number": number,
+        "status": status,
+        "currency": currency,
+        "subtotal": subtotal,
+        "tax": tax,
+        "total": total,
+        "amount_due": amount_due,
+        "amount_paid": amount_paid,
+        "external_id": external_id,
+        "is_active": is_active,
+    }
 
     try:
         payload = InvoiceUpdate(
-            number=str(data["number"]) if data.get("number") else None,
-            status=str(data["status"]) if data.get("status") else None,  # type: ignore[arg-type]
-            currency=str(data["currency"]) if data.get("currency") else None,
-            subtotal=as_int(data.get("subtotal")) if data.get("subtotal") else None,
-            tax=as_int(data.get("tax")) if data.get("tax") else None,
-            total=as_int(data.get("total")) if data.get("total") else None,
-            amount_due=as_int(data.get("amount_due"))
-            if data.get("amount_due")
-            else None,
-            amount_paid=as_int(data.get("amount_paid"))
-            if data.get("amount_paid")
-            else None,
-            external_id=str(data["external_id"]) if data.get("external_id") else None,
-            is_active="is_active" in data,
+            number=number if number else None,
+            status=status if status else None,  # type: ignore[arg-type]
+            currency=currency if currency else None,
+            subtotal=as_int(subtotal) if subtotal else None,
+            tax=as_int(tax) if tax else None,
+            total=as_int(total) if total else None,
+            amount_due=as_int(amount_due) if amount_due else None,
+            amount_paid=as_int(amount_paid) if amount_paid else None,
+            external_id=external_id if external_id else None,
+            is_active=is_active == "on",
         )
         billing_service.invoices.update(db, str(item_id), payload)
+        db.commit()
         logger.info("Updated invoice via web: %s", item_id)
         return RedirectResponse(
             url=f"/admin/billing/invoices/{item_id}?success=Invoice+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update invoice %s: %s", item_id, exc)
         item = billing_service.invoices.get(db, str(item_id))
         customer = billing_service.customers.get(db, str(item.customer_id))
@@ -215,26 +235,28 @@ async def edit_invoice_submit(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_invoice(
+def delete_invoice(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle invoice deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.invoices.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted invoice via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/invoices?success=Invoice+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete invoice %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/invoices?error={exc}",
+            url=f"/admin/billing/invoices?error={quote_plus(str(exc))}",
             status_code=302,
         )

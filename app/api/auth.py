@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_role
 from app.schemas.auth import (
     ApiKeyCreate,
     ApiKeyGenerateRequest,
@@ -21,7 +21,15 @@ from app.schemas.auth import (
 from app.schemas.common import ListResponse
 from app.services import auth as auth_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin"))])
+
+
+def _raise_400(exc: ValueError) -> None:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _raise_not_found(exc: ValueError) -> None:
+    raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
@@ -33,7 +41,16 @@ router = APIRouter()
 def create_user_credential(
     payload: UserCredentialCreate, db: Session = Depends(get_db)
 ):
-    return auth_service.user_credentials.create(db, payload)
+    try:
+        credential = auth_service.user_credentials.create(db, payload)
+        db.commit()
+        return credential
+    except auth_service.PersonNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.get(
@@ -42,7 +59,10 @@ def create_user_credential(
     tags=["user-credentials"],
 )
 def get_user_credential(credential_id: str, db: Session = Depends(get_db)):
-    return auth_service.user_credentials.get(db, credential_id)
+    try:
+        return auth_service.user_credentials.get(db, credential_id)
+    except auth_service.UserCredentialNotFoundError as exc:
+        _raise_not_found(exc)
 
 
 @router.get(
@@ -60,9 +80,12 @@ def list_user_credentials(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.user_credentials.list_response(
-        db, person_id, provider, is_active, order_by, order_dir, limit, offset
-    )
+    try:
+        return auth_service.user_credentials.list_response(
+            db, person_id, provider, is_active, order_by, order_dir, limit, offset
+        )
+    except ValueError as exc:
+        _raise_400(exc)
 
 
 @router.patch(
@@ -73,7 +96,19 @@ def list_user_credentials(
 def update_user_credential(
     credential_id: str, payload: UserCredentialUpdate, db: Session = Depends(get_db)
 ):
-    return auth_service.user_credentials.update(db, credential_id, payload)
+    try:
+        credential = auth_service.user_credentials.update(db, credential_id, payload)
+        db.commit()
+        return credential
+    except (
+        auth_service.UserCredentialNotFoundError,
+        auth_service.PersonNotFoundError,
+    ) as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.delete(
@@ -82,7 +117,12 @@ def update_user_credential(
     tags=["user-credentials"],
 )
 def delete_user_credential(credential_id: str, db: Session = Depends(get_db)):
-    auth_service.user_credentials.delete(db, credential_id)
+    try:
+        auth_service.user_credentials.delete(db, credential_id)
+        db.commit()
+    except auth_service.UserCredentialNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
 
 
 @router.post(
@@ -92,7 +132,22 @@ def delete_user_credential(credential_id: str, db: Session = Depends(get_db)):
     tags=["mfa-methods"],
 )
 def create_mfa_method(payload: MFAMethodCreate, db: Session = Depends(get_db)):
-    return auth_service.mfa_methods.create(db, payload)
+    try:
+        method = auth_service.mfa_methods.create(db, payload)
+        db.commit()
+        return method
+    except (
+        auth_service.PersonNotFoundError,
+        auth_service.MFAMethodNotFoundError,
+    ) as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except auth_service.PrimaryMFAMethodConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.get(
@@ -101,7 +156,10 @@ def create_mfa_method(payload: MFAMethodCreate, db: Session = Depends(get_db)):
     tags=["mfa-methods"],
 )
 def get_mfa_method(method_id: str, db: Session = Depends(get_db)):
-    return auth_service.mfa_methods.get(db, method_id)
+    try:
+        return auth_service.mfa_methods.get(db, method_id)
+    except auth_service.MFAMethodNotFoundError as exc:
+        _raise_not_found(exc)
 
 
 @router.get(
@@ -121,18 +179,21 @@ def list_mfa_methods(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.mfa_methods.list_response(
-        db,
-        person_id,
-        method_type,
-        is_primary,
-        enabled,
-        is_active,
-        order_by,
-        order_dir,
-        limit,
-        offset,
-    )
+    try:
+        return auth_service.mfa_methods.list_response(
+            db,
+            person_id,
+            method_type,
+            is_primary,
+            enabled,
+            is_active,
+            order_by,
+            order_dir,
+            limit,
+            offset,
+        )
+    except ValueError as exc:
+        _raise_400(exc)
 
 
 @router.patch(
@@ -143,7 +204,22 @@ def list_mfa_methods(
 def update_mfa_method(
     method_id: str, payload: MFAMethodUpdate, db: Session = Depends(get_db)
 ):
-    return auth_service.mfa_methods.update(db, method_id, payload)
+    try:
+        method = auth_service.mfa_methods.update(db, method_id, payload)
+        db.commit()
+        return method
+    except (
+        auth_service.MFAMethodNotFoundError,
+        auth_service.PersonNotFoundError,
+    ) as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except auth_service.PrimaryMFAMethodConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.delete(
@@ -152,7 +228,12 @@ def update_mfa_method(
     tags=["mfa-methods"],
 )
 def delete_mfa_method(method_id: str, db: Session = Depends(get_db)):
-    auth_service.mfa_methods.delete(db, method_id)
+    try:
+        auth_service.mfa_methods.delete(db, method_id)
+        db.commit()
+    except auth_service.MFAMethodNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
 
 
 @router.post(
@@ -162,7 +243,16 @@ def delete_mfa_method(method_id: str, db: Session = Depends(get_db)):
     tags=["sessions"],
 )
 def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
-    return auth_service.sessions.create(db, payload)
+    try:
+        session = auth_service.sessions.create(db, payload)
+        db.commit()
+        return session
+    except auth_service.PersonNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.get(
@@ -171,7 +261,10 @@ def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
     tags=["sessions"],
 )
 def get_session(session_id: str, db: Session = Depends(get_db)):
-    return auth_service.sessions.get(db, session_id)
+    try:
+        return auth_service.sessions.get(db, session_id)
+    except auth_service.SessionNotFoundError as exc:
+        _raise_not_found(exc)
 
 
 @router.get(
@@ -188,9 +281,12 @@ def list_sessions(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.sessions.list_response(
-        db, person_id, status, order_by, order_dir, limit, offset
-    )
+    try:
+        return auth_service.sessions.list_response(
+            db, person_id, status, order_by, order_dir, limit, offset
+        )
+    except ValueError as exc:
+        _raise_400(exc)
 
 
 @router.patch(
@@ -201,7 +297,19 @@ def list_sessions(
 def update_session(
     session_id: str, payload: SessionUpdate, db: Session = Depends(get_db)
 ):
-    return auth_service.sessions.update(db, session_id, payload)
+    try:
+        session = auth_service.sessions.update(db, session_id, payload)
+        db.commit()
+        return session
+    except (
+        auth_service.SessionNotFoundError,
+        auth_service.PersonNotFoundError,
+    ) as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.delete(
@@ -210,7 +318,12 @@ def update_session(
     tags=["sessions"],
 )
 def delete_session(session_id: str, db: Session = Depends(get_db)):
-    auth_service.sessions.delete(db, session_id)
+    try:
+        auth_service.sessions.delete(db, session_id)
+        db.commit()
+    except auth_service.SessionNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
 
 
 @router.post(
@@ -220,7 +333,16 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
     tags=["api-keys"],
 )
 def create_api_key(payload: ApiKeyCreate, db: Session = Depends(get_db)):
-    return auth_service.api_keys.create(db, payload)
+    try:
+        api_key = auth_service.api_keys.create(db, payload)
+        db.commit()
+        return api_key
+    except auth_service.PersonNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.post(
@@ -234,7 +356,22 @@ def generate_api_key(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return auth_service.api_keys.generate_with_rate_limit(db, payload, request)
+    try:
+        result = auth_service.api_keys.generate_with_rate_limit(db, payload, request)
+        db.commit()
+        return result
+    except auth_service.RateLimitExceededError as exc:
+        db.rollback()
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except auth_service.RateLimitUnavailableError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except auth_service.PersonNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.get(
@@ -243,7 +380,10 @@ def generate_api_key(
     tags=["api-keys"],
 )
 def get_api_key(key_id: str, db: Session = Depends(get_db)):
-    return auth_service.api_keys.get(db, key_id)
+    try:
+        return auth_service.api_keys.get(db, key_id)
+    except auth_service.ApiKeyNotFoundError as exc:
+        _raise_not_found(exc)
 
 
 @router.get(
@@ -260,9 +400,12 @@ def list_api_keys(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    return auth_service.api_keys.list_response(
-        db, person_id, is_active, order_by, order_dir, limit, offset
-    )
+    try:
+        return auth_service.api_keys.list_response(
+            db, person_id, is_active, order_by, order_dir, limit, offset
+        )
+    except ValueError as exc:
+        _raise_400(exc)
 
 
 @router.patch(
@@ -271,7 +414,19 @@ def list_api_keys(
     tags=["api-keys"],
 )
 def update_api_key(key_id: str, payload: ApiKeyUpdate, db: Session = Depends(get_db)):
-    return auth_service.api_keys.update(db, key_id, payload)
+    try:
+        api_key = auth_service.api_keys.update(db, key_id, payload)
+        db.commit()
+        return api_key
+    except (
+        auth_service.ApiKeyNotFoundError,
+        auth_service.PersonNotFoundError,
+    ) as exc:
+        db.rollback()
+        _raise_not_found(exc)
+    except ValueError as exc:
+        db.rollback()
+        _raise_400(exc)
 
 
 @router.delete(
@@ -280,4 +435,9 @@ def update_api_key(key_id: str, payload: ApiKeyUpdate, db: Session = Depends(get
     tags=["api-keys"],
 )
 def delete_api_key(key_id: str, db: Session = Depends(get_db)):
-    auth_service.api_keys.revoke(db, key_id)
+    try:
+        auth_service.api_keys.revoke(db, key_id)
+        db.commit()
+    except auth_service.ApiKeyNotFoundError as exc:
+        db.rollback()
+        _raise_not_found(exc)

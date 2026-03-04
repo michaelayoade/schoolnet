@@ -9,18 +9,19 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
-class SettingValueType(enum.Enum):
+class SettingValueType(str, enum.Enum):
     string = "string"
     integer = "integer"
     boolean = "boolean"
     json = "json"
 
 
-class SettingDomain(enum.Enum):
+class SettingDomain(str, enum.Enum):
     auth = "auth"
     audit = "audit"
     scheduler = "scheduler"
     billing = "billing"
+    branding = "branding"
 
 
 class DomainSetting(Base):

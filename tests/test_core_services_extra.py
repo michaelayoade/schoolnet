@@ -35,7 +35,7 @@ def test_audit_log_request(db_session):
     request = Request(scope)
     response = Response(status_code=200)
     audit_service.audit_events.log_request(db_session, request, response)
-    events = audit_service.audit_events.list(
+    events, total = audit_service.audit_events.list(
         db_session,
         actor_id=None,
         actor_type=None,
@@ -50,6 +50,7 @@ def test_audit_log_request(db_session):
         limit=5,
         offset=0,
     )
+    assert total == 1
     assert len(events) == 1
 
 

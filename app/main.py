@@ -296,6 +296,10 @@ from app.web.school.applications import (  # noqa: E402
 )
 from app.web.school.dashboard import router as web_school_dashboard_router  # noqa: E402
 from app.web.school.forms import router as web_school_forms_router  # noqa: E402
+from app.web.school.notifications import (  # noqa: E402
+    router as web_school_notifications_router,
+)
+from app.web.school.payments import router as web_school_payments_router  # noqa: E402
 from app.web.school.verification import (  # noqa: E402
     router as web_school_verification_router,
 )
@@ -351,6 +355,8 @@ app.include_router(web_school_dashboard_router)
 app.include_router(web_school_forms_router)
 app.include_router(web_school_applications_router)
 app.include_router(web_school_verification_router)
+app.include_router(web_school_notifications_router)
+app.include_router(web_school_payments_router)
 app.include_router(web_admin_schools_router)
 
 app.include_router(web_home_router)

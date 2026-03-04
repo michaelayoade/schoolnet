@@ -6,17 +6,11 @@ import logging
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.models.audit import AuditEvent
-from app.models.file_upload import FileUpload, FileUploadStatus
-from app.models.notification import Notification
-from app.models.person import Person
-from app.models.rbac import Role
-from app.models.scheduler import ScheduledTask
 from app.services.branding_context import load_branding_context
+from app.services.platform_stats import PlatformStatsService
 from app.templates import templates
 from app.web.schoolnet_deps import require_platform_admin_auth
 
@@ -35,37 +29,8 @@ def dashboard(
     branding = load_branding_context(db)
     person = auth["person"]
 
-    people_count = db.execute(select(func.count()).select_from(Person)).scalar() or 0
-    roles_count = db.execute(select(func.count()).select_from(Role)).scalar() or 0
-    tasks_count = (
-        db.execute(
-            select(func.count())
-            .select_from(ScheduledTask)
-            .where(ScheduledTask.enabled.is_(True))
-        ).scalar()
-        or 0
-    )
-    uploads_count = (
-        db.execute(
-            select(func.count())
-            .select_from(FileUpload)
-            .where(FileUpload.status == FileUploadStatus.active)
-        ).scalar()
-        or 0
-    )
-    audit_count = db.execute(select(func.count()).select_from(AuditEvent)).scalar() or 0
-    unread_notifications = (
-        db.execute(
-            select(func.count())
-            .select_from(Notification)
-            .where(
-                Notification.recipient_id == person.id,
-                Notification.is_read.is_(False),
-                Notification.is_active.is_(True),
-            )
-        ).scalar()
-        or 0
-    )
+    svc = PlatformStatsService(db)
+    stats = svc.get_dashboard_stats(person_id=person.id)
 
     return templates.TemplateResponse(
         "admin/dashboard.html",
@@ -77,13 +42,6 @@ def dashboard(
             "brand": branding["brand"],
             "org_branding": branding["org_branding"],
             "brand_mark": branding["brand"].get("mark", "A"),
-            "stats": {
-                "people": people_count,
-                "roles": roles_count,
-                "tasks": tasks_count,
-                "uploads": uploads_count,
-                "audit": audit_count,
-                "notifications": unread_notifications,
-            },
+            "stats": stats,
         },
     )

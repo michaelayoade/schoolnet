@@ -39,7 +39,7 @@
                 <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">${{ "%.2f"|format(invoice.total / 100) if invoice.total else '0.00' }}</td>
                 <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">${{ "%.2f"|format(invoice.amount_due / 100) if invoice.amount_due else '0.00' }}</td>
                 <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">${{ "%.2f"|format(invoice.amount_paid / 100) if invoice.amount_paid else '0.00' }}</td>
-                <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}</td>
+                <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ invoice.due_date | format_date if invoice.due_date else '-' }}</td>
                 <td class="px-4 py-3 text-right">
                     {{ tables.action_buttons(
                         detail_url='/admin/billing/invoices/' ~ invoice.id,

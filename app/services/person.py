@@ -1,19 +1,42 @@
-from fastapi import HTTPException
+import logging
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.person import Person, PersonStatus
 from app.schemas.person import PersonCreate, PersonUpdate
-from app.services.common import coerce_uuid
-from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
+from app.services.common import coerce_uuid, escape_like
 from app.services.response import ListResponseMixin
+
+logger = logging.getLogger(__name__)
+
+
+class PersonNotFoundError(ValueError):
+    pass
 
 
 class People(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Person.created_at,
+            "last_name": Person.last_name,
+            "email": Person.email,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: PersonCreate):
         person = Person(**payload.model_dump())
         db.add(person)
-        db.commit()
+        db.flush()
         db.refresh(person)
         return person
 
@@ -21,7 +44,7 @@ class People(ListResponseMixin):
     def get(db: Session, person_id: str):
         person = db.get(Person, coerce_uuid(person_id))
         if not person:
-            raise HTTPException(status_code=404, detail="Person not found")
+            raise PersonNotFoundError("Person not found")
         return person
 
     @staticmethod
@@ -35,35 +58,34 @@ class People(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(Person)
+        stmt = select(Person)
         if email:
-            query = query.filter(Person.email.ilike(f"%{email}%"))
+            stmt = stmt.where(Person.email.ilike(f"%{escape_like(email)}%"))
         if status:
-            query = query.filter(
-                Person.status == validate_enum(status, PersonStatus, "status")
-            )
+            try:
+                resolved_status = PersonStatus(status)
+            except ValueError as exc:
+                raise ValueError("Invalid status") from exc
+            stmt = stmt.where(Person.status == resolved_status)
         if is_active is not None:
-            query = query.filter(Person.is_active == is_active)
-        query = apply_ordering(
-            query,
-            order_by,
-            order_dir,
-            {
-                "created_at": Person.created_at,
-                "last_name": Person.last_name,
-                "email": Person.email,
-            },
-        )
-        return apply_pagination(query, limit, offset).all()
+            stmt = stmt.where(Person.is_active == is_active)
+
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+        total = db.scalar(count_stmt) or 0
+
+        stmt = People._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
+        return items, total
 
     @staticmethod
     def update(db: Session, person_id: str, payload: PersonUpdate):
         person = db.get(Person, coerce_uuid(person_id))
         if not person:
-            raise HTTPException(status_code=404, detail="Person not found")
+            raise PersonNotFoundError("Person not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(person, key, value)
-        db.commit()
+        db.flush()
         db.refresh(person)
         return person
 
@@ -71,9 +93,9 @@ class People(ListResponseMixin):
     def delete(db: Session, person_id: str):
         person = db.get(Person, coerce_uuid(person_id))
         if not person:
-            raise HTTPException(status_code=404, detail="Person not found")
+            raise PersonNotFoundError("Person not found")
         db.delete(person)
-        db.commit()
+        db.flush()
 
 
 people = People()

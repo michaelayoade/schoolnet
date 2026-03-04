@@ -2,6 +2,7 @@
 
 import logging
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
@@ -17,11 +18,15 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 @router.post("/webhook/paystack")
 async def paystack_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
     """Handle Paystack webhook — no auth required, signature verified."""
-    if not paystack_gateway.is_configured():
-        raise HTTPException(status_code=503, detail="Payment gateway not configured")
-
     body = await request.body()
     signature = request.headers.get("x-paystack-signature", "")
+
+    if not paystack_gateway.is_configured():
+        logger.warning("Rejected Paystack webhook: gateway is not configured")
+        raise HTTPException(
+            status_code=503, detail="Payment webhook is not configured"
+        )
+
     if not paystack_gateway.validate_webhook_signature(body, signature):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
@@ -29,8 +34,8 @@ async def paystack_webhook(request: Request, db: Session = Depends(get_db)) -> d
 
     try:
         payload = json.loads(body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from exc
 
     event_type = payload.get("event", "")
     event_id = payload.get("data", {}).get("id", str(hash(body)))
@@ -55,6 +60,29 @@ def payment_callback(
         return RedirectResponse(
             url="/parent/applications?error=No+payment+reference", status_code=303
         )
+
+    # Verify the transaction with Paystack before processing
+    if paystack_gateway.is_configured():
+        try:
+            verification = paystack_gateway.verify_transaction(ref)
+        except (ValueError, RuntimeError, httpx.HTTPError) as e:
+            logger.error("Paystack verification failed for ref=%s: %s", ref, e)
+            return RedirectResponse(
+                url="/parent/applications?error=Payment+verification+failed",
+                status_code=303,
+            )
+        if verification.get("status") != "success":
+            logger.warning(
+                "Payment not successful for ref=%s: status=%s",
+                ref,
+                verification.get("status"),
+            )
+            return RedirectResponse(
+                url="/parent/applications?error=Payment+was+not+successful",
+                status_code=303,
+            )
+    else:
+        logger.info("Paystack not configured — skipping verification for ref=%s", ref)
 
     svc = ApplicationService(db)
     application = svc.handle_payment_success(ref)

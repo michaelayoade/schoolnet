@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -121,33 +122,44 @@ def create_entitlement_form(
 
 
 @router.post("/create", response_model=None)
-async def create_entitlement_submit(
+def create_entitlement_submit(
     request: Request,
+    product_id: str = Form(...),
+    feature_key: str = Form(""),
+    value_type: str = Form("boolean"),
+    value_text: str | None = Form(None),
+    value_numeric: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle entitlement creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "product_id": product_id,
+        "feature_key": feature_key,
+        "value_type": value_type,
+        "value_text": value_text,
+        "value_numeric": value_numeric,
+    }
 
     try:
         payload = EntitlementCreate(
-            product_id=UUID(str(data.get("product_id", ""))),
-            feature_key=str(data.get("feature_key", "")),
-            value_type=str(data.get("value_type", "boolean")),  # type: ignore[arg-type]
-            value_text=str(data["value_text"]) if data.get("value_text") else None,
-            value_numeric=as_int(data.get("value_numeric"))
-            if data.get("value_numeric")
-            else None,
+            product_id=UUID(product_id),
+            feature_key=feature_key,
+            value_type=value_type,  # type: ignore[arg-type]
+            value_text=value_text if value_text else None,
+            value_numeric=as_int(value_numeric) if value_numeric else None,
         )
         billing_service.entitlements.create(db, payload)
+        db.commit()
         logger.info("Created entitlement via web: %s", payload.feature_key)
         return RedirectResponse(
             url="/admin/billing/entitlements?success=Entitlement+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create entitlement: %s", exc)
         all_products, _ = billing_service.products.list(
             db,
@@ -222,33 +234,42 @@ def edit_entitlement_form(
 
 
 @router.post("/{item_id}/edit", response_model=None)
-async def edit_entitlement_submit(
+def edit_entitlement_submit(
     request: Request,
     item_id: UUID,
+    feature_key: str | None = Form(None),
+    value_type: str | None = Form(None),
+    value_text: str | None = Form(None),
+    value_numeric: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle entitlement edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "feature_key": feature_key,
+        "value_type": value_type,
+        "value_text": value_text,
+        "value_numeric": value_numeric,
+    }
 
     try:
         payload = EntitlementUpdate(
-            feature_key=str(data["feature_key"]) if data.get("feature_key") else None,
-            value_type=str(data["value_type"]) if data.get("value_type") else None,  # type: ignore[arg-type]
-            value_text=str(data["value_text"]) if data.get("value_text") else None,
-            value_numeric=as_int(data.get("value_numeric"))
-            if data.get("value_numeric")
-            else None,
+            feature_key=feature_key if feature_key else None,
+            value_type=value_type if value_type else None,  # type: ignore[arg-type]
+            value_text=value_text if value_text else None,
+            value_numeric=as_int(value_numeric) if value_numeric else None,
         )
         billing_service.entitlements.update(db, str(item_id), payload)
+        db.commit()
         logger.info("Updated entitlement via web: %s", item_id)
         return RedirectResponse(
             url=f"/admin/billing/entitlements/{item_id}?success=Entitlement+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update entitlement %s: %s", item_id, exc)
         item = billing_service.entitlements.get(db, str(item_id))
         all_products, _ = billing_service.products.list(
@@ -274,26 +295,28 @@ async def edit_entitlement_submit(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_entitlement(
+def delete_entitlement(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle entitlement deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.entitlements.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted entitlement via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/entitlements?success=Entitlement+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete entitlement %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/entitlements?error={exc}",
+            url=f"/admin/billing/entitlements?error={quote_plus(str(exc))}",
             status_code=302,
         )

@@ -10,7 +10,7 @@ from app.models.auth import AuthProvider, UserCredential
 from app.models.person import Person
 from app.models.rbac import PersonRole, Role
 from app.schemas.school import SchoolCreate
-from app.services.auth_flow import hash_password
+from app.services.auth_flow import hash_password, validate_password_strength
 from app.services.school import SchoolService
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,9 @@ class RegistrationService:
         self.db.flush()
         return cred
 
+    def _validate_password(self, password: str) -> None:
+        validate_password_strength(password)
+
     def _assign_role(self, person_id: UUID, role_name: str) -> None:
         stmt = select(Role).where(Role.name == role_name, Role.is_active.is_(True))
         role = self.db.scalar(stmt)
@@ -76,6 +79,7 @@ class RegistrationService:
     ) -> Person:
         if self.email_exists(email):
             raise ValueError("An account with this email already exists")
+        self._validate_password(password)
 
         _validate_password_strength(password)
         person = self._create_person(first_name, last_name, email, phone)
@@ -101,6 +105,7 @@ class RegistrationService:
     ) -> tuple[Person, object]:
         if self.email_exists(email):
             raise ValueError("An account with this email already exists")
+        self._validate_password(password)
 
         _validate_password_strength(password)
         person = self._create_person(first_name, last_name, email, phone)

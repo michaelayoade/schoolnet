@@ -34,7 +34,8 @@ String interpolation like `bg-{{ color }}-50` gets purged by Tailwind. Use dict 
 ```
 
 ## Dark Mode
-All templates support dark mode via Tailwind's `dark:` prefix. Always provide dark variants:
+Use dark variants only when the target template/feature already supports dark mode or
+when the change explicitly includes dark-mode acceptance criteria:
 ```html
 <div class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
 ```

@@ -16,20 +16,21 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.models.encrypted_types import EncryptedSecretString
 
 
-class AuthProvider(enum.Enum):
+class AuthProvider(str, enum.Enum):
     local = "local"
     sso = "sso"
 
 
-class MFAMethodType(enum.Enum):
+class MFAMethodType(str, enum.Enum):
     totp = "totp"
     sms = "sms"
     email = "email"
 
 
-class SessionStatus(enum.Enum):
+class SessionStatus(str, enum.Enum):
     active = "active"
     revoked = "revoked"
     expired = "expired"
@@ -37,6 +38,7 @@ class SessionStatus(enum.Enum):
 
 class UserCredential(Base):
     __tablename__ = "user_credentials"
+    __table_args__ = (Index("ix_user_credentials_person_id", "person_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -74,6 +76,7 @@ class UserCredential(Base):
 class MFAMethod(Base):
     __tablename__ = "mfa_methods"
     __table_args__ = (
+        Index("ix_mfa_methods_person_id", "person_id"),
         Index(
             "ix_mfa_methods_primary_per_person",
             "person_id",
@@ -93,7 +96,7 @@ class MFAMethod(Base):
         Enum(MFAMethodType), nullable=False
     )
     label: Mapped[str | None] = mapped_column(String(120))
-    secret: Mapped[str | None] = mapped_column(String(255))
+    secret: Mapped[str | None] = mapped_column(EncryptedSecretString())
     phone: Mapped[str | None] = mapped_column(String(40))
     email: Mapped[str | None] = mapped_column(String(255))
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -117,6 +120,7 @@ class MFAMethod(Base):
 class Session(Base):
     __tablename__ = "sessions"
     __table_args__ = (
+        Index("ix_sessions_person_id", "person_id"),
         Index("ix_sessions_token_hash", "token_hash"),
         Index("ix_sessions_previous_token_hash", "previous_token_hash"),
     )
@@ -147,6 +151,7 @@ class Session(Base):
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
+    __table_args__ = (Index("ix_api_keys_person_id", "person_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

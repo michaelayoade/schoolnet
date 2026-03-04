@@ -27,6 +27,33 @@
     {% endfor %}
 </div>
 
+<!-- SchoolNet Platform Stats -->
+<div class="mt-8">
+    <h3 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">SchoolNet Overview</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="/admin/schools" class="block bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 card-hover">
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Schools</p>
+            <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ stats.total_schools }}</p>
+            <p class="text-xs text-green-600 dark:text-green-400 mt-1">{{ stats.active_schools }} active, {{ stats.pending_schools }} pending</p>
+        </a>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Applications</p>
+            <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ stats.total_applications }}</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Across all schools</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Platform Revenue</p>
+            <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{{ stats.total_revenue | format_naira }}</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Total from paid invoices</p>
+        </div>
+        <a href="/admin/schools?status=pending" class="block bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 card-hover">
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Verification</p>
+            <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{{ stats.pending_schools }}</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Schools awaiting approval</p>
+        </a>
+    </div>
+</div>
+
 <div class="mt-8">
     <h3 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Quick Actions</h3>
     <div class="flex flex-wrap gap-3">

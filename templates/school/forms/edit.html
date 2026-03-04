@@ -25,6 +25,19 @@
         <input type="number" name="max_submissions" min="1" value="{{ form.max_submissions if form.max_submissions else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="Leave empty for unlimited">
     </div>
 
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Opens At</label>
+            <input type="datetime-local" name="opens_at" value="{{ form.opens_at.strftime('%Y-%m-%dT%H:%M') if form.opens_at else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            <p class="text-xs text-slate-400 mt-1">When the form becomes available</p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Closes At</label>
+            <input type="datetime-local" name="closes_at" value="{{ form.closes_at.strftime('%Y-%m-%dT%H:%M') if form.closes_at else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            <p class="text-xs text-slate-400 mt-1">Deadline for submissions</p>
+        </div>
+    </div>
+
     {# ── Custom Form Fields ─────────────────────────────── #}
     {% set existing_fields = form.form_fields if form.form_fields else [] %}
     <div class="pt-4 border-t border-slate-200 dark:border-slate-700"

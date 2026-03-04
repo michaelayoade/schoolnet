@@ -1,12 +1,13 @@
 import hashlib
 
 import pytest
-from fastapi import HTTPException
+from cryptography.fernet import Fernet
 
-from app.models.auth import SessionStatus
+from app.models.auth import MFAMethod, MFAMethodType, SessionStatus
 from app.schemas.auth import (
     ApiKeyGenerateRequest,
     MFAMethodCreate,
+    MFAMethodUpdate,
     SessionCreate,
     UserCredentialCreate,
 )
@@ -33,7 +34,7 @@ def test_user_credentials_soft_delete(db_session, person):
         password_hash=hash_password("secret"),
     )
     credential = auth_service.user_credentials.create(db_session, payload)
-    active = auth_service.user_credentials.list(
+    active, active_total = auth_service.user_credentials.list(
         db_session,
         person_id=str(person.id),
         provider=None,
@@ -43,9 +44,10 @@ def test_user_credentials_soft_delete(db_session, person):
         limit=25,
         offset=0,
     )
+    assert active_total == 1
     assert len(active) == 1
     auth_service.user_credentials.delete(db_session, str(credential.id))
-    active = auth_service.user_credentials.list(
+    active, active_total = auth_service.user_credentials.list(
         db_session,
         person_id=str(person.id),
         provider=None,
@@ -55,7 +57,7 @@ def test_user_credentials_soft_delete(db_session, person):
         limit=25,
         offset=0,
     )
-    inactive = auth_service.user_credentials.list(
+    inactive, inactive_total = auth_service.user_credentials.list(
         db_session,
         person_id=str(person.id),
         provider=None,
@@ -66,15 +68,19 @@ def test_user_credentials_soft_delete(db_session, person):
         offset=0,
     )
     assert active == []
+    assert active_total == 0
+    assert inactive_total == 1
     assert len(inactive) == 1
 
 
-def test_mfa_primary_switch(db_session, person):
+def test_mfa_primary_switch(db_session, person, monkeypatch):
+    key = Fernet.generate_key().decode("utf-8")
+    monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)
     payload = MFAMethodCreate(
         person_id=person.id,
         method_type="totp",
         label="primary",
-        secret="encrypted",
+        secret="JBSWY3DPEHPK3PXP",
         is_primary=True,
         enabled=True,
     )
@@ -85,7 +91,7 @@ def test_mfa_primary_switch(db_session, person):
             person_id=person.id,
             method_type="totp",
             label="secondary",
-            secret="encrypted2",
+            secret="KRSXG5DSNFXGOIDP",
             is_primary=True,
             enabled=True,
         ),
@@ -94,6 +100,70 @@ def test_mfa_primary_switch(db_session, person):
     db_session.refresh(second)
     assert first.is_primary is False
     assert second.is_primary is True
+    # EncryptedSecretString decrypts transparently on read
+    assert first.secret == "JBSWY3DPEHPK3PXP"
+    assert second.secret == "KRSXG5DSNFXGOIDP"
+
+
+def test_mfa_secret_is_encrypted_on_create_and_update(db_session, person, monkeypatch):
+    key = Fernet.generate_key().decode("utf-8")
+    monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)
+
+    created = auth_service.mfa_methods.create(
+        db_session,
+        MFAMethodCreate(
+            person_id=person.id,
+            method_type="totp",
+            label="device",
+            secret="JBSWY3DPEHPK3PXP",
+            enabled=True,
+        ),
+    )
+    # EncryptedSecretString decrypts transparently on read
+    assert created.secret == "JBSWY3DPEHPK3PXP"
+
+    updated = auth_service.mfa_methods.update(
+        db_session,
+        str(created.id),
+        MFAMethodUpdate(secret="KRSXG5DSNFXGOIDP"),
+    )
+    # EncryptedSecretString decrypts transparently on read
+    assert updated.secret == "KRSXG5DSNFXGOIDP"
+
+
+def test_mfa_model_encrypted_type_encrypts_plaintext_on_write(
+    db_session, person, monkeypatch
+):
+    from sqlalchemy import select as sa_select, literal_column
+
+    key = Fernet.generate_key().decode("utf-8")
+    monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)
+
+    plaintext = "JBSWY3DPEHPK3PXP"
+    method = MFAMethod(
+        person_id=person.id,
+        method_type=MFAMethodType.totp,
+        secret=plaintext,
+        enabled=True,
+        is_active=True,
+    )
+    db_session.add(method)
+    db_session.commit()
+    db_session.refresh(method)
+
+    # EncryptedSecretString decrypts transparently on read
+    assert method.secret == plaintext
+
+    # Verify the raw DB value is NOT plaintext (it's Fernet-encrypted)
+    raw = db_session.scalar(
+        sa_select(literal_column("secret"))
+        .select_from(MFAMethod.__table__)
+        .where(MFAMethod.__table__.c.id == method.id)
+    )
+    assert raw != plaintext
+    # Verify the raw value can be decrypted back to plaintext
+    f = Fernet(key.encode("utf-8"))
+    assert f.decrypt(raw.encode("utf-8")).decode("utf-8") == plaintext
 
 
 def test_session_delete_revokes(db_session, person):
@@ -124,8 +194,8 @@ def test_api_key_generate_with_redis(monkeypatch, db_session):
 
 def test_api_key_rate_limit_requires_redis(monkeypatch, db_session):
     monkeypatch.setattr(auth_service, "_get_redis_client", lambda: None)
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(auth_service.RateLimitUnavailableError) as exc:
         auth_service.api_keys.generate_with_rate_limit(
             db_session, ApiKeyGenerateRequest(label="test"), None
         )
-    assert exc.value.status_code == 503
+    assert "Rate limiting unavailable" in str(exc.value)

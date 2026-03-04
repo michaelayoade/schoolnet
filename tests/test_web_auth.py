@@ -11,6 +11,12 @@ class TestWebAuth:
         response = client.get("/admin/login?next=/admin/people")
         assert response.status_code == 200
 
+    def test_login_page_rejects_external_next(self, client):
+        response = client.get("/admin/login?next=https://evil.com")
+        assert response.status_code == 200
+        assert 'name="next" value="/admin"' in response.text
+        assert "https://evil.com" not in response.text
+
     def test_login_empty_fields(self, client):
         # Get CSRF token first
         resp = client.get("/admin/login")
@@ -18,12 +24,12 @@ class TestWebAuth:
 
         response = client.post(
             "/admin/login",
-            data={"username": "", "password": "", "csrf_token": csrf_token},
+            data={"email": "", "password": "", "csrf_token": csrf_token},
             cookies={"csrf_token": csrf_token},
             follow_redirects=False,
         )
-        assert response.status_code == 200
-        assert b"required" in response.content
+        assert response.status_code == 422
+        assert response.json()["code"] == "validation_error"
 
     def test_login_invalid_credentials(self, client):
         resp = client.get("/admin/login")
@@ -32,7 +38,7 @@ class TestWebAuth:
         response = client.post(
             "/admin/login",
             data={
-                "username": "nonexistent",
+                "email": "nonexistent@example.com",
                 "password": "wrongpass",
                 "csrf_token": csrf_token,
             },
@@ -82,7 +88,15 @@ class TestWebAuth:
         assert response.headers.get("location") == "/admin"
 
     def test_logout_clears_cookies(self, client):
-        response = client.get("/admin/logout", follow_redirects=False)
+        resp = client.get("/admin/login")
+        csrf_token = resp.cookies.get("csrf_token", "")
+        response = client.post(
+            "/admin/logout",
+            data={"csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
+            cookies={"csrf_token": csrf_token},
+            follow_redirects=False,
+        )
         assert response.status_code == 302
         assert "/admin/login" in response.headers.get("location", "")
 

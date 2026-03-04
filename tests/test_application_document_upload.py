@@ -118,7 +118,7 @@ class TestDocumentUpload:
         assert b"Passport Photo" in resp.content
         assert b"Required Documents" in resp.content
 
-    @patch("app.web.parent.applications.FileUploadService")
+    @patch("app.services.application.FileUploadService")
     def test_submit_with_document_upload(self, mock_upload_cls, client, db_session):
         required_docs = ["Birth Certificate"]
         app_obj, token, parent = _setup_application(db_session, required_documents=required_docs)

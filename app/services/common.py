@@ -6,11 +6,15 @@ import math
 import uuid
 from typing import Any, TypeVar
 
-from fastapi import HTTPException
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 T = TypeVar("T")
+
+
+def escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcard characters."""
+    return value.replace("%", "\\%").replace("_", "\\_")
 
 
 def coerce_uuid(value: Any) -> uuid.UUID | None:
@@ -19,7 +23,10 @@ def coerce_uuid(value: Any) -> uuid.UUID | None:
         return None
     if isinstance(value, uuid.UUID):
         return value
-    return uuid.UUID(str(value))
+    try:
+        return uuid.UUID(str(value))
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 def require_uuid(value: Any) -> uuid.UUID:
@@ -38,9 +45,8 @@ def apply_ordering(
 ) -> Select[Any]:
     """Apply ordering to a select statement with validation."""
     if order_by not in allowed_columns:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}",
+        raise ValueError(
+            f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
         )
     column = allowed_columns[order_by]
     if order_dir == "desc":
@@ -51,6 +57,16 @@ def apply_ordering(
 def apply_pagination(query: Select[Any], limit: int, offset: int) -> Select[Any]:
     """Apply limit/offset to a select statement."""
     return query.limit(limit).offset(offset)
+
+
+def validate_enum(value: Any, enum_cls: Any, label: str) -> Any:
+    """Coerce a value to enum type or raise ValueError."""
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid {label}") from exc
 
 
 def paginate(

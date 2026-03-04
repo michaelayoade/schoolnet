@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -104,48 +105,65 @@ def create_coupon_form(
 
 
 @router.post("/create", response_model=None)
-async def create_coupon_submit(
+def create_coupon_submit(
     request: Request,
+    name: str = Form(""),
+    code: str = Form(""),
+    percent_off: str | None = Form(None),
+    amount_off: str | None = Form(None),
+    currency: str | None = Form(None),
+    duration: str = Form("once"),
+    duration_in_months: str | None = Form(None),
+    max_redemptions: str | None = Form(None),
+    valid: str | None = Form(None),
+    redeem_by: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle coupon creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "code": code,
+        "percent_off": percent_off,
+        "amount_off": amount_off,
+        "currency": currency,
+        "duration": duration,
+        "duration_in_months": duration_in_months,
+        "max_redemptions": max_redemptions,
+        "valid": valid,
+        "redeem_by": redeem_by,
+    }
 
     try:
         redeem_by_val: datetime | None = None
-        if data.get("redeem_by"):
-            redeem_by_val = datetime.fromisoformat(str(data["redeem_by"]))
+        if redeem_by:
+            redeem_by_val = datetime.fromisoformat(redeem_by)
 
         payload = CouponCreate(
-            name=str(data.get("name", "")),
-            code=str(data.get("code", "")),
-            percent_off=as_int(data.get("percent_off"))
-            if data.get("percent_off")
+            name=name,
+            code=code,
+            percent_off=as_int(percent_off) if percent_off else None,
+            amount_off=as_int(amount_off) if amount_off else None,
+            currency=currency if currency else None,
+            duration=duration,  # type: ignore[arg-type]
+            duration_in_months=as_int(duration_in_months)
+            if duration_in_months
             else None,
-            amount_off=as_int(data.get("amount_off"))
-            if data.get("amount_off")
-            else None,
-            currency=str(data["currency"]) if data.get("currency") else None,
-            duration=str(data.get("duration", "once")),  # type: ignore[arg-type]
-            duration_in_months=as_int(data.get("duration_in_months"))
-            if data.get("duration_in_months")
-            else None,
-            max_redemptions=as_int(data.get("max_redemptions"))
-            if data.get("max_redemptions")
-            else None,
-            valid=data.get("valid") == "on",
+            max_redemptions=as_int(max_redemptions) if max_redemptions else None,
+            valid=valid == "on",
             redeem_by=redeem_by_val,
         )
         billing_service.coupons.create(db, payload)
+        db.commit()
         logger.info("Created coupon via web: %s", payload.code)
         return RedirectResponse(
             url="/admin/billing/coupons?success=Coupon+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create coupon: %s", exc)
         ctx = _base_context(
             request, db, auth, title="Create Coupon", page_title="Create Coupon"
@@ -190,48 +208,63 @@ def edit_coupon_form(
 
 
 @router.post("/{item_id}/edit", response_model=None)
-async def edit_coupon_submit(
+def edit_coupon_submit(
     request: Request,
     item_id: UUID,
+    name: str | None = Form(None),
+    percent_off: str | None = Form(None),
+    amount_off: str | None = Form(None),
+    currency: str | None = Form(None),
+    duration: str | None = Form(None),
+    duration_in_months: str | None = Form(None),
+    max_redemptions: str | None = Form(None),
+    valid: str | None = Form(None),
+    redeem_by: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle coupon edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "percent_off": percent_off,
+        "amount_off": amount_off,
+        "currency": currency,
+        "duration": duration,
+        "duration_in_months": duration_in_months,
+        "max_redemptions": max_redemptions,
+        "valid": valid,
+        "redeem_by": redeem_by,
+    }
 
     try:
         redeem_by_val: datetime | None = None
-        if data.get("redeem_by"):
-            redeem_by_val = datetime.fromisoformat(str(data["redeem_by"]))
+        if redeem_by:
+            redeem_by_val = datetime.fromisoformat(redeem_by)
 
         payload = CouponUpdate(
-            name=str(data["name"]) if data.get("name") else None,
-            percent_off=as_int(data.get("percent_off"))
-            if data.get("percent_off")
+            name=name if name else None,
+            percent_off=as_int(percent_off) if percent_off else None,
+            amount_off=as_int(amount_off) if amount_off else None,
+            currency=currency if currency else None,
+            duration=duration if duration else None,  # type: ignore[arg-type]
+            duration_in_months=as_int(duration_in_months)
+            if duration_in_months
             else None,
-            amount_off=as_int(data.get("amount_off"))
-            if data.get("amount_off")
-            else None,
-            currency=str(data["currency"]) if data.get("currency") else None,
-            duration=str(data["duration"]) if data.get("duration") else None,  # type: ignore[arg-type]
-            duration_in_months=as_int(data.get("duration_in_months"))
-            if data.get("duration_in_months")
-            else None,
-            max_redemptions=as_int(data.get("max_redemptions"))
-            if data.get("max_redemptions")
-            else None,
-            valid="valid" in data,
+            max_redemptions=as_int(max_redemptions) if max_redemptions else None,
+            valid=valid == "on",
             redeem_by=redeem_by_val,
         )
         billing_service.coupons.update(db, str(item_id), payload)
+        db.commit()
         logger.info("Updated coupon via web: %s", item_id)
         return RedirectResponse(
             url=f"/admin/billing/coupons/{item_id}?success=Coupon+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update coupon %s: %s", item_id, exc)
         item = billing_service.coupons.get(db, str(item_id))
         ctx = _base_context(
@@ -244,26 +277,28 @@ async def edit_coupon_submit(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_coupon(
+def delete_coupon(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle coupon deletion (soft-delete by setting valid=False)."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.coupons.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted coupon via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/coupons?success=Coupon+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete coupon %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/coupons?error={exc}",
+            url=f"/admin/billing/coupons?error={quote_plus(str(exc))}",
             status_code=302,
         )

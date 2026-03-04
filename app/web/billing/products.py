@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -98,29 +99,38 @@ def create_product_form(
 
 
 @router.post("/create", response_model=None)
-async def create_product_submit(
+def create_product_submit(
     request: Request,
+    name: str = Form(""),
+    description: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle product creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "description": description,
+        "is_active": is_active,
+    }
 
     try:
         payload = ProductCreate(
-            name=str(data.get("name", "")),
-            description=str(data["description"]) if data.get("description") else None,
-            is_active=data.get("is_active") == "on",
+            name=name,
+            description=description if description else None,
+            is_active=is_active == "on",
         )
         billing_service.products.create(db, payload)
+        db.commit()
         logger.info("Created product via web: %s", payload.name)
         return RedirectResponse(
             url="/admin/billing/products?success=Product+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create product: %s", exc)
         ctx = _base_context(
             request, db, auth, title="Create Product", page_title="Create Product"
@@ -176,30 +186,39 @@ def edit_product_form(
 
 
 @router.post("/{item_id}/edit", response_model=None)
-async def edit_product_submit(
+def edit_product_submit(
     request: Request,
     item_id: UUID,
+    name: str | None = Form(None),
+    description: str | None = Form(None),
+    is_active: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle product edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "description": description,
+        "is_active": is_active,
+    }
 
     try:
         payload = ProductUpdate(
-            name=str(data["name"]) if data.get("name") else None,
-            description=str(data["description"]) if data.get("description") else None,
-            is_active="is_active" in data,
+            name=name if name else None,
+            description=description if description else None,
+            is_active=is_active == "on",
         )
         billing_service.products.update(db, str(item_id), payload)
+        db.commit()
         logger.info("Updated product via web: %s", item_id)
         return RedirectResponse(
             url=f"/admin/billing/products/{item_id}?success=Product+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update product %s: %s", item_id, exc)
         item = billing_service.products.get(db, str(item_id))
         ctx = _base_context(
@@ -211,26 +230,28 @@ async def edit_product_submit(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_product(
+def delete_product(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle product deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.products.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted product via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/products?success=Product+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete product %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/products?error={exc}",
+            url=f"/admin/billing/products?error={quote_plus(str(exc))}",
             status_code=302,
         )

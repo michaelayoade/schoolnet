@@ -29,14 +29,14 @@
         <div class="mt-6 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
             <div class="flex justify-between text-sm">
                 <span class="text-slate-600 dark:text-slate-300">Admission Form</span>
-                <span class="font-semibold text-slate-900 dark:text-white">&#8358;{{ "{:,.0f}".format(price_amount / 100) if price_amount else 'N/A' }}</span>
+                <span class="font-semibold text-slate-900 dark:text-white">{{ price_amount | format_naira if price_amount else 'N/A' }}</span>
             </div>
         </div>
 
         <form method="POST" action="/parent/applications/purchase/{{ form.id }}" class="mt-6">
             {{ request.state.csrf_form | safe }}
             <button type="submit" class="w-full rounded-lg bg-primary-600 px-4 py-3 text-sm font-medium text-white hover:bg-primary-700 transition">
-                Pay &#8358;{{ "{:,.0f}".format(price_amount / 100) if price_amount else '0' }} with Paystack
+                Pay {{ price_amount | format_naira if price_amount else '₦0' }} with Paystack
             </button>
         </form>
     </div>

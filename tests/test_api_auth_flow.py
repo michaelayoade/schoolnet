@@ -211,7 +211,7 @@ class TestPasswordAPI:
 
         payload = {
             "current_password": "oldpassword123",
-            "new_password": "newpassword456",
+            "new_password": "NewPassword456",
         }
         response = client.post("/auth/me/password", json=payload, headers=auth_headers)
         assert response.status_code == 200
@@ -233,7 +233,7 @@ class TestPasswordAPI:
 
         payload = {
             "current_password": "wrongpassword",
-            "new_password": "newpassword456",
+            "new_password": "NewPassword456",
         }
         response = client.post("/auth/me/password", json=payload, headers=auth_headers)
         assert response.status_code == 401
@@ -284,7 +284,7 @@ class TestPasswordAPI:
 
         payload = {
             "current_password": "oldpassword123",
-            "new_password": "newpassword456",
+            "new_password": "NewPassword456",
         }
         response = client.post("/auth/me/password", json=payload, headers=auth_headers)
         assert response.status_code == 200
@@ -346,7 +346,7 @@ class TestPasswordAPI:
         reset = auth_flow_service.request_password_reset(db_session, person.email)
         assert reset is not None
 
-        payload = {"token": reset["token"], "new_password": "newpassword456"}
+        payload = {"token": reset["token"], "new_password": "NewPassword456"}
         response = client.post("/auth/reset-password", json=payload)
         assert response.status_code == 200
 

@@ -1,10 +1,12 @@
-{% from "macros/ui_macros.html" import status_badge %}
+{% from "macros/ui_macros.html" import status_badge, breadcrumbs %}
 {% extends "parent/base.html" %}
 {% block title %}Application {{ application.application_number }} - Parent Portal{% endblock %}
 {% block parent_content %}
-<div class="mb-6">
-    <a href="/parent/applications" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to applications</a>
-</div>
+{{ breadcrumbs([
+    {"label": "Dashboard", "url": "/parent"},
+    {"label": "Applications", "url": "/parent/applications"},
+    {"label": application.application_number}
+]) }}
 
 <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
     <div class="flex items-start justify-between">

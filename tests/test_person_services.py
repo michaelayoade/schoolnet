@@ -55,7 +55,7 @@ def test_list_people_filter_by_email(db_session):
         PersonCreate(first_name="Bob", last_name="Other", email=_unique_email()),
     )
 
-    results = person_service.people.list(
+    results, total = person_service.people.list(
         db_session,
         email=email,
         status=None,
@@ -65,6 +65,7 @@ def test_list_people_filter_by_email(db_session):
         limit=10,
         offset=0,
     )
+    assert total == 1
     assert len(results) == 1
     assert results[0].first_name == "Alice"
 
@@ -89,7 +90,7 @@ def test_list_people_filter_by_status(db_session):
     )
 
     # Query for person1 specifically with active status filter
-    active_results = person_service.people.list(
+    active_results, active_total = person_service.people.list(
         db_session,
         email=email1,
         status="active",
@@ -99,11 +100,12 @@ def test_list_people_filter_by_status(db_session):
         limit=100,
         offset=0,
     )
+    assert active_total == 1
     assert len(active_results) == 1
     assert active_results[0].id == person1.id
 
     # Verify person2 is not returned when filtering for active
-    inactive_as_active = person_service.people.list(
+    inactive_as_active, inactive_total = person_service.people.list(
         db_session,
         email=email2,
         status="active",
@@ -113,6 +115,7 @@ def test_list_people_filter_by_status(db_session):
         limit=100,
         offset=0,
     )
+    assert inactive_total == 0
     assert len(inactive_as_active) == 0
 
 
@@ -124,7 +127,7 @@ def test_list_people_active_only(db_session):
     )
     person_service.people.delete(db_session, str(person.id))
 
-    results = person_service.people.list(
+    results, _ = person_service.people.list(
         db_session,
         email=None,
         status=None,
@@ -164,11 +167,10 @@ def test_delete_person(db_session):
 
     # Verify person is deleted
     import pytest
-    from fastapi import HTTPException
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(person_service.PersonNotFoundError) as exc_info:
         person_service.people.get(db_session, str(person_id))
-    assert exc_info.value.status_code == 404
+    assert "Person not found" in str(exc_info.value)
 
 
 def test_list_people_pagination(db_session):
@@ -184,7 +186,7 @@ def test_list_people_pagination(db_session):
             ),
         )
 
-    page1 = person_service.people.list(
+    page1, page1_total = person_service.people.list(
         db_session,
         email=None,
         status=None,
@@ -194,7 +196,7 @@ def test_list_people_pagination(db_session):
         limit=2,
         offset=0,
     )
-    page2 = person_service.people.list(
+    page2, page2_total = person_service.people.list(
         db_session,
         email=None,
         status=None,
@@ -205,6 +207,8 @@ def test_list_people_pagination(db_session):
         offset=2,
     )
 
+    assert page1_total >= 5
+    assert page2_total >= 5
     assert len(page1) == 2
     assert len(page2) == 2
     # Pages should have different people

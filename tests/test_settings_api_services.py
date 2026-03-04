@@ -1,5 +1,4 @@
 import pytest
-from fastapi import HTTPException
 
 from app.schemas.settings import DomainSettingUpdate
 from app.services import settings_api
@@ -58,13 +57,13 @@ def test_upsert_auth_setting_variants(db_session):
 
 
 def test_upsert_auth_setting_invalid_key(db_session):
-    with pytest.raises(HTTPException) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         settings_api.upsert_auth_setting(
             db_session,
             "bad_key",
             DomainSettingUpdate(value_text="value"),
         )
-    assert excinfo.value.status_code == 400
+    assert "Invalid setting key" in str(excinfo.value)
 
 
 def test_upsert_audit_setting_list_and_bool(db_session):

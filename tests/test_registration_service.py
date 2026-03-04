@@ -1,10 +1,13 @@
 """Tests for RegistrationService — parent and school admin registration."""
 
+import uuid
+
 import pytest
 
 from app.models.auth import UserCredential
-from app.models.rbac import Role
-from app.services.registration import RegistrationService, _validate_password_strength
+from app.models.person import Person
+from app.models.rbac import PersonRole, Role
+from app.services.registration import RegistrationService
 from tests.conftest import _unique_email
 
 
@@ -48,7 +51,7 @@ class TestRegisterParent:
             first_name="Jane",
             last_name="Doe",
             email=email,
-            password="securepassword123",
+            password="SecurePassword123",
             phone="+2348012345678",
         )
         db_session.commit()
@@ -63,7 +66,7 @@ class TestRegisterParent:
             first_name="Jane",
             last_name="Doe",
             email=_unique_email(),
-            password="securepassword123",
+            password="SecurePassword123",
         )
         db_session.commit()
 
@@ -80,7 +83,7 @@ class TestRegisterParent:
             first_name="Jane",
             last_name="Doe",
             email=_unique_email(),
-            password="securepassword123",
+            password="SecurePassword123",
         )
         db_session.commit()
 
@@ -94,7 +97,7 @@ class TestRegisterParent:
             first_name="Jane",
             last_name="Doe",
             email=email,
-            password="password123",
+            password="Pass1234",
         )
         db_session.commit()
 
@@ -103,17 +106,7 @@ class TestRegisterParent:
                 first_name="John",
                 last_name="Doe",
                 email=email,
-                password="password456",
-            )
-
-    def test_register_parent_short_password_raises(self, db_session, parent_role):
-        svc = RegistrationService(db_session)
-        with pytest.raises(ValueError, match="Password must be at least 8 characters"):
-            svc.register_parent(
-                first_name="Jane",
-                last_name="Doe",
-                email=_unique_email(),
-                password="short",
+                password="Pass4567",
             )
 
 
@@ -124,7 +117,7 @@ class TestRegisterSchoolAdmin:
             first_name="Admin",
             last_name="User",
             email=_unique_email(),
-            password="securepassword123",
+            password="SecurePassword123",
             school_name="Excel Academy",
             school_type="primary",
             category="private",
@@ -144,7 +137,7 @@ class TestRegisterSchoolAdmin:
             first_name="Admin",
             last_name="User",
             email=_unique_email(),
-            password="securepassword123",
+            password="SecurePassword123",
             school_name="Future Stars Academy",
             school_type="secondary",
             category="public",
@@ -161,7 +154,7 @@ class TestRegisterSchoolAdmin:
             first_name="Admin",
             last_name="One",
             email=email,
-            password="password123",
+            password="Pass1234",
             school_name="School One",
             school_type="primary",
             category="private",
@@ -173,23 +166,8 @@ class TestRegisterSchoolAdmin:
                 first_name="Admin",
                 last_name="Two",
                 email=email,
-                password="password456",
+                password="Pass4567",
                 school_name="School Two",
-                school_type="primary",
-                category="private",
-            )
-
-    def test_register_school_admin_short_password_raises(
-        self, db_session, school_admin_role
-    ):
-        svc = RegistrationService(db_session)
-        with pytest.raises(ValueError, match="Password must be at least 8 characters"):
-            svc.register_school_admin(
-                first_name="Admin",
-                last_name="User",
-                email=_unique_email(),
-                password="short",
-                school_name="Excel Academy",
                 school_type="primary",
                 category="private",
             )
@@ -202,7 +180,7 @@ class TestGetPersonRoleNames:
             first_name="Test",
             last_name="User",
             email=_unique_email(),
-            password="password123",
+            password="Pass1234",
         )
         db_session.commit()
 
@@ -227,9 +205,36 @@ class TestEmailExists:
 
 
 class TestPasswordValidation:
-    def test_validate_password_strength_accepts_eight_chars(self):
-        _validate_password_strength("password")
+    def test_register_parent_rejects_short_password(self, db_session, parent_role):
+        svc = RegistrationService(db_session)
+        with pytest.raises(ValueError, match="at least 8 characters"):
+            svc.register_parent(
+                first_name="Jane",
+                last_name="Doe",
+                email=_unique_email(),
+                password="abc123",
+            )
 
-    def test_validate_password_strength_rejects_short_password(self):
-        with pytest.raises(ValueError, match="Password must be at least 8 characters"):
-            _validate_password_strength("short")
+    def test_register_parent_rejects_password_without_digit(
+        self, db_session, parent_role
+    ):
+        svc = RegistrationService(db_session)
+        with pytest.raises(ValueError, match="at least one number"):
+            svc.register_parent(
+                first_name="Jane",
+                last_name="Doe",
+                email=_unique_email(),
+                password="Abcdefgh",
+            )
+
+    def test_register_parent_rejects_password_without_lowercase(
+        self, db_session, parent_role
+    ):
+        svc = RegistrationService(db_session)
+        with pytest.raises(ValueError, match="at least one lowercase letter"):
+            svc.register_parent(
+                first_name="Jane",
+                last_name="Doe",
+                email=_unique_email(),
+                password="PASSWORD123",
+            )

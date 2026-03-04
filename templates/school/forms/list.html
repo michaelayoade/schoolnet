@@ -5,7 +5,7 @@
 <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">Admission Forms</h1>
     {% if school %}
-    <a href="/school/forms/create" class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition">Create Form</a>
+    <a href="/school/forms/create" class="rounded-lg bg-gradient-to-r from-primary-600 to-primary-500 px-4 py-2 text-sm font-medium text-white hover:from-primary-700 hover:to-primary-600 btn-hover transition">Create Form</a>
     {% endif %}
 </div>
 
@@ -13,25 +13,27 @@
 <div class="space-y-4">
     {% for item in forms %}
     {% set form = item.form %}
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 card-hover">
         <div class="flex items-start justify-between">
             <div>
                 <h3 class="font-semibold text-slate-900 dark:text-white">{{ form.title }}</h3>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{{ form.academic_year }} &bull; {{ form.current_submissions }} submission{{ 's' if form.current_submissions != 1 else '' }}</p>
                 {% if item.price_amount %}
-                <p class="text-sm text-primary-600 dark:text-primary-400 font-medium mt-1">&#8358;{{ "{:,.0f}".format(item.price_amount / 100) }}</p>
+                <p class="text-sm text-primary-600 dark:text-primary-400 font-medium mt-1">{{ item.price_amount | format_naira }}</p>
                 {% endif %}
             </div>
             <div class="flex items-center gap-2">
                 {{ status_badge(form.status) }}
                 <a href="/school/forms/{{ form.id }}/edit" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Edit</a>
                 {% if form.status.value == 'draft' %}
-                <form method="POST" action="/school/forms/{{ form.id }}/activate" class="inline">
+                <form method="POST" action="/school/forms/{{ form.id }}/activate" class="inline" x-data
+                      x-on:submit.prevent="$dispatch('confirm-action', { title: 'Activate Form', message: 'This will make the form publicly available for applications. Continue?', confirmLabel: 'Activate', form: $el })">
                     {{ request.state.csrf_form | safe }}
                     <button type="submit" class="text-sm text-green-600 dark:text-green-400 hover:underline">Activate</button>
                 </form>
                 {% elif form.status.value == 'active' %}
-                <form method="POST" action="/school/forms/{{ form.id }}/close" class="inline">
+                <form method="POST" action="/school/forms/{{ form.id }}/close" class="inline" x-data
+                      x-on:submit.prevent="$dispatch('confirm-action', { title: 'Close Form', message: 'This will permanently close the form. No new applications will be accepted. This cannot be undone.', confirmLabel: 'Close Form', form: $el })">
                     {{ request.state.csrf_form | safe }}
                     <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:underline">Close</button>
                 </form>
@@ -43,9 +45,13 @@
 </div>
 {% else %}
 <div class="text-center py-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-    <p class="text-slate-500 dark:text-slate-400">No admission forms yet.</p>
+    <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+    </svg>
+    <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-1">No admission forms yet</h3>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Create your first admission form to start receiving applications.</p>
     {% if school %}
-    <a href="/school/forms/create" class="mt-4 inline-block text-primary-600 dark:text-primary-400 font-medium hover:underline">Create your first form</a>
+    <a href="/school/forms/create" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium">Create Form</a>
     {% endif %}
 </div>
 {% endif %}

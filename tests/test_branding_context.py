@@ -5,6 +5,7 @@ from app.services.branding_context import (
     branding_context_from_values,
     load_branding_context,
 )
+from app.templates import templates
 
 
 def test_load_branding_context_includes_brand_and_css(db_session) -> None:
@@ -35,3 +36,12 @@ def test_branding_context_from_saved_values(db_session) -> None:
     assert context["brand"]["name"] == "Acme Ops"
     assert context["brand"]["mark"] == "AO"
     assert "--brand-primary: #224466;" in context["org_branding"]["css"]
+
+
+def test_org_branding_partial_escapes_css_content() -> None:
+    tpl = templates.env.from_string('{% include "partials/_org_branding_head.html" %}')
+    rendered = tpl.render(
+        org_branding={"css": "</style><script>alert(1)</script>", "fonts_url": None}
+    )
+    assert "<script>alert(1)</script>" not in rendered
+    assert "&lt;/style&gt;&lt;script&gt;alert(1)&lt;/script&gt;" in rendered

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -126,26 +127,28 @@ def payment_method_detail(
 
 
 @router.post("/{item_id}/delete", response_model=None)
-async def delete_payment_method(
+def delete_payment_method(
     request: Request,
     item_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle payment method deletion (soft-delete)."""
-    form = await request.form()
-    _ = form.get("csrf_token")  # consumed for CSRF validation
+    _ = csrf_token
 
     try:
         billing_service.payment_methods.delete(db, str(item_id))
+        db.commit()
         logger.info("Deleted payment method via web: %s", item_id)
         return RedirectResponse(
             url="/admin/billing/payment-methods?success=Payment+method+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete payment method %s: %s", item_id, exc)
         return RedirectResponse(
-            url=f"/admin/billing/payment-methods?error={exc}",
+            url=f"/admin/billing/payment-methods?error={quote_plus(str(exc))}",
             status_code=302,
         )

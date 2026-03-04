@@ -1,10 +1,12 @@
-{% from "macros/ui_macros.html" import status_badge %}
+{% from "macros/ui_macros.html" import status_badge, breadcrumbs %}
 {% extends "admin/base.html" %}
 {% block title %}{{ school.name }} - Admin{% endblock %}
 {% block admin_content %}
-<div class="mb-6">
-    <a href="/admin/schools" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to schools</a>
-</div>
+{{ breadcrumbs([
+    {"label": "Dashboard", "url": "/admin"},
+    {"label": "Schools", "url": "/admin/schools"},
+    {"label": school.name}
+]) }}
 
 <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
     <div class="flex items-start justify-between">
@@ -89,11 +91,11 @@
         </div>
         <div>
             <dt class="text-slate-500 dark:text-slate-400">Verified</dt>
-            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ school.verified_at.strftime('%d %b %Y %H:%M') if school.verified_at else 'Not verified' }}</dd>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ school.verified_at | format_datetime if school.verified_at else 'Not verified' }}</dd>
         </div>
         <div>
             <dt class="text-slate-500 dark:text-slate-400">Created</dt>
-            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ school.created_at.strftime('%d %b %Y %H:%M') }}</dd>
+            <dd class="text-slate-900 dark:text-white font-medium mt-0.5">{{ school.created_at | format_datetime }}</dd>
         </div>
     </dl>
 </div>

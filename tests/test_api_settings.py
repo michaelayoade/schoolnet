@@ -1,4 +1,10 @@
 from app.models.domain_settings import DomainSetting, SettingDomain
+import pytest
+
+
+@pytest.fixture()
+def auth_headers(admin_headers):
+    return admin_headers
 
 
 class TestAuthSettingsAPI:

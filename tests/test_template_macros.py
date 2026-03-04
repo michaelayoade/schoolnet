@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.templates import templates
 
 
@@ -28,3 +30,18 @@ def test_status_badge_renders_status_text() -> None:
 """
     )
     assert "Active" in html
+
+
+def test_branding_form_contains_csrf_hidden_input() -> None:
+    template_path = Path("templates/branding.html")
+    contents = template_path.read_text(encoding="utf-8")
+    assert "csrf_form" in contents or 'name="csrf_token"' in contents
+
+
+def test_admin_detail_templates_do_not_use_tojson_safe_in_pre() -> None:
+    audit = Path("templates/admin/audit/detail.html").read_text(encoding="utf-8")
+    webhook = Path("templates/admin/billing/webhook_events/detail.html").read_text(
+        encoding="utf-8"
+    )
+    assert "| tojson(indent=2) | safe" not in audit
+    assert "| tojson(indent=2) | safe" not in webhook

@@ -82,7 +82,7 @@ def send_email(
 
         logger.info("Email sent to %s", to_email)
         return True
-    except Exception as exc:
+    except (smtplib.SMTPException, OSError, ValueError, Exception) as exc:
         logger.error("Failed to send email to %s: %s", to_email, exc)
         return False
 
@@ -93,9 +93,10 @@ def send_password_reset_email(
     reset_token: str,
     person_name: str | None = None,
 ) -> bool:
-    name = person_name or "there"
+    name = html.escape(person_name or "there")
     app_url = _env_value("APP_URL") or "http://localhost:8000"
     reset_link = f"{app_url.rstrip('/')}/reset-password?token={reset_token}"
+    safe_link = html.escape(reset_link, quote=True)
     subject = "Reset your password"
     safe_name = html.escape(name)
     safe_link = html.escape(reset_link)
@@ -115,14 +116,15 @@ def send_verification_email(
     person_name: str | None = None,
 ) -> bool:
     """Send an email verification link."""
-    name = person_name or "there"
+    name = html.escape(person_name or "there")
     app_url = _env_value("APP_URL") or "http://localhost:8000"
     verify_link = f"{app_url.rstrip('/')}/verify-email?token={verification_token}"
+    safe_link = html.escape(verify_link, quote=True)
     subject = "Verify your email address"
     body_html = (
         f"<p>Hi {name},</p>"
         "<p>Please verify your email address by clicking the link below:</p>"
-        f'<p><a href="{verify_link}">Verify email</a></p>'
+        f'<p><a href="{safe_link}">Verify email</a></p>'
         "<p>This link expires in 24 hours.</p>"
     )
     body_text = f"Hi {name}, verify your email: {verify_link}"

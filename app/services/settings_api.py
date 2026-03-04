@@ -1,8 +1,8 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingDomain, SettingValueType
 from app.schemas.settings import DomainSettingUpdate
+from app.services import domain_settings as domain_settings_service
 from app.services import settings_spec
 from app.services.response import list_response
 
@@ -18,20 +18,18 @@ def _normalize_spec_setting(
     spec = settings_spec.get_spec(domain, key)
     if not spec:
         allowed = _domain_allowed_keys(domain)
-        raise HTTPException(
-            status_code=400, detail=f"Invalid setting key. Allowed: {allowed}"
-        )
+        raise ValueError(f"Invalid setting key. Allowed: {allowed}")
     value = payload.value_text if payload.value_text is not None else payload.value_json
     if value is None:
-        raise HTTPException(status_code=400, detail="Value required")
+        raise ValueError("Value required")
     coerced, error = settings_spec.coerce_value(spec, value)
     if error:
-        raise HTTPException(status_code=400, detail=error)
+        raise ValueError(error)
     if isinstance(coerced, str) and spec.allowed:
         coerced = coerced.strip().lower()
     if spec.allowed and coerced not in spec.allowed:
         allowed = ", ".join(sorted(spec.allowed))
-        raise HTTPException(status_code=400, detail=f"Value must be one of: {allowed}")
+        raise ValueError(f"Value must be one of: {allowed}")
     if spec.value_type == SettingValueType.integer:
         try:
             if isinstance(coerced, bool):
@@ -43,17 +41,11 @@ def _normalize_spec_setting(
             else:
                 raise TypeError("not an int-like value")
         except (TypeError, ValueError) as exc:
-            raise HTTPException(
-                status_code=400, detail="Value must be an integer"
-            ) from exc
+            raise ValueError("Value must be an integer") from exc
         if spec.min_value is not None and parsed < spec.min_value:
-            raise HTTPException(
-                status_code=400, detail=f"Value must be >= {spec.min_value}"
-            )
+            raise ValueError(f"Value must be >= {spec.min_value}")
         if spec.max_value is not None and parsed > spec.max_value:
-            raise HTTPException(
-                status_code=400, detail=f"Value must be <= {spec.max_value}"
-            )
+            raise ValueError(f"Value must be <= {spec.max_value}")
         coerced = parsed
     value_text, value_json = settings_spec.normalize_for_db(spec, coerced)
     data = payload.model_dump(exclude_unset=True)
@@ -76,7 +68,7 @@ def _list_domain_settings(
 ):
     service = settings_spec.DOMAIN_SETTINGS_SERVICE.get(domain)
     if not service:
-        raise HTTPException(status_code=400, detail="Unknown settings domain")
+        raise ValueError("Unknown settings domain")
     return service.list(db, None, is_active, order_by, order_dir, limit, offset)
 
 
@@ -89,10 +81,15 @@ def _list_domain_settings_response(
     limit: int,
     offset: int,
 ):
-    items = _list_domain_settings(
+    result = _list_domain_settings(
         db, domain, is_active, order_by, order_dir, limit, offset
     )
-    return list_response(items, limit, offset)
+    if isinstance(result, tuple):
+        items, total = result
+    else:
+        items = result
+        total = len(items)
+    return list_response(items, limit, offset, total=total)
 
 
 def _upsert_domain_setting(
@@ -101,7 +98,7 @@ def _upsert_domain_setting(
     normalized_payload = _normalize_spec_setting(domain, key, payload)
     service = settings_spec.DOMAIN_SETTINGS_SERVICE.get(domain)
     if not service:
-        raise HTTPException(status_code=400, detail="Unknown settings domain")
+        raise ValueError("Unknown settings domain")
     return service.upsert_by_key(db, key, normalized_payload)
 
 
@@ -109,12 +106,10 @@ def _get_domain_setting(db: Session, domain: SettingDomain, key: str):
     spec = settings_spec.get_spec(domain, key)
     if not spec:
         allowed = _domain_allowed_keys(domain)
-        raise HTTPException(
-            status_code=400, detail=f"Invalid setting key. Allowed: {allowed}"
-        )
+        raise ValueError(f"Invalid setting key. Allowed: {allowed}")
     service = settings_spec.DOMAIN_SETTINGS_SERVICE.get(domain)
     if not service:
-        raise HTTPException(status_code=400, detail="Unknown settings domain")
+        raise ValueError("Unknown settings domain")
     return service.get_by_key(db, key)
 
 
@@ -179,3 +174,7 @@ def upsert_scheduler_setting(db: Session, key: str, payload: DomainSettingUpdate
 
 def get_scheduler_setting(db: Session, key: str):
     return _get_domain_setting(db, SettingDomain.scheduler, key)
+
+
+def is_not_found_error(exc: Exception) -> bool:
+    return isinstance(exc, domain_settings_service.SettingNotFoundError)

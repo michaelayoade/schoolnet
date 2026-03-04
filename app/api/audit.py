@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_audit_auth
@@ -15,7 +15,10 @@ router = APIRouter(
 
 @router.get("/{event_id}", response_model=AuditEventRead)
 def get_audit_event(event_id: str, db: Session = Depends(get_db)):
-    return audit_service.audit_events.get(db, event_id)
+    try:
+        return audit_service.audit_events.get(db, event_id)
+    except audit_service.AuditEventNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("", response_model=ListResponse[AuditEventRead])
@@ -34,22 +37,25 @@ def list_audit_events(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    resolved_actor_type = audit_service.audit_events.parse_actor_type(actor_type)
-    return audit_service.audit_events.list_response(
-        db,
-        actor_id,
-        resolved_actor_type,
-        action,
-        entity_type,
-        request_id,
-        is_success,
-        status_code,
-        is_active,
-        order_by,
-        order_dir,
-        limit,
-        offset,
-    )
+    try:
+        resolved_actor_type = audit_service.audit_events.parse_actor_type(actor_type)
+        return audit_service.audit_events.list_response(
+            db,
+            actor_id,
+            resolved_actor_type,
+            action,
+            entity_type,
+            request_id,
+            is_success,
+            status_code,
+            is_active,
+            order_by,
+            order_dir,
+            limit,
+            offset,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete(
@@ -57,4 +63,9 @@ def list_audit_events(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_audit_event(event_id: str, db: Session = Depends(get_db)):
-    audit_service.audit_events.delete(db, event_id)
+    try:
+        audit_service.audit_events.delete(db, event_id)
+        db.commit()
+    except audit_service.AuditEventNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -77,8 +77,8 @@ class TestResetPassword:
         token = _issue_password_reset_token(None, str(person.id), person.email)
         resp = _post(client, "/reset-password", {
             "token": token,
-            "new_password": "newpass123",
-            "confirm_password": "newpass123",
+            "new_password": "NewPass123",
+            "confirm_password": "NewPass123",
         })
         assert resp.status_code == 303
         assert "/login" in resp.headers["location"]
@@ -86,8 +86,8 @@ class TestResetPassword:
     def test_reset_password_invalid_token(self, client, db_session):
         resp = _post(client, "/reset-password", {
             "token": "invalid-token",
-            "new_password": "newpass123",
-            "confirm_password": "newpass123",
+            "new_password": "NewPass123",
+            "confirm_password": "NewPass123",
         })
         assert resp.status_code == 200
         assert b"Invalid or expired" in resp.content
@@ -97,7 +97,7 @@ class TestResetPassword:
         token = _issue_password_reset_token(None, str(person.id), person.email)
         resp = _post(client, "/reset-password", {
             "token": token,
-            "new_password": "newpass123",
+            "new_password": "NewPass123",
             "confirm_password": "different456",
         })
         assert resp.status_code == 200

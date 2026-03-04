@@ -19,8 +19,9 @@
   </div>
   {% endif %}
 
-  <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]" x-data="{ primary: '{{ branding.primary_color }}', accent: '{{ branding.accent_color }}', displayFont: '{{ branding.font_family_display }}', bodyFont: '{{ branding.font_family_body }}' }">
+  <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]" x-data='{ primary: {{ branding.primary_color | tojson }}, accent: {{ branding.accent_color | tojson }}, displayFont: {{ branding.font_family_display | tojson }}, bodyFont: {{ branding.font_family_body | tojson }} }'>
     <form method="POST" action="/settings/branding" enctype="multipart/form-data" class="space-y-6">
+      {{ request.state.csrf_form | safe }}
       <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Identity</h2>
         <div class="mt-4 grid gap-4 sm:grid-cols-2">

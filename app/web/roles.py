@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -102,24 +103,30 @@ def create_role_form(
 
 
 @router.post("/create", response_model=None)
-async def create_role_submit(
+def create_role_submit(
     request: Request,
+    name: str = Form(""),
+    description: str | None = Form(None),
+    is_active: str | None = Form(None),
+    permission_ids: list[str] = Form([]),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle role creation with permission assignments."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
-
-    # Extract selected permission IDs from multi-select checkboxes
-    permission_ids = form.getlist("permission_ids")
+    _ = csrf_token
+    data = {
+        "name": name,
+        "description": description,
+        "is_active": is_active,
+        "permission_ids": permission_ids,
+    }
 
     try:
         payload = RoleCreate(
-            name=str(data.get("name", "")),
-            description=str(data["description"]) if data.get("description") else None,
-            is_active=data.get("is_active") == "on",
+            name=name,
+            description=description if description else None,
+            is_active=is_active == "on",
         )
         role = roles.create(db, payload)
 
@@ -134,12 +141,14 @@ async def create_role_submit(
             )
             role_permissions.create(db, rp_payload)
 
+        db.commit()
         logger.info("Created role via web: %s", payload.name)
         return RedirectResponse(
             url="/admin/roles?success=Role+created+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create role: %s", exc)
         all_permissions = list(
             db.scalars(
@@ -188,23 +197,31 @@ def edit_role_form(
 
 
 @router.post("/{role_id}/edit", response_model=None)
-async def edit_role_submit(
+def edit_role_submit(
     request: Request,
     role_id: UUID,
+    name: str | None = Form(None),
+    description: str | None = Form(None),
+    is_active: str | None = Form(None),
+    permission_ids: list[str] = Form([]),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle role edit with permission reassignment."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
-    permission_ids = form.getlist("permission_ids")
+    _ = csrf_token
+    data = {
+        "name": name,
+        "description": description,
+        "is_active": is_active,
+        "permission_ids": permission_ids,
+    }
 
     try:
         payload = RoleUpdate(
-            name=str(data["name"]) if data.get("name") else None,
-            description=str(data["description"]) if data.get("description") else None,
-            is_active="is_active" in data,
+            name=name if name else None,
+            description=description if description else None,
+            is_active=is_active == "on",
         )
         roles.update(db, str(role_id), payload)
 
@@ -235,7 +252,8 @@ async def edit_role_submit(
             url="/admin/roles?success=Role+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update role %s: %s", role_id, exc)
         role = db.get(Role, role_id)
         all_permissions = list(
@@ -262,26 +280,28 @@ async def edit_role_submit(
 
 
 @router.post("/{role_id}/delete", response_model=None)
-async def delete_role(
+def delete_role(
     request: Request,
     role_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle role deletion (soft delete via is_active=False)."""
-    form = await request.form()
-    _ = form.get("csrf_token")
+    _ = csrf_token
 
     try:
         roles.delete(db, str(role_id))
+        db.commit()
         logger.info("Deleted role via web: %s", role_id)
         return RedirectResponse(
             url="/admin/roles?success=Role+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete role %s: %s", role_id, exc)
         return RedirectResponse(
-            url=f"/admin/roles?error={exc}",
+            url=f"/admin/roles?error={quote_plus(str(exc))}",
             status_code=302,
         )

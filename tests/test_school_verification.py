@@ -97,7 +97,7 @@ class TestSchoolVerification:
         assert resp.status_code == 200
         assert b"Verified" in resp.content
 
-    @patch("app.web.school.verification.FileUploadService")
+    @patch("app.services.school.FileUploadService")
     def test_upload_verification_document(self, mock_cls, client, db_session):
         _, school, token = _setup_school_admin(db_session)
 

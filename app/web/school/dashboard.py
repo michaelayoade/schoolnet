@@ -1,14 +1,16 @@
 """School admin — dashboard and profile."""
 
 import logging
+from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
 from app.schemas.school import SchoolUpdate
 from app.services.common import require_uuid
+from app.services.file_upload import FileUploadService
 from app.services.school import SchoolService
 from app.templates import templates
 from app.web.schoolnet_deps import require_school_admin_auth
@@ -79,6 +81,8 @@ def school_profile_update(
     bank_code: str = Form(""),
     account_number: str = Form(""),
     account_name: str = Form(""),
+    logo: UploadFile | None = File(default=None),
+    cover_image: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
@@ -87,6 +91,53 @@ def school_profile_update(
         return RedirectResponse(
             url="/school/profile?error=School+not+found", status_code=303
         )
+
+    # Handle file uploads
+    logo_url: str | None = None
+    cover_image_url: str | None = None
+    person_id = require_uuid(auth["person_id"])
+
+    if logo and logo.filename:
+        try:
+            upload_svc = FileUploadService(db)
+            content = logo.file.read()
+            upload = upload_svc.upload(
+                content=content,
+                filename=logo.filename,
+                content_type=logo.content_type or "image/png",
+                uploaded_by=person_id,
+                category="logo",
+                entity_type="school",
+                entity_id=str(school.id),
+            )
+            logo_url = upload.url
+        except (ValueError, RuntimeError) as e:
+            logger.warning("Logo upload failed: %s", e)
+            return RedirectResponse(
+                url=f"/school/profile?error={quote_plus('Logo upload failed')}",
+                status_code=303,
+            )
+
+    if cover_image and cover_image.filename:
+        try:
+            upload_svc = FileUploadService(db)
+            content = cover_image.file.read()
+            upload = upload_svc.upload(
+                content=content,
+                filename=cover_image.filename,
+                content_type=cover_image.content_type or "image/png",
+                uploaded_by=person_id,
+                category="cover_image",
+                entity_type="school",
+                entity_id=str(school.id),
+            )
+            cover_image_url = upload.url
+        except (ValueError, RuntimeError) as e:
+            logger.warning("Cover image upload failed: %s", e)
+            return RedirectResponse(
+                url=f"/school/profile?error={quote_plus('Cover image upload failed')}",
+                status_code=303,
+            )
 
     svc = SchoolService(db)
     payload = SchoolUpdate(
@@ -102,6 +153,8 @@ def school_profile_update(
         bank_code=bank_code if bank_code else None,
         account_number=account_number if account_number else None,
         account_name=account_name if account_name else None,
+        logo_url=logo_url,
+        cover_image_url=cover_image_url,
     )
     svc.update(school, payload)
     db.commit()

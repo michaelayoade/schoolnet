@@ -17,7 +17,7 @@ def test_role_permission_link_flow(db_session):
         db_session,
         RolePermissionCreate(role_id=role.id, permission_id=permission.id),
     )
-    items = rbac_service.role_permissions.list(
+    items, total = rbac_service.role_permissions.list(
         db_session,
         role_id=role.id,
         permission_id=None,
@@ -26,6 +26,7 @@ def test_role_permission_link_flow(db_session):
         limit=10,
         offset=0,
     )
+    assert total == 1
     assert items[0].id == link.id
 
 
@@ -33,7 +34,7 @@ def test_role_permission_soft_delete_filters(db_session):
     role = rbac_service.roles.create(db_session, RoleCreate(name="Settings"))
     rbac_service.roles.update(db_session, str(role.id), RoleUpdate(name="Settings Ops"))
     rbac_service.roles.delete(db_session, str(role.id))
-    active = rbac_service.roles.list(
+    active, active_total = rbac_service.roles.list(
         db_session,
         is_active=None,
         order_by="created_at",
@@ -41,7 +42,7 @@ def test_role_permission_soft_delete_filters(db_session):
         limit=10,
         offset=0,
     )
-    inactive = rbac_service.roles.list(
+    inactive, inactive_total = rbac_service.roles.list(
         db_session,
         is_active=False,
         order_by="created_at",
@@ -49,6 +50,8 @@ def test_role_permission_soft_delete_filters(db_session):
         limit=10,
         offset=0,
     )
+    assert active_total >= 0
+    assert inactive_total >= 1
     assert role not in active
     assert any(item.id == role.id for item in inactive)
 

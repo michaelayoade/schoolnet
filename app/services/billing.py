@@ -1,6 +1,6 @@
 import logging
+from enum import Enum
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -54,17 +54,96 @@ from app.schemas.billing import (
     WebhookEventCreate,
     WebhookEventUpdate,
 )
-from app.services.common import coerce_uuid
-from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
+from app.services.common import coerce_uuid, escape_like
 from app.services.response import ListResponseMixin
 
 logger = logging.getLogger(__name__)
+
+
+class ProductNotFoundError(ValueError):
+    pass
+
+
+class PriceNotFoundError(ValueError):
+    pass
+
+
+class CustomerNotFoundError(ValueError):
+    pass
+
+
+class SubscriptionNotFoundError(ValueError):
+    pass
+
+
+class SubscriptionItemNotFoundError(ValueError):
+    pass
+
+
+class InvoiceNotFoundError(ValueError):
+    pass
+
+
+class InvoiceItemNotFoundError(ValueError):
+    pass
+
+
+class PaymentMethodNotFoundError(ValueError):
+    pass
+
+
+class PaymentIntentNotFoundError(ValueError):
+    pass
+
+
+class UsageRecordNotFoundError(ValueError):
+    pass
+
+
+class CouponNotFoundError(ValueError):
+    pass
+
+
+class DiscountNotFoundError(ValueError):
+    pass
+
+
+class EntitlementNotFoundError(ValueError):
+    pass
+
+
+class WebhookEventNotFoundError(ValueError):
+    pass
+
+
+def _parse_enum(value: str | None, enum_cls: type[Enum], label: str):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid {label}") from exc
 
 
 # ── Products ─────────────────────────────────────────────
 
 
 class Products(ListResponseMixin):
+    @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Product.created_at,
+            "name": Product.name,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
     @staticmethod
     def create(db: Session, payload: ProductCreate) -> Product:
         item = Product(**payload.model_dump())
@@ -78,7 +157,7 @@ class Products(ListResponseMixin):
     def get(db: Session, item_id: str) -> Product:
         item = db.get(Product, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise ProductNotFoundError("Product not found")
         return item
 
     @staticmethod
@@ -91,29 +170,20 @@ class Products(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Product], int]:
         stmt = select(Product)
-        count_stmt = select(func.count()).select_from(Product)
-        conditions = []
         if is_active is not None:
-            conditions.append(Product.is_active == is_active)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Product.created_at, "name": Product.name},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Product.is_active == is_active)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Products._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: ProductUpdate) -> Product:
         item = db.get(Product, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise ProductNotFoundError("Product not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -125,7 +195,7 @@ class Products(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Product, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise ProductNotFoundError("Product not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -137,9 +207,24 @@ class Products(ListResponseMixin):
 
 class Prices(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Price.created_at,
+            "unit_amount": Price.unit_amount,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: PriceCreate) -> Price:
         if not db.get(Product, coerce_uuid(payload.product_id)):
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise ProductNotFoundError("Product not found")
         item = Price(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -151,7 +236,7 @@ class Prices(ListResponseMixin):
     def get(db: Session, item_id: str) -> Price:
         item = db.get(Price, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Price not found")
+            raise PriceNotFoundError("Price not found")
         return item
 
     @staticmethod
@@ -167,35 +252,26 @@ class Prices(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Price], int]:
         stmt = select(Price)
-        count_stmt = select(func.count()).select_from(Price)
-        conditions = []
         if product_id:
-            conditions.append(Price.product_id == coerce_uuid(product_id))
+            stmt = stmt.where(Price.product_id == coerce_uuid(product_id))
         if type:
-            conditions.append(Price.type == validate_enum(type, PriceType, "type"))
+            stmt = stmt.where(Price.type == _parse_enum(type, PriceType, "type"))
         if currency:
-            conditions.append(Price.currency == currency)
+            stmt = stmt.where(Price.currency == currency)
         if is_active is not None:
-            conditions.append(Price.is_active == is_active)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Price.created_at, "unit_amount": Price.unit_amount},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Price.is_active == is_active)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Prices._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: PriceUpdate) -> Price:
         item = db.get(Price, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Price not found")
+            raise PriceNotFoundError("Price not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -207,7 +283,7 @@ class Prices(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Price, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Price not found")
+            raise PriceNotFoundError("Price not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -218,6 +294,21 @@ class Prices(ListResponseMixin):
 
 
 class Customers(ListResponseMixin):
+    @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Customer.created_at,
+            "name": Customer.name,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
     @staticmethod
     def create(db: Session, payload: CustomerCreate) -> Customer:
         item = Customer(**payload.model_dump())
@@ -231,7 +322,7 @@ class Customers(ListResponseMixin):
     def get(db: Session, item_id: str) -> Customer:
         item = db.get(Customer, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         return item
 
     @staticmethod
@@ -246,33 +337,24 @@ class Customers(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Customer], int]:
         stmt = select(Customer)
-        count_stmt = select(func.count()).select_from(Customer)
-        conditions = []
         if person_id:
-            conditions.append(Customer.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(Customer.person_id == coerce_uuid(person_id))
         if email:
-            conditions.append(Customer.email.ilike(f"%{email}%"))
+            stmt = stmt.where(Customer.email.ilike(f"%{escape_like(email)}%"))
         if is_active is not None:
-            conditions.append(Customer.is_active == is_active)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Customer.created_at, "name": Customer.name},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Customer.is_active == is_active)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Customers._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: CustomerUpdate) -> Customer:
         item = db.get(Customer, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -284,7 +366,7 @@ class Customers(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Customer, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -296,9 +378,23 @@ class Customers(ListResponseMixin):
 
 class Subscriptions(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Subscription.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: SubscriptionCreate) -> Subscription:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         item = Subscription(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -310,7 +406,7 @@ class Subscriptions(ListResponseMixin):
     def get(db: Session, item_id: str) -> Subscription:
         item = db.get(Subscription, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise SubscriptionNotFoundError("Subscription not found")
         return item
 
     @staticmethod
@@ -325,36 +421,27 @@ class Subscriptions(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Subscription], int]:
         stmt = select(Subscription)
-        count_stmt = select(func.count()).select_from(Subscription)
-        conditions = []
         if customer_id:
-            conditions.append(Subscription.customer_id == coerce_uuid(customer_id))
+            stmt = stmt.where(Subscription.customer_id == coerce_uuid(customer_id))
         if status:
-            conditions.append(
+            stmt = stmt.where(
                 Subscription.status
-                == validate_enum(status, SubscriptionStatus, "status")
+                == _parse_enum(status, SubscriptionStatus, "status")
             )
         if is_active is not None:
-            conditions.append(Subscription.is_active == is_active)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Subscription.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Subscription.is_active == is_active)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Subscriptions._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: SubscriptionUpdate) -> Subscription:
         item = db.get(Subscription, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise SubscriptionNotFoundError("Subscription not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -366,7 +453,7 @@ class Subscriptions(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Subscription, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise SubscriptionNotFoundError("Subscription not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -378,11 +465,25 @@ class Subscriptions(ListResponseMixin):
 
 class SubscriptionItems(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": SubscriptionItem.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: SubscriptionItemCreate) -> SubscriptionItem:
         if not db.get(Subscription, coerce_uuid(payload.subscription_id)):
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise SubscriptionNotFoundError("Subscription not found")
         if not db.get(Price, coerce_uuid(payload.price_id)):
-            raise HTTPException(status_code=404, detail="Price not found")
+            raise PriceNotFoundError("Price not found")
         item = SubscriptionItem(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -394,7 +495,7 @@ class SubscriptionItems(ListResponseMixin):
     def get(db: Session, item_id: str) -> SubscriptionItem:
         item = db.get(SubscriptionItem, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Subscription item not found")
+            raise SubscriptionItemNotFoundError("Subscription item not found")
         return item
 
     @staticmethod
@@ -408,26 +509,17 @@ class SubscriptionItems(ListResponseMixin):
         offset: int,
     ) -> tuple[list[SubscriptionItem], int]:
         stmt = select(SubscriptionItem)
-        count_stmt = select(func.count()).select_from(SubscriptionItem)
-        conditions = []
         if subscription_id:
-            conditions.append(
+            stmt = stmt.where(
                 SubscriptionItem.subscription_id == coerce_uuid(subscription_id)
             )
         if price_id:
-            conditions.append(SubscriptionItem.price_id == coerce_uuid(price_id))
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": SubscriptionItem.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(SubscriptionItem.price_id == coerce_uuid(price_id))
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = SubscriptionItems._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
@@ -436,7 +528,7 @@ class SubscriptionItems(ListResponseMixin):
     ) -> SubscriptionItem:
         item = db.get(SubscriptionItem, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Subscription item not found")
+            raise SubscriptionItemNotFoundError("Subscription item not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -448,7 +540,7 @@ class SubscriptionItems(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(SubscriptionItem, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Subscription item not found")
+            raise SubscriptionItemNotFoundError("Subscription item not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -460,13 +552,28 @@ class SubscriptionItems(ListResponseMixin):
 
 class Invoices(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Invoice.created_at,
+            "total": Invoice.total,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: InvoiceCreate) -> Invoice:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         if payload.subscription_id and not db.get(
             Subscription, coerce_uuid(payload.subscription_id)
         ):
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise SubscriptionNotFoundError("Subscription not found")
         item = Invoice(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -478,7 +585,7 @@ class Invoices(ListResponseMixin):
     def get(db: Session, item_id: str) -> Invoice:
         item = db.get(Invoice, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise InvoiceNotFoundError("Invoice not found")
         return item
 
     @staticmethod
@@ -493,35 +600,28 @@ class Invoices(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Invoice], int]:
         stmt = select(Invoice)
-        count_stmt = select(func.count()).select_from(Invoice)
-        conditions = []
         if customer_id:
-            conditions.append(Invoice.customer_id == coerce_uuid(customer_id))
+            stmt = stmt.where(Invoice.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            conditions.append(Invoice.subscription_id == coerce_uuid(subscription_id))
-        if status:
-            conditions.append(
-                Invoice.status == validate_enum(status, InvoiceStatus, "status")
+            stmt = stmt.where(
+                Invoice.subscription_id == coerce_uuid(subscription_id)
             )
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Invoice.created_at, "total": Invoice.total},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+        if status:
+            stmt = stmt.where(
+                Invoice.status == _parse_enum(status, InvoiceStatus, "status")
+            )
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Invoices._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: InvoiceUpdate) -> Invoice:
         item = db.get(Invoice, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise InvoiceNotFoundError("Invoice not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -533,7 +633,7 @@ class Invoices(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Invoice, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise InvoiceNotFoundError("Invoice not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -545,15 +645,29 @@ class Invoices(ListResponseMixin):
 
 class InvoiceItems(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": InvoiceItem.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: InvoiceItemCreate) -> InvoiceItem:
         if not db.get(Invoice, coerce_uuid(payload.invoice_id)):
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise InvoiceNotFoundError("Invoice not found")
         if payload.price_id and not db.get(Price, coerce_uuid(payload.price_id)):
-            raise HTTPException(status_code=404, detail="Price not found")
+            raise PriceNotFoundError("Price not found")
         if payload.subscription_item_id and not db.get(
             SubscriptionItem, coerce_uuid(payload.subscription_item_id)
         ):
-            raise HTTPException(status_code=404, detail="Subscription item not found")
+            raise SubscriptionItemNotFoundError("Subscription item not found")
         item = InvoiceItem(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -565,7 +679,7 @@ class InvoiceItems(ListResponseMixin):
     def get(db: Session, item_id: str) -> InvoiceItem:
         item = db.get(InvoiceItem, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Invoice item not found")
+            raise InvoiceItemNotFoundError("Invoice item not found")
         return item
 
     @staticmethod
@@ -578,29 +692,20 @@ class InvoiceItems(ListResponseMixin):
         offset: int,
     ) -> tuple[list[InvoiceItem], int]:
         stmt = select(InvoiceItem)
-        count_stmt = select(func.count()).select_from(InvoiceItem)
-        conditions = []
         if invoice_id:
-            conditions.append(InvoiceItem.invoice_id == coerce_uuid(invoice_id))
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": InvoiceItem.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(InvoiceItem.invoice_id == coerce_uuid(invoice_id))
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = InvoiceItems._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: InvoiceItemUpdate) -> InvoiceItem:
         item = db.get(InvoiceItem, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Invoice item not found")
+            raise InvoiceItemNotFoundError("Invoice item not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -612,7 +717,7 @@ class InvoiceItems(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(InvoiceItem, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Invoice item not found")
+            raise InvoiceItemNotFoundError("Invoice item not found")
         db.delete(item)
         db.flush()
         logger.info("Deleted %s: %s", InvoiceItem.__name__, item_id)
@@ -623,9 +728,23 @@ class InvoiceItems(ListResponseMixin):
 
 class PaymentMethods(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": PaymentMethod.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: PaymentMethodCreate) -> PaymentMethod:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         item = PaymentMethod(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -637,7 +756,7 @@ class PaymentMethods(ListResponseMixin):
     def get(db: Session, item_id: str) -> PaymentMethod:
         item = db.get(PaymentMethod, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Payment method not found")
+            raise PaymentMethodNotFoundError("Payment method not found")
         return item
 
     @staticmethod
@@ -652,28 +771,19 @@ class PaymentMethods(ListResponseMixin):
         offset: int,
     ) -> tuple[list[PaymentMethod], int]:
         stmt = select(PaymentMethod)
-        count_stmt = select(func.count()).select_from(PaymentMethod)
-        conditions = []
         if customer_id:
-            conditions.append(PaymentMethod.customer_id == coerce_uuid(customer_id))
+            stmt = stmt.where(PaymentMethod.customer_id == coerce_uuid(customer_id))
         if type:
-            conditions.append(
-                PaymentMethod.type == validate_enum(type, PaymentMethodType, "type")
+            stmt = stmt.where(
+                PaymentMethod.type == _parse_enum(type, PaymentMethodType, "type")
             )
         if is_active is not None:
-            conditions.append(PaymentMethod.is_active == is_active)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": PaymentMethod.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(PaymentMethod.is_active == is_active)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = PaymentMethods._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
@@ -682,7 +792,7 @@ class PaymentMethods(ListResponseMixin):
     ) -> PaymentMethod:
         item = db.get(PaymentMethod, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Payment method not found")
+            raise PaymentMethodNotFoundError("Payment method not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -694,7 +804,7 @@ class PaymentMethods(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(PaymentMethod, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Payment method not found")
+            raise PaymentMethodNotFoundError("Payment method not found")
         item.is_active = False
         db.flush()
         db.refresh(item)
@@ -706,15 +816,29 @@ class PaymentMethods(ListResponseMixin):
 
 class PaymentIntents(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": PaymentIntent.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: PaymentIntentCreate) -> PaymentIntent:
         if not db.get(Customer, coerce_uuid(payload.customer_id)):
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         if payload.invoice_id and not db.get(Invoice, coerce_uuid(payload.invoice_id)):
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise InvoiceNotFoundError("Invoice not found")
         if payload.payment_method_id and not db.get(
             PaymentMethod, coerce_uuid(payload.payment_method_id)
         ):
-            raise HTTPException(status_code=404, detail="Payment method not found")
+            raise PaymentMethodNotFoundError("Payment method not found")
         item = PaymentIntent(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -726,7 +850,7 @@ class PaymentIntents(ListResponseMixin):
     def get(db: Session, item_id: str) -> PaymentIntent:
         item = db.get(PaymentIntent, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Payment intent not found")
+            raise PaymentIntentNotFoundError("Payment intent not found")
         return item
 
     @staticmethod
@@ -741,29 +865,20 @@ class PaymentIntents(ListResponseMixin):
         offset: int,
     ) -> tuple[list[PaymentIntent], int]:
         stmt = select(PaymentIntent)
-        count_stmt = select(func.count()).select_from(PaymentIntent)
-        conditions = []
         if customer_id:
-            conditions.append(PaymentIntent.customer_id == coerce_uuid(customer_id))
+            stmt = stmt.where(PaymentIntent.customer_id == coerce_uuid(customer_id))
         if invoice_id:
-            conditions.append(PaymentIntent.invoice_id == coerce_uuid(invoice_id))
+            stmt = stmt.where(PaymentIntent.invoice_id == coerce_uuid(invoice_id))
         if status:
-            conditions.append(
+            stmt = stmt.where(
                 PaymentIntent.status
-                == validate_enum(status, PaymentIntentStatus, "status")
+                == _parse_enum(status, PaymentIntentStatus, "status")
             )
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": PaymentIntent.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = PaymentIntents._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
@@ -772,7 +887,7 @@ class PaymentIntents(ListResponseMixin):
     ) -> PaymentIntent:
         item = db.get(PaymentIntent, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Payment intent not found")
+            raise PaymentIntentNotFoundError("Payment intent not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -786,9 +901,24 @@ class PaymentIntents(ListResponseMixin):
 
 class UsageRecords(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": UsageRecord.created_at,
+            "recorded_at": UsageRecord.recorded_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: UsageRecordCreate) -> UsageRecord:
         if not db.get(SubscriptionItem, coerce_uuid(payload.subscription_item_id)):
-            raise HTTPException(status_code=404, detail="Subscription item not found")
+            raise SubscriptionItemNotFoundError("Subscription item not found")
         item = UsageRecord(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -800,7 +930,7 @@ class UsageRecords(ListResponseMixin):
     def get(db: Session, item_id: str) -> UsageRecord:
         item = db.get(UsageRecord, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Usage record not found")
+            raise UsageRecordNotFoundError("Usage record not found")
         return item
 
     @staticmethod
@@ -813,27 +943,15 @@ class UsageRecords(ListResponseMixin):
         offset: int,
     ) -> tuple[list[UsageRecord], int]:
         stmt = select(UsageRecord)
-        count_stmt = select(func.count()).select_from(UsageRecord)
-        conditions = []
         if subscription_item_id:
-            conditions.append(
+            stmt = stmt.where(
                 UsageRecord.subscription_item_id == coerce_uuid(subscription_item_id)
             )
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {
-                "created_at": UsageRecord.created_at,
-                "recorded_at": UsageRecord.recorded_at,
-            },
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = UsageRecords._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
 
@@ -841,6 +959,21 @@ class UsageRecords(ListResponseMixin):
 
 
 class Coupons(ListResponseMixin):
+    @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Coupon.created_at,
+            "name": Coupon.name,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
     @staticmethod
     def create(db: Session, payload: CouponCreate) -> Coupon:
         item = Coupon(**payload.model_dump())
@@ -854,7 +987,7 @@ class Coupons(ListResponseMixin):
     def get(db: Session, item_id: str) -> Coupon:
         item = db.get(Coupon, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Coupon not found")
+            raise CouponNotFoundError("Coupon not found")
         return item
 
     @staticmethod
@@ -868,31 +1001,22 @@ class Coupons(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Coupon], int]:
         stmt = select(Coupon)
-        count_stmt = select(func.count()).select_from(Coupon)
-        conditions = []
         if valid is not None:
-            conditions.append(Coupon.valid == valid)
+            stmt = stmt.where(Coupon.valid == valid)
         if code:
-            conditions.append(Coupon.code == code)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Coupon.created_at, "name": Coupon.name},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Coupon.code == code)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Coupons._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: CouponUpdate) -> Coupon:
         item = db.get(Coupon, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Coupon not found")
+            raise CouponNotFoundError("Coupon not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -904,7 +1028,7 @@ class Coupons(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Coupon, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Coupon not found")
+            raise CouponNotFoundError("Coupon not found")
         item.valid = False
         db.flush()
         db.refresh(item)
@@ -916,17 +1040,31 @@ class Coupons(ListResponseMixin):
 
 class Discounts(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Discount.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: DiscountCreate) -> Discount:
         if not db.get(Coupon, coerce_uuid(payload.coupon_id)):
-            raise HTTPException(status_code=404, detail="Coupon not found")
+            raise CouponNotFoundError("Coupon not found")
         if payload.customer_id and not db.get(
             Customer, coerce_uuid(payload.customer_id)
         ):
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise CustomerNotFoundError("Customer not found")
         if payload.subscription_id and not db.get(
             Subscription, coerce_uuid(payload.subscription_id)
         ):
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise SubscriptionNotFoundError("Subscription not found")
         item = Discount(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -938,7 +1076,7 @@ class Discounts(ListResponseMixin):
     def get(db: Session, item_id: str) -> Discount:
         item = db.get(Discount, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Discount not found")
+            raise DiscountNotFoundError("Discount not found")
         return item
 
     @staticmethod
@@ -953,33 +1091,26 @@ class Discounts(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Discount], int]:
         stmt = select(Discount)
-        count_stmt = select(func.count()).select_from(Discount)
-        conditions = []
         if customer_id:
-            conditions.append(Discount.customer_id == coerce_uuid(customer_id))
+            stmt = stmt.where(Discount.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            conditions.append(Discount.subscription_id == coerce_uuid(subscription_id))
+            stmt = stmt.where(
+                Discount.subscription_id == coerce_uuid(subscription_id)
+            )
         if coupon_id:
-            conditions.append(Discount.coupon_id == coerce_uuid(coupon_id))
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Discount.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Discount.coupon_id == coerce_uuid(coupon_id))
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Discounts._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Discount, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Discount not found")
+            raise DiscountNotFoundError("Discount not found")
         db.delete(item)
         db.flush()
         logger.info("Deleted %s: %s", Discount.__name__, item_id)
@@ -990,9 +1121,23 @@ class Discounts(ListResponseMixin):
 
 class Entitlements(ListResponseMixin):
     @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": Entitlement.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
+    @staticmethod
     def create(db: Session, payload: EntitlementCreate) -> Entitlement:
         if not db.get(Product, coerce_uuid(payload.product_id)):
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise ProductNotFoundError("Product not found")
         item = Entitlement(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -1004,7 +1149,7 @@ class Entitlements(ListResponseMixin):
     def get(db: Session, item_id: str) -> Entitlement:
         item = db.get(Entitlement, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Entitlement not found")
+            raise EntitlementNotFoundError("Entitlement not found")
         return item
 
     @staticmethod
@@ -1018,31 +1163,22 @@ class Entitlements(ListResponseMixin):
         offset: int,
     ) -> tuple[list[Entitlement], int]:
         stmt = select(Entitlement)
-        count_stmt = select(func.count()).select_from(Entitlement)
-        conditions = []
         if product_id:
-            conditions.append(Entitlement.product_id == coerce_uuid(product_id))
+            stmt = stmt.where(Entitlement.product_id == coerce_uuid(product_id))
         if feature_key:
-            conditions.append(Entitlement.feature_key == feature_key)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": Entitlement.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+            stmt = stmt.where(Entitlement.feature_key == feature_key)
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = Entitlements._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: EntitlementUpdate) -> Entitlement:
         item = db.get(Entitlement, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Entitlement not found")
+            raise EntitlementNotFoundError("Entitlement not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()
@@ -1054,7 +1190,7 @@ class Entitlements(ListResponseMixin):
     def delete(db: Session, item_id: str) -> None:
         item = db.get(Entitlement, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Entitlement not found")
+            raise EntitlementNotFoundError("Entitlement not found")
         db.delete(item)
         db.flush()
         logger.info("Deleted %s: %s", Entitlement.__name__, item_id)
@@ -1064,6 +1200,20 @@ class Entitlements(ListResponseMixin):
 
 
 class WebhookEvents(ListResponseMixin):
+    @staticmethod
+    def _apply_ordering(stmt, order_by: str, order_dir: str):
+        allowed_columns = {
+            "created_at": WebhookEvent.created_at,
+        }
+        column = allowed_columns.get(order_by)
+        if column is None:
+            raise ValueError(
+                f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+            )
+        if order_dir == "desc":
+            return stmt.order_by(column.desc())
+        return stmt.order_by(column.asc())
+
     @staticmethod
     def create(db: Session, payload: WebhookEventCreate) -> WebhookEvent:
         item = WebhookEvent(**payload.model_dump())
@@ -1077,7 +1227,7 @@ class WebhookEvents(ListResponseMixin):
     def get(db: Session, item_id: str) -> WebhookEvent:
         item = db.get(WebhookEvent, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Webhook event not found")
+            raise WebhookEventNotFoundError("Webhook event not found")
         return item
 
     @staticmethod
@@ -1092,36 +1242,27 @@ class WebhookEvents(ListResponseMixin):
         offset: int,
     ) -> tuple[list[WebhookEvent], int]:
         stmt = select(WebhookEvent)
-        count_stmt = select(func.count()).select_from(WebhookEvent)
-        conditions = []
         if provider:
-            conditions.append(WebhookEvent.provider == provider)
+            stmt = stmt.where(WebhookEvent.provider == provider)
         if event_type:
-            conditions.append(WebhookEvent.event_type == event_type)
+            stmt = stmt.where(WebhookEvent.event_type == event_type)
         if status:
-            conditions.append(
+            stmt = stmt.where(
                 WebhookEvent.status
-                == validate_enum(status, WebhookEventStatus, "status")
+                == _parse_enum(status, WebhookEventStatus, "status")
             )
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        stmt = apply_ordering(
-            stmt,
-            order_by,
-            order_dir,
-            {"created_at": WebhookEvent.created_at},
-        )
-        stmt = apply_pagination(stmt, limit, offset)
-        items = list(db.scalars(stmt).all())
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
+        stmt = WebhookEvents._apply_ordering(stmt, order_by, order_dir)
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
         return items, total
 
     @staticmethod
     def update(db: Session, item_id: str, payload: WebhookEventUpdate) -> WebhookEvent:
         item = db.get(WebhookEvent, coerce_uuid(item_id))
         if not item:
-            raise HTTPException(status_code=404, detail="Webhook event not found")
+            raise WebhookEventNotFoundError("Webhook event not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         db.flush()

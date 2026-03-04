@@ -10,6 +10,7 @@
 
     <form method="POST"
           action="{{ '/parent/wards/edit/' ~ ward.id if ward else '/parent/wards/create' }}"
+          enctype="multipart/form-data"
           class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
         {{ request.state.csrf_form | safe }}
 
@@ -42,6 +43,16 @@
                 <option value="male" {{ 'selected' if ward and ward.gender == 'male' else '' }}>Male</option>
                 <option value="female" {{ 'selected' if ward and ward.gender == 'female' else '' }}>Female</option>
             </select>
+        </div>
+
+        <div>
+            <label for="passport" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Passport Photo</label>
+            {% if ward and ward.passport_url %}
+            <img src="{{ ward.passport_url }}" alt="Passport" class="h-20 w-20 rounded-lg object-cover mb-2 border border-slate-200 dark:border-slate-600" loading="lazy">
+            {% endif %}
+            <input type="file" id="passport" name="passport" accept="image/*"
+                   class="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-600 dark:file:bg-primary-900/20 dark:file:text-primary-400 hover:file:bg-primary-100">
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Upload a recent passport photograph</p>
         </div>
 
         <div class="pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">

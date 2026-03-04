@@ -65,6 +65,9 @@ class TestSecurityHeaders:
         assert "default-src 'self'" in csp
         assert "frame-ancestors 'none'" in csp
         assert "form-action 'self'" in csp
+        assert "script-src 'self' 'nonce-" in csp
+        assert "script-src 'self' 'unsafe-inline'" not in csp
+        assert "'unsafe-eval'" not in csp
 
     @pytest.mark.asyncio
     async def test_no_hsts_without_https(self, client: httpx.AsyncClient) -> None:

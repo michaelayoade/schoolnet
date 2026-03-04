@@ -2,7 +2,82 @@
 {% extends "school/base.html" %}
 {% block title %}Applications - School Admin{% endblock %}
 {% block school_content %}
-<h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Applications</h1>
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">Applications</h1>
+    <div class="flex items-center gap-3">
+        {% if pagination and pagination.total %}
+        <span class="text-sm text-slate-500 dark:text-slate-400">{{ pagination.total }} total</span>
+        {% endif %}
+        {% set export_params = [] %}
+        {% if current_status %}{% set _ = export_params.append('status=' + (current_status | urlencode)) %}{% endif %}
+        {% if current_form_id %}{% set _ = export_params.append('form_id=' + (current_form_id | urlencode)) %}{% endif %}
+        {% if current_search %}{% set _ = export_params.append('q=' + (current_search | urlencode)) %}{% endif %}
+        <a href="/school/applications/export/csv{% if export_params %}?{{ export_params | join('&amp;') }}{% endif %}"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Export CSV
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-6">
+    <form method="GET" action="/school/applications" class="flex flex-col sm:flex-row gap-3">
+        <!-- Search -->
+        <div class="flex-1">
+            <input type="text" name="q" value="{{ current_search if current_search else '' }}"
+                   placeholder="Search by name or app number..."
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
+        </div>
+        <!-- Status filter -->
+        <div>
+            <select name="status"
+                    class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                <option value="">All statuses</option>
+                {% for s in statuses if statuses %}
+                <option value="{{ s }}" {{ 'selected' if current_status == s else '' }}>{{ s | replace('_', ' ') | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- Form filter -->
+        {% if forms %}
+        <div>
+            <select name="form_id"
+                    class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                <option value="">All forms</option>
+                {% for f in forms %}
+                <option value="{{ f.id }}" {{ 'selected' if current_form_id == f.id | string else '' }}>{{ f.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            Filter
+        </button>
+        {% if current_status or current_form_id or current_search %}
+        <a href="/school/applications" class="inline-flex items-center px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Status tabs -->
+<div class="flex gap-1 mb-4 overflow-x-auto">
+    <a href="/school/applications{% if current_search %}?q={{ current_search }}{% endif %}{% if current_form_id %}&form_id={{ current_form_id }}{% endif %}"
+       class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' if not current_status else 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50' }}">
+        All
+    </a>
+    {% for s in statuses if statuses %}
+    {% set params = [] %}
+    {% if current_search %}{% set _ = params.append('q=' + current_search) %}{% endif %}
+    {% if current_form_id %}{% set _ = params.append('form_id=' + current_form_id) %}{% endif %}
+    {% set _ = params.append('status=' + s) %}
+    <a href="/school/applications?{{ params | join('&') }}"
+       class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition {{ 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' if current_status == s else 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50' }}">
+        {{ s | replace('_', ' ') | title }}
+    </a>
+    {% endfor %}
+</div>
 
 {% if applications %}
 <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -29,7 +104,7 @@
                 <td class="px-4 py-3">
                     {{ status_badge(app.status) }}
                 </td>
-                <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ app.submitted_at.strftime('%d %b %Y') if app.submitted_at else '-' }}</td>
+                <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ app.submitted_at | format_date if app.submitted_at else '-' }}</td>
                 <td class="px-4 py-3 text-right">
                     <a href="/school/applications/{{ app.id }}" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Review</a>
                 </td>
@@ -38,9 +113,46 @@
         </tbody>
     </table>
 </div>
+
+<!-- Pagination -->
+{% if pagination and pagination.pages and pagination.pages > 1 %}
+<nav class="flex items-center justify-between mt-4">
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+        Page {{ pagination.page }} of {{ pagination.pages }}
+    </p>
+    <div class="flex gap-1">
+        {% if pagination.page > 1 %}
+        {% set prev_params = ['page=' + (pagination.page - 1) | string] %}
+        {% if current_status %}{% set _ = prev_params.append('status=' + current_status) %}{% endif %}
+        {% if current_form_id %}{% set _ = prev_params.append('form_id=' + current_form_id) %}{% endif %}
+        {% if current_search %}{% set _ = prev_params.append('q=' + current_search) %}{% endif %}
+        <a href="/school/applications?{{ prev_params | join('&') }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">
+            Previous
+        </a>
+        {% endif %}
+        {% if pagination.page < pagination.pages %}
+        {% set next_params = ['page=' + (pagination.page + 1) | string] %}
+        {% if current_status %}{% set _ = next_params.append('status=' + current_status) %}{% endif %}
+        {% if current_form_id %}{% set _ = next_params.append('form_id=' + current_form_id) %}{% endif %}
+        {% if current_search %}{% set _ = next_params.append('q=' + current_search) %}{% endif %}
+        <a href="/school/applications?{{ next_params | join('&') }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">
+            Next
+        </a>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}
+
 {% else %}
 <div class="text-center py-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+    {% if current_status or current_form_id or current_search %}
+    <p class="text-slate-500 dark:text-slate-400">No applications match your filters.</p>
+    <a href="/school/applications" class="text-sm text-primary-600 dark:text-primary-400 hover:underline mt-2 inline-block">Clear filters</a>
+    {% else %}
     <p class="text-slate-500 dark:text-slate-400">No applications received yet.</p>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

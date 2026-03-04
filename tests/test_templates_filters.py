@@ -11,6 +11,7 @@ from app.templates import (
     _format_number,
     _nl2br,
     _sanitize_html,
+    templates,
     _timeago,
 )
 
@@ -160,3 +161,8 @@ class TestTimeago:
         past = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2)
         result = _timeago(past)
         assert "h ago" in result
+
+
+def test_template_globals_include_current_year() -> None:
+    assert "current_year" in templates.env.globals
+    assert isinstance(templates.env.globals["current_year"], int)

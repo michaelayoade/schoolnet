@@ -1,6 +1,11 @@
 import uuid
 
 
+@pytest.fixture()
+def auth_headers(admin_headers):
+    return admin_headers
+
+
 class TestPersonsAPI:
     """Tests for the /people API endpoints."""
 

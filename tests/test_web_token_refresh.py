@@ -137,7 +137,14 @@ class TestLoginRedirect:
         assert resp.headers["location"] == "/admin/schools"
 
     def test_logout_deletes_logged_in_cookie(self, client):
-        resp = client.get("/logout", follow_redirects=False)
+        csrf = _get_csrf(client)
+        resp = client.post(
+            "/logout",
+            data={"csrf_token": csrf},
+            headers={"X-CSRF-Token": csrf},
+            cookies={"csrf_token": csrf},
+            follow_redirects=False,
+        )
         assert resp.status_code == 303
         set_cookies = resp.headers.get_list("set-cookie")
         cookie_names = [c.split("=")[0].strip() for c in set_cookies]

@@ -69,11 +69,11 @@
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Due Date</label>
-            <p class="text-sm text-slate-900 dark:text-white">{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}</p>
+            <p class="text-sm text-slate-900 dark:text-white">{{ invoice.due_date | format_date if invoice.due_date else '-' }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Paid At</label>
-            <p class="text-sm text-slate-900 dark:text-white">{{ invoice.paid_at.strftime('%Y-%m-%d %H:%M') if invoice.paid_at else '-' }}</p>
+            <p class="text-sm text-slate-900 dark:text-white">{{ invoice.paid_at | format_datetime if invoice.paid_at else '-' }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">External ID</label>

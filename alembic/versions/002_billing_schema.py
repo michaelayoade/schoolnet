@@ -16,6 +16,30 @@ depends_on = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    original_create_table = op.create_table
+    original_create_index = op.create_index
+
+    def _create_table_if_missing(name: str, *args, **kwargs):
+        if inspector.has_table(name):
+            return None
+        return original_create_table(name, *args, **kwargs)
+
+    def _create_index_if_missing(name: str, table_name: str, columns, **kwargs):
+        if inspector.has_table(table_name):
+            existing = {idx.get("name") for idx in inspector.get_indexes(table_name)}
+            if name in existing:
+                return None
+        return original_create_index(name, table_name, columns, **kwargs)
+
+    op.create_table = _create_table_if_missing  # type: ignore[assignment]
+    op.create_index = _create_index_if_missing  # type: ignore[assignment]
+
+    # Add 'billing' to settingdomain enum
+    op.execute("ALTER TYPE settingdomain ADD VALUE IF NOT EXISTS 'billing'")
+
     # Products
     op.create_table(
         "products",
@@ -373,8 +397,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("event_id", name="uq_webhook_events_event_id"),
     )
-
-
 def downgrade() -> None:
     op.drop_table("webhook_events")
 

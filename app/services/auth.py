@@ -1,12 +1,14 @@
 import hashlib
+import logging
 import os
 import secrets
 import time
 from datetime import UTC, datetime
-from typing import cast
+from enum import Enum
+from typing import Any, TypeVar, cast
 
 import redis
-from fastapi import HTTPException, Request
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -35,9 +37,46 @@ from app.schemas.auth import (
     UserCredentialUpdate,
 )
 from app.services import settings_spec
+from app.services.auth_flow import _encrypt_secret
 from app.services.common import coerce_uuid
-from app.services.query_utils import apply_ordering, apply_pagination, validate_enum
 from app.services.response import ListResponseMixin
+
+logger = logging.getLogger(__name__)
+
+
+class PersonNotFoundError(ValueError):
+    pass
+
+
+class UserCredentialNotFoundError(ValueError):
+    pass
+
+
+class MFAMethodNotFoundError(ValueError):
+    pass
+
+
+class SessionNotFoundError(ValueError):
+    pass
+
+
+class ApiKeyNotFoundError(ValueError):
+    pass
+
+
+class PrimaryMFAMethodConflictError(ValueError):
+    pass
+
+
+class RateLimitUnavailableError(ValueError):
+    pass
+
+
+class RateLimitExceededError(ValueError):
+    pass
+
+
+EnumT = TypeVar("EnumT", bound=Enum)
 
 
 def hash_api_key(value: str) -> str:
@@ -49,14 +88,35 @@ _API_KEY_MAX_PER_WINDOW = 5
 _REDIS_CLIENT: redis.Redis | None = None
 
 
+def _parse_enum(value: str | None, enum_cls: type[EnumT], label: str) -> EnumT | None:
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid {label}") from exc
+
+
+def _apply_ordering(stmt, order_by: str, order_dir: str, allowed_columns: dict[str, Any]):
+    column = allowed_columns.get(order_by)
+    if column is None:
+        raise ValueError(
+            f"Invalid order_by. Allowed: {', '.join(sorted(allowed_columns))}"
+        )
+    if order_dir == "desc":
+        return stmt.order_by(column.desc())
+    return stmt.order_by(column.asc())
+
+
 def _auth_setting(db: Session, key: str) -> str | None:
-    setting = (
-        db.query(DomainSetting)
-        .filter(DomainSetting.domain == SettingDomain.auth)
-        .filter(DomainSetting.key == key)
-        .filter(DomainSetting.is_active.is_(True))
-        .first()
+    stmt = (
+        select(DomainSetting)
+        .where(DomainSetting.domain == SettingDomain.auth)
+        .where(DomainSetting.key == key)
+        .where(DomainSetting.is_active.is_(True))
+        .limit(1)
     )
+    setting = db.scalar(stmt)
     if not setting:
         return None
     if setting.value_text is not None:
@@ -95,7 +155,7 @@ def _get_redis_client() -> redis.Redis | None:
 def _ensure_person(db: Session, person_id: str):
     person = db.get(Person, coerce_uuid(person_id))
     if not person:
-        raise HTTPException(status_code=404, detail="Person not found")
+        raise PersonNotFoundError("Person not found")
 
 
 class UserCredentials(ListResponseMixin):
@@ -109,12 +169,12 @@ class UserCredentials(ListResponseMixin):
                 db, SettingDomain.auth, "default_auth_provider"
             )
             if default_provider:
-                data["provider"] = validate_enum(
-                    default_provider, AuthProvider, "provider"
+                data["provider"] = _parse_enum(
+                    cast(str, default_provider), AuthProvider, "provider"
                 )
         credential = UserCredential(**data)
         db.add(credential)
-        db.commit()
+        db.flush()
         db.refresh(credential)
         return credential
 
@@ -122,7 +182,7 @@ class UserCredentials(ListResponseMixin):
     def get(db: Session, credential_id: str):
         credential = db.get(UserCredential, coerce_uuid(credential_id))
         if not credential:
-            raise HTTPException(status_code=404, detail="User credential not found")
+            raise UserCredentialNotFoundError("User credential not found")
         return credential
 
     @staticmethod
@@ -136,20 +196,24 @@ class UserCredentials(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(UserCredential)
+        stmt = select(UserCredential)
         if person_id:
-            query = query.filter(UserCredential.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(UserCredential.person_id == coerce_uuid(person_id))
         if provider:
-            query = query.filter(
+            stmt = stmt.where(
                 UserCredential.provider
-                == validate_enum(provider, AuthProvider, "provider")
+                == _parse_enum(provider, AuthProvider, "provider")
             )
         if is_active is None:
-            query = query.filter(UserCredential.is_active.is_(True))
+            stmt = stmt.where(UserCredential.is_active.is_(True))
         else:
-            query = query.filter(UserCredential.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(UserCredential.is_active == is_active)
+
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+        total = db.scalar(count_stmt) or 0
+
+        stmt = _apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -158,19 +222,21 @@ class UserCredentials(ListResponseMixin):
                 "last_login_at": UserCredential.last_login_at,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
+        return items, total
 
     @staticmethod
     def update(db: Session, credential_id: str, payload: UserCredentialUpdate):
         credential = db.get(UserCredential, coerce_uuid(credential_id))
         if not credential:
-            raise HTTPException(status_code=404, detail="User credential not found")
+            raise UserCredentialNotFoundError("User credential not found")
         data = payload.model_dump(exclude_unset=True)
         if "person_id" in data:
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
             setattr(credential, key, value)
-        db.commit()
+        db.flush()
         db.refresh(credential)
         return credential
 
@@ -178,9 +244,9 @@ class UserCredentials(ListResponseMixin):
     def delete(db: Session, credential_id: str):
         credential = db.get(UserCredential, coerce_uuid(credential_id))
         if not credential:
-            raise HTTPException(status_code=404, detail="User credential not found")
+            raise UserCredentialNotFoundError("User credential not found")
         credential.is_active = False
-        db.commit()
+        db.flush()
 
 
 class MFAMethods(ListResponseMixin):
@@ -188,19 +254,22 @@ class MFAMethods(ListResponseMixin):
     def create(db: Session, payload: MFAMethodCreate):
         _ensure_person(db, str(payload.person_id))
         if payload.is_primary:
-            db.query(MFAMethod).filter(
-                MFAMethod.person_id == payload.person_id,
-                MFAMethod.is_primary.is_(True),
-            ).update({"is_primary": False})
-        method = MFAMethod(**payload.model_dump())
+            db.execute(
+                update(MFAMethod)
+                .where(MFAMethod.person_id == payload.person_id)
+                .where(MFAMethod.is_primary.is_(True))
+                .values(is_primary=False)
+            )
+        data = payload.model_dump()
+        if data.get("secret"):
+            data["secret"] = _encrypt_secret(db, cast(str, data["secret"]))
+        method = MFAMethod(**data)
         db.add(method)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="Primary MFA method already exists for this user",
+            raise PrimaryMFAMethodConflictError(
+                "Primary MFA method already exists for this user"
             ) from exc
         db.refresh(method)
         return method
@@ -209,7 +278,7 @@ class MFAMethods(ListResponseMixin):
     def get(db: Session, method_id: str):
         method = db.get(MFAMethod, coerce_uuid(method_id))
         if not method:
-            raise HTTPException(status_code=404, detail="MFA method not found")
+            raise MFAMethodNotFoundError("MFA method not found")
         return method
 
     @staticmethod
@@ -225,24 +294,28 @@ class MFAMethods(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(MFAMethod)
+        stmt = select(MFAMethod)
         if person_id:
-            query = query.filter(MFAMethod.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(MFAMethod.person_id == coerce_uuid(person_id))
         if method_type:
-            query = query.filter(
+            stmt = stmt.where(
                 MFAMethod.method_type
-                == validate_enum(method_type, MFAMethodType, "method_type")
+                == _parse_enum(method_type, MFAMethodType, "method_type")
             )
         if is_primary is not None:
-            query = query.filter(MFAMethod.is_primary == is_primary)
+            stmt = stmt.where(MFAMethod.is_primary == is_primary)
         if enabled is not None:
-            query = query.filter(MFAMethod.enabled == enabled)
+            stmt = stmt.where(MFAMethod.enabled == enabled)
         if is_active is None:
-            query = query.filter(MFAMethod.is_active.is_(True))
+            stmt = stmt.where(MFAMethod.is_active.is_(True))
         else:
-            query = query.filter(MFAMethod.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(MFAMethod.is_active == is_active)
+
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+        total = db.scalar(count_stmt) or 0
+
+        stmt = _apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -251,32 +324,36 @@ class MFAMethods(ListResponseMixin):
                 "is_primary": MFAMethod.is_primary,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
+        return items, total
 
     @staticmethod
     def update(db: Session, method_id: str, payload: MFAMethodUpdate):
         method = db.get(MFAMethod, coerce_uuid(method_id))
         if not method:
-            raise HTTPException(status_code=404, detail="MFA method not found")
+            raise MFAMethodNotFoundError("MFA method not found")
         data = payload.model_dump(exclude_unset=True)
         if "person_id" in data:
             _ensure_person(db, str(data["person_id"]))
+        if data.get("secret"):
+            data["secret"] = _encrypt_secret(db, cast(str, data["secret"]))
         if data.get("is_primary"):
             person_id = data.get("person_id", method.person_id)
-            db.query(MFAMethod).filter(
-                MFAMethod.person_id == person_id,
-                MFAMethod.id != method.id,
-                MFAMethod.is_primary.is_(True),
-            ).update({"is_primary": False})
+            db.execute(
+                update(MFAMethod)
+                .where(MFAMethod.person_id == person_id)
+                .where(MFAMethod.id != method.id)
+                .where(MFAMethod.is_primary.is_(True))
+                .values(is_primary=False)
+            )
         for key, value in data.items():
             setattr(method, key, value)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="Primary MFA method already exists for this user",
+            raise PrimaryMFAMethodConflictError(
+                "Primary MFA method already exists for this user"
             ) from exc
         db.refresh(method)
         return method
@@ -285,11 +362,11 @@ class MFAMethods(ListResponseMixin):
     def delete(db: Session, method_id: str):
         method = db.get(MFAMethod, coerce_uuid(method_id))
         if not method:
-            raise HTTPException(status_code=404, detail="MFA method not found")
+            raise MFAMethodNotFoundError("MFA method not found")
         method.is_active = False
         method.enabled = False
         method.is_primary = False
-        db.commit()
+        db.flush()
 
 
 class Sessions(ListResponseMixin):
@@ -299,7 +376,7 @@ class Sessions(ListResponseMixin):
         data = payload.model_dump()
         session = AuthSession(**data)
         db.add(session)
-        db.commit()
+        db.flush()
         db.refresh(session)
         return session
 
@@ -307,7 +384,7 @@ class Sessions(ListResponseMixin):
     def get(db: Session, session_id: str):
         session = db.get(AuthSession, coerce_uuid(session_id))
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise SessionNotFoundError("Session not found")
         return session
 
     @staticmethod
@@ -320,15 +397,19 @@ class Sessions(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(AuthSession)
+        stmt = select(AuthSession)
         if person_id:
-            query = query.filter(AuthSession.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(AuthSession.person_id == coerce_uuid(person_id))
         if status:
-            query = query.filter(
-                AuthSession.status == validate_enum(status, SessionStatus, "status")
+            stmt = stmt.where(
+                AuthSession.status == _parse_enum(status, SessionStatus, "status")
             )
-        query = apply_ordering(
-            query,
+
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+        total = db.scalar(count_stmt) or 0
+
+        stmt = _apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {
@@ -337,19 +418,21 @@ class Sessions(ListResponseMixin):
                 "status": AuthSession.status,
             },
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
+        return items, total
 
     @staticmethod
     def update(db: Session, session_id: str, payload: SessionUpdate):
         session = db.get(AuthSession, coerce_uuid(session_id))
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise SessionNotFoundError("Session not found")
         data = payload.model_dump(exclude_unset=True)
         if "person_id" in data:
             _ensure_person(db, str(data["person_id"]))
         for key, value in data.items():
             setattr(session, key, value)
-        db.commit()
+        db.flush()
         db.refresh(session)
         return session
 
@@ -357,16 +440,16 @@ class Sessions(ListResponseMixin):
     def delete(db: Session, session_id: str):
         session = db.get(AuthSession, coerce_uuid(session_id))
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise SessionNotFoundError("Session not found")
         session.status = SessionStatus.revoked
         session.revoked_at = datetime.now(UTC)
-        db.commit()
+        db.flush()
 
 
 class ApiKeys(ListResponseMixin):
     @staticmethod
     def generate_with_rate_limit(
-        db: Session, payload: ApiKeyGenerateRequest, request: Request | None
+        db: Session, payload: ApiKeyGenerateRequest, request: Any | None
     ):
         client_ip = "unknown"
         if request is not None and request.client:
@@ -379,10 +462,7 @@ class ApiKeys(ListResponseMixin):
         )
         redis_client = _get_redis_client()
         if not redis_client:
-            raise HTTPException(
-                status_code=503,
-                detail="Rate limiting unavailable (Redis required)",
-            )
+            raise RateLimitUnavailableError("Rate limiting unavailable (Redis required)")
         window = max(window_seconds, 1)
         key = f"api_key_rl:{client_ip}:{int(time.time() // window)}"
         try:
@@ -390,11 +470,10 @@ class ApiKeys(ListResponseMixin):
             if count == 1:
                 redis_client.expire(key, window)
             if count > max(max_per_window, 1):
-                raise HTTPException(status_code=429, detail="Rate limit exceeded")
+                raise RateLimitExceededError("Rate limit exceeded")
         except redis.RedisError as exc:
-            raise HTTPException(
-                status_code=503,
-                detail="Rate limiting unavailable (Redis error)",
+            raise RateLimitUnavailableError(
+                "Rate limiting unavailable (Redis error)"
             ) from exc
         api_key, raw_key = ApiKeys.generate(db, payload)
         return {"key": raw_key, "api_key": api_key}
@@ -409,7 +488,7 @@ class ApiKeys(ListResponseMixin):
             _ensure_person(db, str(data["person_id"]))
         api_key = ApiKey(**data)
         db.add(api_key)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key, raw_key
 
@@ -421,7 +500,7 @@ class ApiKeys(ListResponseMixin):
         data["key_hash"] = hash_api_key(data["key_hash"])
         api_key = ApiKey(**data)
         db.add(api_key)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key
 
@@ -429,7 +508,7 @@ class ApiKeys(ListResponseMixin):
     def get(db: Session, key_id: str):
         api_key = db.get(ApiKey, coerce_uuid(key_id))
         if not api_key:
-            raise HTTPException(status_code=404, detail="API key not found")
+            raise ApiKeyNotFoundError("API key not found")
         return api_key
 
     @staticmethod
@@ -442,26 +521,32 @@ class ApiKeys(ListResponseMixin):
         limit: int,
         offset: int,
     ):
-        query = db.query(ApiKey)
+        stmt = select(ApiKey)
         if person_id:
-            query = query.filter(ApiKey.person_id == coerce_uuid(person_id))
+            stmt = stmt.where(ApiKey.person_id == coerce_uuid(person_id))
         if is_active is None:
-            query = query.filter(ApiKey.is_active.is_(True))
+            stmt = stmt.where(ApiKey.is_active.is_(True))
         else:
-            query = query.filter(ApiKey.is_active == is_active)
-        query = apply_ordering(
-            query,
+            stmt = stmt.where(ApiKey.is_active == is_active)
+
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+        total = db.scalar(count_stmt) or 0
+
+        stmt = _apply_ordering(
+            stmt,
             order_by,
             order_dir,
             {"created_at": ApiKey.created_at, "label": ApiKey.label},
         )
-        return apply_pagination(query, limit, offset).all()
+        stmt = stmt.limit(limit).offset(offset)
+        items = list(db.scalars(stmt).all())
+        return items, total
 
     @staticmethod
     def update(db: Session, key_id: str, payload: ApiKeyUpdate):
         api_key = db.get(ApiKey, coerce_uuid(key_id))
         if not api_key:
-            raise HTTPException(status_code=404, detail="API key not found")
+            raise ApiKeyNotFoundError("API key not found")
         data = payload.model_dump(exclude_unset=True)
         if "person_id" in data and data["person_id"] is not None:
             _ensure_person(db, str(data["person_id"]))
@@ -469,7 +554,7 @@ class ApiKeys(ListResponseMixin):
             data["key_hash"] = hash_api_key(data["key_hash"])
         for key, value in data.items():
             setattr(api_key, key, value)
-        db.commit()
+        db.flush()
         db.refresh(api_key)
         return api_key
 
@@ -477,10 +562,10 @@ class ApiKeys(ListResponseMixin):
     def delete(db: Session, key_id: str):
         api_key = db.get(ApiKey, coerce_uuid(key_id))
         if not api_key:
-            raise HTTPException(status_code=404, detail="API key not found")
+            raise ApiKeyNotFoundError("API key not found")
         api_key.is_active = False
         api_key.revoked_at = datetime.now(UTC)
-        db.commit()
+        db.flush()
 
     @staticmethod
     def revoke(db: Session, key_id: str):

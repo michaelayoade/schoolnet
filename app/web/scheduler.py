@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -99,43 +100,42 @@ def create_task_form(
 
 
 @router.post("/create", response_model=None)
-async def create_task_submit(
+def create_task_submit(
     request: Request,
+    name: str = Form(""),
+    task_name: str = Form(""),
+    interval_seconds: str = Form("3600"),
+    enabled: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle scheduled task creation form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "task_name": task_name,
+        "interval_seconds": interval_seconds,
+        "enabled": enabled,
+    }
 
     try:
-        interval = int(str(data.get("interval_seconds", "3600")))
+        interval = int(interval_seconds)
         payload = ScheduledTaskCreate(
-            name=str(data.get("name", "")),
-            task_name=str(data.get("task_name", "")),
+            name=name,
+            task_name=task_name,
             interval_seconds=interval,
-            enabled=data.get("enabled") == "on",
+            enabled=enabled == "on",
         )
         scheduled_tasks.create(db, payload)
+        db.commit()
         logger.info("Created scheduled task via web: %s", payload.name)
         return RedirectResponse(
             url="/admin/scheduler?success=Task+created+successfully",
             status_code=302,
         )
-    except (ValueError, TypeError) as exc:
-        logger.warning("Failed to create scheduled task: %s", exc)
-        ctx = _base_context(
-            request,
-            db,
-            auth,
-            title="Create Scheduled Task",
-            page_title="Create Scheduled Task",
-        )
-        ctx["error"] = str(exc)
-        ctx["form_data"] = data
-        return templates.TemplateResponse("admin/scheduler/create.html", ctx)
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to create scheduled task: %s", exc)
         ctx = _base_context(
             request,
@@ -170,33 +170,43 @@ def edit_task_form(
 
 
 @router.post("/{task_id}/edit", response_model=None)
-async def edit_task_submit(
+def edit_task_submit(
     request: Request,
     task_id: UUID,
+    name: str | None = Form(None),
+    task_name: str | None = Form(None),
+    interval_seconds: str | None = Form(None),
+    enabled: str | None = Form(None),
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse | HTMLResponse:
     """Handle scheduled task edit form submission."""
-    form = await request.form()
-    data = dict(form)
-    data.pop("csrf_token", None)
+    _ = csrf_token
+    data = {
+        "name": name,
+        "task_name": task_name,
+        "interval_seconds": interval_seconds,
+        "enabled": enabled,
+    }
 
     try:
-        interval_raw = data.get("interval_seconds")
-        interval = int(str(interval_raw)) if interval_raw else None
+        interval = int(interval_seconds) if interval_seconds else None
         payload = ScheduledTaskUpdate(
-            name=str(data["name"]) if data.get("name") else None,
-            task_name=str(data["task_name"]) if data.get("task_name") else None,
+            name=name if name else None,
+            task_name=task_name if task_name else None,
             interval_seconds=interval,
-            enabled="enabled" in data,
+            enabled=enabled == "on",
         )
         scheduled_tasks.update(db, str(task_id), payload)
+        db.commit()
         logger.info("Updated scheduled task via web: %s", task_id)
         return RedirectResponse(
             url="/admin/scheduler?success=Task+updated+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to update scheduled task %s: %s", task_id, exc)
         task = db.get(ScheduledTask, task_id)
         ctx = _base_context(
@@ -212,26 +222,28 @@ async def edit_task_submit(
 
 
 @router.post("/{task_id}/delete", response_model=None)
-async def delete_task(
+def delete_task(
     request: Request,
     task_id: UUID,
+    csrf_token: str | None = Form(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_platform_admin_auth),
 ) -> RedirectResponse:
     """Handle scheduled task deletion."""
-    form = await request.form()
-    _ = form.get("csrf_token")
+    _ = csrf_token
 
     try:
         scheduled_tasks.delete(db, str(task_id))
+        db.commit()
         logger.info("Deleted scheduled task via web: %s", task_id)
         return RedirectResponse(
             url="/admin/scheduler?success=Task+deleted+successfully",
             status_code=302,
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError) as exc:
+        db.rollback()
         logger.warning("Failed to delete scheduled task %s: %s", task_id, exc)
         return RedirectResponse(
-            url=f"/admin/scheduler?error={exc}",
+            url=f"/admin/scheduler?error={quote_plus(str(exc))}",
             status_code=302,
         )
