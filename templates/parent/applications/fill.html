@@ -46,22 +46,22 @@
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
-                <input type="text" name="ward_first_name" required x-ref="ward_first_name" value="{{ application.ward_first_name if application.ward_first_name else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="ward_first_name" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
+                <input type="text" name="ward_first_name" id="ward_first_name" required x-ref="ward_first_name" value="{{ application.ward_first_name if application.ward_first_name else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
-                <input type="text" name="ward_last_name" required x-ref="ward_last_name" value="{{ application.ward_last_name if application.ward_last_name else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="ward_last_name" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+                <input type="text" name="ward_last_name" id="ward_last_name" required x-ref="ward_last_name" value="{{ application.ward_last_name if application.ward_last_name else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
             </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date of Birth</label>
-                <input type="date" name="ward_date_of_birth" required x-ref="ward_date_of_birth" value="{{ application.ward_date_of_birth if application.ward_date_of_birth else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="ward_date_of_birth" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date of Birth</label>
+                <input type="date" name="ward_date_of_birth" id="ward_date_of_birth" required x-ref="ward_date_of_birth" value="{{ application.ward_date_of_birth if application.ward_date_of_birth else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
-                <select name="ward_gender" required x-ref="ward_gender" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                <label for="ward_gender" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
+                <select name="ward_gender" id="ward_gender" required x-ref="ward_gender" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
                     <option value="">Select...</option>
                     <option value="male" {{ 'selected' if application.ward_gender == 'male' else '' }}>Male</option>
                     <option value="female" {{ 'selected' if application.ward_gender == 'female' else '' }}>Female</option>

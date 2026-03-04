@@ -9,20 +9,20 @@
 <form method="POST" action="/school/forms/{{ form.id }}/edit" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4 max-w-2xl">
     {{ request.state.csrf_form | safe }}
     <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Form Title</label>
-        <input type="text" name="title" required value="{{ form.title }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        <label for="title" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Form Title</label>
+        <input type="text" name="title" id="title" required value="{{ form.title }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
     </div>
     <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-        <textarea name="description" rows="3" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">{{ form.description if form.description else '' }}</textarea>
+        <label for="description" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+        <textarea name="description" id="description" rows="3" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">{{ form.description if form.description else '' }}</textarea>
     </div>
     <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Price (Naira)</label>
-        <input type="number" name="price_amount" min="100" value="{{ (price_amount / 100) | int if price_amount else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        <label for="price_amount" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Price (Naira)</label>
+        <input type="number" name="price_amount" id="price_amount" min="100" value="{{ (price_amount / 100) | int if price_amount else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
     </div>
     <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Submissions</label>
-        <input type="number" name="max_submissions" min="1" value="{{ form.max_submissions if form.max_submissions else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="Leave empty for unlimited">
+        <label for="max_submissions" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Submissions</label>
+        <input type="number" name="max_submissions" id="max_submissions" min="1" value="{{ form.max_submissions if form.max_submissions else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white" placeholder="Leave empty for unlimited">
     </div>
 
     <div class="grid grid-cols-2 gap-4">

@@ -24,7 +24,7 @@
 {% set params = extra_params.copy() %}
 {% set _ = params.update({"sort": column, "dir": next_dir}) %}
 {% set query = params|urlencode %}
-<th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+<th scope="col" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
   <a href="{{ base_url }}{% if query %}?{{ query }}{% endif %}" class="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-300">
     <span>{{ label }}</span>
     <span class="text-[10px]">{{ icon }}</span>
