@@ -77,8 +77,11 @@
      class="lg:hidden fixed inset-0 z-50">
     <div x-on:click="sidebarOpen = false" class="absolute inset-0 bg-black/50"></div>
     <div class="relative w-64 h-full bg-white dark:bg-slate-800 overflow-y-auto">
-        <div class="px-4 py-5 border-b border-slate-200 dark:border-slate-700">
+        <div class="px-4 py-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <span class="text-lg font-semibold text-slate-900 dark:text-white font-display">School Admin</span>
+            <button x-on:click="sidebarOpen = false" aria-label="Close menu" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
         <nav class="px-3 py-4 space-y-1">
             {% set current_path = request.url.path %}

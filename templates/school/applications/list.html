@@ -25,13 +25,15 @@
     <form method="GET" action="/school/applications" class="flex flex-col sm:flex-row gap-3">
         <!-- Search -->
         <div class="flex-1">
-            <input type="text" name="q" value="{{ current_search if current_search else '' }}"
+            <label for="app-search" class="sr-only">Search applications</label>
+            <input type="text" name="q" id="app-search" value="{{ current_search if current_search else '' }}"
                    placeholder="Search by name or app number..."
                    class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
         </div>
         <!-- Status filter -->
         <div>
-            <select name="status"
+            <label for="app-status" class="sr-only">Filter by status</label>
+            <select name="status" id="app-status"
                     class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                 <option value="">All statuses</option>
                 {% for s in statuses if statuses %}
@@ -42,7 +44,8 @@
         <!-- Form filter -->
         {% if forms %}
         <div>
-            <select name="form_id"
+            <label for="app-form" class="sr-only">Filter by form</label>
+            <select name="form_id" id="app-form"
                     class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                 <option value="">All forms</option>
                 {% for f in forms %}
@@ -81,6 +84,7 @@
 
 {% if applications %}
 <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
         <thead class="bg-slate-50 dark:bg-slate-700/50">
             <tr>
@@ -112,6 +116,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 <!-- Pagination -->

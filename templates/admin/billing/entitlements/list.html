@@ -17,6 +17,7 @@
 
 <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
     {% if entitlements %}
+    <div class="overflow-x-auto">
     <table class="w-full">
         {{ tables.table_header([
             {'label': 'Product'},
@@ -53,6 +54,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {{ tables.pagination(page, total_pages, '/admin/billing/entitlements') }}
     {% else %}
     {{ tables.empty_state('No entitlements found', '/admin/billing/entitlements/create', 'Add Entitlement') }}

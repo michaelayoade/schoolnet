@@ -17,6 +17,7 @@
 
 <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
     {% if roles %}
+    <div class="overflow-x-auto">
     <table class="w-full">
         {{ tables.table_header([
             {'label': 'Name'},
@@ -47,6 +48,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {{ tables.pagination(page, total_pages, '/admin/roles') }}
     {% else %}
     {{ tables.empty_state('No roles found', '/admin/roles/create', 'Add Role') }}

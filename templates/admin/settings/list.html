@@ -16,6 +16,7 @@
             {{ domain | replace('_', ' ') | title }}
         </h2>
         <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-slate-200 dark:border-slate-700">
@@ -54,6 +55,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
     {% endfor %}
