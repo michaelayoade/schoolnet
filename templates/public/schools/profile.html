@@ -14,46 +14,60 @@
                 {% if school.logo_url %}
                 <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-24 w-24 rounded-xl object-cover border-4 border-white dark:border-slate-800 shadow-lg" loading="lazy">
                 {% else %}
-                <div class="h-24 w-24 rounded-xl bg-primary-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white dark:border-slate-800 shadow-lg">
+                <div class="h-24 w-24 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white dark:border-slate-800 shadow-lg">
                     {{ school.name[0] | upper }}
                 </div>
                 {% endif %}
             </div>
-            <div class="flex-1">
-                <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">
-                    {{ school.name }}
-                    {% if school.verified_at %}
-                    <span class="inline-flex items-center ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        Verified
-                    </span>
+            <div class="flex-1 min-w-0">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">
+                            {{ school.name }}
+                            {% if school.verified_at %}
+                            <span class="inline-flex items-center ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                Verified
+                            </span>
+                            {% endif %}
+                        </h1>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400">
+                                {{ school.school_type | replace('_', ' ') | title }}
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                {{ school.category | replace('_', ' ') | title }}
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                {{ school.gender | replace('_', ' ') | title }}
+                            </span>
+                        </div>
+                        {% if school.city or school.state %}
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                            <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            {% if school.address %}{{ school.address }}, {% endif %}{{ school.city if school.city else '' }}{% if school.state %}, {{ school.state }}{% endif %}
+                        </p>
+                        {% endif %}
+                        {% if avg_rating %}
+                        <div class="flex items-center gap-1 mt-2">
+                            {% for i in range(1, 6) %}
+                            <svg class="w-5 h-5 {{ 'text-yellow-400' if i <= avg_rating else 'text-slate-300 dark:text-slate-600' }}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            {% endfor %}
+                            <span class="text-sm text-slate-600 dark:text-slate-400 ml-1">{{ avg_rating }} / 5</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <!-- Prominent CTA in header -->
+                    {% if admission_forms %}
+                    <div class="flex-shrink-0">
+                        <a href="#admission-forms" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-200 active:scale-[0.97] btn-hover">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Apply Now
+                        </a>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 text-center">{{ admission_forms | length }} form{{ 's' if admission_forms | length != 1 else '' }} available</p>
+                    </div>
                     {% endif %}
-                </h1>
-                <div class="flex flex-wrap gap-2 mt-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400">
-                        {{ school.school_type | replace('_', ' ') | title }}
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                        {{ school.category | replace('_', ' ') | title }}
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                        {{ school.gender | replace('_', ' ') | title }}
-                    </span>
                 </div>
-                {% if school.city or school.state %}
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                    <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    {% if school.address %}{{ school.address }}, {% endif %}{{ school.city if school.city else '' }}{% if school.state %}, {{ school.state }}{% endif %}
-                </p>
-                {% endif %}
-                {% if avg_rating %}
-                <div class="flex items-center gap-1 mt-2">
-                    {% for i in range(1, 6) %}
-                    <svg class="w-5 h-5 {{ 'text-yellow-400' if i <= avg_rating else 'text-slate-300 dark:text-slate-600' }}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                    {% endfor %}
-                    <span class="text-sm text-slate-600 dark:text-slate-400 ml-1">{{ avg_rating }} / 5</span>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -70,7 +84,7 @@
 
             <!-- Admission Forms -->
             {% if admission_forms %}
-            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <div id="admission-forms" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 scroll-mt-24">
                 <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Admission Forms</h2>
                 <div class="space-y-3">
                     {% for form in admission_forms %}

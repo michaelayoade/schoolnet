@@ -2,14 +2,26 @@
 {% block title %}Find Schools - SchoolNet{% endblock %}
 {% block public_content %}
 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Find Schools</h1>
+    <div class="flex items-end justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">Find Schools</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ total }} school{{ 's' if total != 1 else '' }} found</p>
+        </div>
+        {% set has_filters = q or state or city or school_type or category or gender or fee_min or fee_max %}
+        {% if has_filters %}
+        <a href="/schools" class="text-sm text-primary-600 dark:text-primary-400 font-medium hover:underline">Clear all filters</a>
+        {% endif %}
+    </div>
 
     <!-- Search & Filters -->
-    <form method="GET" action="/schools" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-8">
+    <form method="GET" action="/schools" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-4">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-2">
                 <label for="search-q" class="sr-only">Search by name</label>
-                <input type="text" name="q" id="search-q" value="{{ q }}" placeholder="Search by name..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" name="q" id="search-q" value="{{ q }}" placeholder="Search by name..." class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
             </div>
             <div>
                 <label for="search-state" class="sr-only">State</label>
@@ -66,34 +78,74 @@
         </div>
     </form>
 
-    <!-- Results -->
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{{ total }} school{{ 's' if total != 1 else '' }} found</p>
+    <!-- Active Filter Pills -->
+    {% if has_filters %}
+    <div class="flex flex-wrap gap-2 mb-6" role="list" aria-label="Active filters">
+        {% set filter_labels = {
+            'q': 'Search: ' ~ q,
+            'state': 'State: ' ~ state,
+            'city': 'City: ' ~ city,
+            'school_type': 'Type: ' ~ (school_type | replace('_', ' ') | title),
+            'category': 'Category: ' ~ (category | replace('_', ' ') | title),
+            'gender': 'Gender: ' ~ (gender | replace('_', ' ') | title),
+            'fee_min': 'Min fee: ₦' ~ fee_min,
+            'fee_max': 'Max fee: ₦' ~ fee_max
+        } %}
+        {% set filter_params = {'q': q, 'state': state, 'city': city, 'school_type': school_type, 'category': category, 'gender': gender, 'fee_min': fee_min, 'fee_max': fee_max} %}
+        {% for key, label in filter_labels.items() %}
+        {% if filter_params[key] %}
+        {% set clear_params = filter_params.copy() %}
+        <a href="/schools?{% for k, v in filter_params.items() %}{% if v and k != key %}{{ k }}={{ v }}&{% endif %}{% endfor %}"
+           role="listitem"
+           class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800/40 text-xs font-medium text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition group">
+            {{ label }}
+            <svg class="w-3.5 h-3.5 text-primary-400 group-hover:text-primary-600 dark:group-hover:text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
 
+    <!-- Results -->
     {% if schools %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for school in schools %}
-        <a href="/schools/{{ school.slug }}" class="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden card-hover">
-            <div class="h-28 bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/30 dark:to-accent-900/30 flex items-center justify-center">
+        <a href="/schools/{{ school.slug }}" class="group block bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden card-hover">
+            <div class="h-32 bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 flex items-center justify-center relative">
                 {% if school.logo_url %}
-                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-14 w-14 rounded-full object-cover" loading="lazy">
+                <img src="{{ school.logo_url }}" alt="{{ school.name }}" class="h-16 w-16 rounded-2xl object-cover shadow-lg" loading="lazy">
                 {% else %}
-                <div class="h-14 w-14 rounded-full bg-primary-600 flex items-center justify-center text-white text-lg font-bold">
+                <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
                     {{ school.name[0] | upper }}
                 </div>
                 {% endif %}
+                {% if school.verified_at %}
+                <span class="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm text-xs font-medium text-green-700 dark:text-green-400 shadow-sm">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    Verified
+                </span>
+                {% endif %}
             </div>
-            <div class="p-4">
-                <h3 class="font-semibold text-slate-900 dark:text-white text-sm">{{ school.name }}</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {{ school.school_type | replace('_', ' ') | title }} &bull; {{ school.category | replace('_', ' ') | title }}
-                </p>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                    {% if school.city %}{{ school.city }}{% endif %}{% if school.state %}, {{ school.state }}{% endif %}
-                </p>
+            <div class="p-5">
+                <h3 class="font-semibold text-slate-900 dark:text-white text-base group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ school.name }}</h3>
+                <div class="flex items-center gap-1 mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span>{% if school.city %}{{ school.city }}{% endif %}{% if school.state %}{% if school.city %}, {% endif %}{{ school.state }}{% endif %}</span>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400">
+                        {{ school.school_type | replace('_', ' ') | title }}
+                    </span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                        {{ school.category | replace('_', ' ') | title }}
+                    </span>
+                </div>
                 {% if school.fee_range_min %}
-                <p class="text-xs text-primary-600 dark:text-primary-400 mt-2 font-medium">
-                    From {{ school.fee_range_min | format_naira }}
-                </p>
+                <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <p class="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                        From {{ school.fee_range_min | format_naira }}
+                    </p>
+                </div>
                 {% endif %}
             </div>
         </a>
@@ -104,13 +156,18 @@
     {% from "macros/ui_macros.html" import enhanced_pagination %}
     {{ enhanced_pagination(page, total_pages, "/schools", {"q": q if q else "", "state": state if state else "", "city": city if city else "", "school_type": school_type if school_type else "", "category": category if category else "", "gender": gender if gender else "", "fee_min": fee_min if fee_min else "", "fee_max": fee_max if fee_max else ""}) }}
     {% else %}
-    <div class="text-center py-12">
-        <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-1">No schools found</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Try adjusting your search filters or browse all schools.</p>
-        <a href="/schools" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium">Clear Filters</a>
+    <div class="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="mx-auto h-20 w-20 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-5">
+            <svg class="w-10 h-10 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-1">No schools found</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">Try adjusting your search filters or browse all schools.</p>
+        <a href="/schools" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition text-sm font-medium shadow-md shadow-primary-500/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Clear Filters
+        </a>
     </div>
     {% endif %}
 </div>

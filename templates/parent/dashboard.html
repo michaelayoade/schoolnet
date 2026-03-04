@@ -6,33 +6,61 @@
 
 <!-- Stats -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-        <p class="text-sm text-slate-500 dark:text-slate-400">Total Applications</p>
-        <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1 counter-animate">{{ total_applications }}</p>
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4.5 h-4.5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Applications</p>
+                <p class="text-xl font-bold text-slate-900 dark:text-white counter-animate">{{ total_applications }}</p>
+            </div>
+        </div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-        <p class="text-sm text-slate-500 dark:text-slate-400">Drafts</p>
-        <p class="text-2xl font-bold text-slate-600 dark:text-slate-300 mt-1 counter-animate">{{ draft_count }}</p>
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Drafts</p>
+                <p class="text-xl font-bold text-slate-600 dark:text-slate-300 counter-animate">{{ draft_count }}</p>
+            </div>
+        </div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-        <p class="text-sm text-slate-500 dark:text-slate-400">In Progress</p>
-        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1 counter-animate">{{ submitted_count }}</p>
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">In Progress</p>
+                <p class="text-xl font-bold text-blue-600 dark:text-blue-400 counter-animate">{{ submitted_count }}</p>
+            </div>
+        </div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-        <p class="text-sm text-slate-500 dark:text-slate-400">Accepted</p>
-        <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1 counter-animate">{{ accepted_count }}</p>
+    <div class="stagger-in bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4.5 h-4.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Accepted</p>
+                <p class="text-xl font-bold text-green-600 dark:text-green-400 counter-animate">{{ accepted_count }}</p>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Quick Actions -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     <a href="/schools" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
         <div class="h-10 w-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <div>
             <p class="font-medium text-slate-900 dark:text-white">Find Schools</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Search and compare schools</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Search & compare</p>
         </div>
     </a>
     <a href="/parent/applications" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
@@ -40,8 +68,26 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         </div>
         <div>
-            <p class="font-medium text-slate-900 dark:text-white">My Applications</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">View and manage applications</p>
+            <p class="font-medium text-slate-900 dark:text-white">Applications</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">View & manage</p>
+        </div>
+    </a>
+    <a href="/parent/wards" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
+        <div class="h-10 w-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197"/></svg>
+        </div>
+        <div>
+            <p class="font-medium text-slate-900 dark:text-white">My Wards</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Manage children</p>
+        </div>
+    </a>
+    <a href="/parent/payments" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
+        <div class="h-10 w-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        </div>
+        <div>
+            <p class="font-medium text-slate-900 dark:text-white">Payments</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Payment history</p>
         </div>
     </a>
 </div>
