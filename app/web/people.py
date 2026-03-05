@@ -205,7 +205,7 @@ def edit_person_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle person edit form submission."""
     _ = csrf_token
-    data = {
+    data = {  # noqa: F841
         "first_name": first_name,
         "last_name": last_name,
         "email": email,

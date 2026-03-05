@@ -186,7 +186,7 @@ def edit_invoice_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle invoice edit form submission."""
     _ = csrf_token
-    data = {
+    data = {  # noqa: F841
         "number": number,
         "status": status,
         "currency": currency,

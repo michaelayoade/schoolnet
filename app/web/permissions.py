@@ -174,7 +174,7 @@ def edit_permission_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle permission edit form submission."""
     _ = csrf_token
-    data = {
+    data = {  # noqa: F841
         "key": key,
         "description": description,
         "is_active": is_active,
