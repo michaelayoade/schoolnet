@@ -15,7 +15,7 @@ from app.api.deps import get_db
 from app.models.scheduler import ScheduledTask
 from app.schemas.scheduler import ScheduledTaskCreate, ScheduledTaskUpdate
 from app.services.branding_context import load_branding_context
-from app.services.scheduler import scheduled_tasks
+from app.services.scheduler import ScheduledTasks
 from app.templates import templates
 from app.web.schoolnet_deps import require_platform_admin_auth
 
@@ -127,7 +127,7 @@ def create_task_submit(
             interval_seconds=interval,
             enabled=enabled == "on",
         )
-        scheduled_tasks.create(db, payload)
+        ScheduledTasks(db).create(payload)
         db.commit()
         logger.info("Created scheduled task via web: %s", payload.name)
         return RedirectResponse(
@@ -157,7 +157,7 @@ def edit_task_form(
     auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit scheduled task form."""
-    task = scheduled_tasks.get(db, str(task_id))
+    task = ScheduledTasks(db).get(str(task_id))
     ctx = _base_context(
         request,
         db,
@@ -198,7 +198,7 @@ def edit_task_submit(
             interval_seconds=interval,
             enabled=enabled == "on",
         )
-        scheduled_tasks.update(db, str(task_id), payload)
+        ScheduledTasks(db).update(str(task_id), payload)
         db.commit()
         logger.info("Updated scheduled task via web: %s", task_id)
         return RedirectResponse(
@@ -233,7 +233,7 @@ def delete_task(
     _ = csrf_token
 
     try:
-        scheduled_tasks.delete(db, str(task_id))
+        ScheduledTasks(db).delete(str(task_id))
         db.commit()
         logger.info("Deleted scheduled task via web: %s", task_id)
         return RedirectResponse(

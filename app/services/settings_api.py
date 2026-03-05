@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingDomain, SettingValueType
 from app.schemas.settings import DomainSettingUpdate
-from app.services import domain_settings as domain_settings_service
+from app.services.domain_settings import SettingNotFoundError
 from app.services import settings_spec
 from app.services.response import list_response
 
@@ -66,10 +66,10 @@ def _list_domain_settings(
     limit: int,
     offset: int,
 ):
-    service = settings_spec.DOMAIN_SETTINGS_SERVICE.get(domain)
+    service = settings_spec.get_domain_service(db, domain)
     if not service:
         raise ValueError("Unknown settings domain")
-    return service.list(db, None, is_active, order_by, order_dir, limit, offset)
+    return service.list(None, is_active, order_by, order_dir, limit, offset)
 
 
 def _list_domain_settings_response(
@@ -96,10 +96,10 @@ def _upsert_domain_setting(
     db: Session, domain: SettingDomain, key: str, payload: DomainSettingUpdate
 ):
     normalized_payload = _normalize_spec_setting(domain, key, payload)
-    service = settings_spec.DOMAIN_SETTINGS_SERVICE.get(domain)
+    service = settings_spec.get_domain_service(db, domain)
     if not service:
         raise ValueError("Unknown settings domain")
-    return service.upsert_by_key(db, key, normalized_payload)
+    return service.upsert_by_key(key, normalized_payload)
 
 
 def _get_domain_setting(db: Session, domain: SettingDomain, key: str):
@@ -107,10 +107,10 @@ def _get_domain_setting(db: Session, domain: SettingDomain, key: str):
     if not spec:
         allowed = _domain_allowed_keys(domain)
         raise ValueError(f"Invalid setting key. Allowed: {allowed}")
-    service = settings_spec.DOMAIN_SETTINGS_SERVICE.get(domain)
+    service = settings_spec.get_domain_service(db, domain)
     if not service:
         raise ValueError("Unknown settings domain")
-    return service.get_by_key(db, key)
+    return service.get_by_key(key)
 
 
 def list_auth_settings_response(
@@ -177,4 +177,4 @@ def get_scheduler_setting(db: Session, key: str):
 
 
 def is_not_found_error(exc: Exception) -> bool:
-    return isinstance(exc, domain_settings_service.SettingNotFoundError)
+    return isinstance(exc, SettingNotFoundError)

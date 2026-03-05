@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import cast
 
-from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingDomain, SettingValueType
-from app.services import domain_settings as settings_service
+from app.services.domain_settings import DomainSettings
 from app.services.response import ListResponseMixin
 
 
@@ -96,7 +96,7 @@ SETTINGS_SPECS: list[SettingSpec] = [
         key="totp_issuer",
         env_var="TOTP_ISSUER",
         value_type=SettingValueType.string,
-        default="starter_template",
+        default="schoolnet",
     ),
     SettingSpec(
         domain=SettingDomain.auth,
@@ -260,12 +260,19 @@ SETTINGS_SPECS: list[SettingSpec] = [
     ),
 ]
 
-DOMAIN_SETTINGS_SERVICE = {
-    SettingDomain.auth: settings_service.auth_settings,
-    SettingDomain.audit: settings_service.audit_settings,
-    SettingDomain.scheduler: settings_service.scheduler_settings,
-    SettingDomain.billing: settings_service.billing_settings,
+DOMAIN_SETTINGS_DOMAINS: set[SettingDomain] = {
+    SettingDomain.auth,
+    SettingDomain.audit,
+    SettingDomain.scheduler,
+    SettingDomain.billing,
 }
+
+
+def get_domain_service(db: Session, domain: SettingDomain) -> DomainSettings | None:
+    """Create a DomainSettings service for the given domain, if supported."""
+    if domain in DOMAIN_SETTINGS_DOMAINS:
+        return DomainSettings(db, domain)
+    return None
 
 
 def get_spec(domain: SettingDomain, key: str) -> SettingSpec | None:
@@ -279,16 +286,16 @@ def list_specs(domain: SettingDomain) -> list[SettingSpec]:
     return [spec for spec in SETTINGS_SPECS if spec.domain == domain]
 
 
-def resolve_value(db, domain: SettingDomain, key: str) -> object | None:
+def resolve_value(db: Session, domain: SettingDomain, key: str) -> object | None:
     spec = get_spec(domain, key)
     if not spec:
         return None
-    service = DOMAIN_SETTINGS_SERVICE.get(domain)
+    service = get_domain_service(db, domain)
     setting = None
     if service:
         try:
-            setting = service.get_by_key(db, key)
-        except HTTPException:
+            setting = service.get_by_key(key)
+        except ValueError:
             setting = None
     raw = extract_db_value(setting)
     if raw is None:

@@ -11,19 +11,19 @@ def list_response(
 
 
 class ListResponseMixin:
-    def list(self, db, *args, **kwargs):
+    def list(self, *args, **kwargs):
         raise NotImplementedError
 
-    def list_response(self, db, *args, **kwargs):
+    def list_response(self, *args, **kwargs):
         if "limit" in kwargs and "offset" in kwargs:
             limit = kwargs["limit"]
             offset = kwargs["offset"]
-            result = self.list(db, *args, **kwargs)
+            result = self.list(*args, **kwargs)
         else:
             if len(args) < 2:
                 raise ValueError("limit and offset are required for list responses")
             *list_args, limit, offset = args
-            result = self.list(db, *list_args, limit=limit, offset=offset, **kwargs)
+            result = self.list(*list_args, limit=limit, offset=offset, **kwargs)
 
         if isinstance(result, tuple):
             items, total = result

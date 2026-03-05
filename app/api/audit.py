@@ -16,7 +16,7 @@ router = APIRouter(
 @router.get("/{event_id}", response_model=AuditEventRead)
 def get_audit_event(event_id: str, db: Session = Depends(get_db)):
     try:
-        return audit_service.audit_events.get(db, event_id)
+        return audit_service.AuditEvents(db).get(event_id)
     except audit_service.AuditEventNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -38,9 +38,8 @@ def list_audit_events(
     db: Session = Depends(get_db),
 ):
     try:
-        resolved_actor_type = audit_service.audit_events.parse_actor_type(actor_type)
-        return audit_service.audit_events.list_response(
-            db,
+        resolved_actor_type = audit_service.AuditEvents.parse_actor_type(actor_type)
+        return audit_service.AuditEvents(db).list_response(
             actor_id,
             resolved_actor_type,
             action,
@@ -64,7 +63,7 @@ def list_audit_events(
 )
 def delete_audit_event(event_id: str, db: Session = Depends(get_db)):
     try:
-        audit_service.audit_events.delete(db, event_id)
+        audit_service.AuditEvents(db).delete(event_id)
         db.commit()
     except audit_service.AuditEventNotFoundError as exc:
         db.rollback()

@@ -15,7 +15,7 @@ from app.api.deps import get_db
 from app.models.person import Person
 from app.schemas.person import PersonCreate, PersonUpdate
 from app.services.branding_context import load_branding_context
-from app.services.person import people
+from app.services.person import People
 from app.templates import templates
 from app.web.schoolnet_deps import require_platform_admin_auth
 
@@ -134,7 +134,7 @@ def create_person_submit(
             status=status,
             is_active=is_active == "on",
         )
-        people.create(db, payload)
+        People(db).create(payload)
         db.commit()
         logger.info("Created person via web: %s", payload.email)
         return RedirectResponse(
@@ -160,7 +160,7 @@ def person_detail(
     auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show person detail view."""
-    person = people.get(db, str(person_id))
+    person = People(db).get(str(person_id))
     ctx = _base_context(
         request,
         db,
@@ -180,7 +180,7 @@ def edit_person_form(
     auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit person form."""
-    person = people.get(db, str(person_id))
+    person = People(db).get(str(person_id))
     ctx = _base_context(
         request, db, auth, title="Edit Person", page_title="Edit Person"
     )
@@ -225,7 +225,7 @@ def edit_person_submit(
             status=status if status else None,
             is_active=is_active == "on",
         )
-        people.update(db, str(person_id), payload)
+        People(db).update(str(person_id), payload)
         db.commit()
         logger.info("Updated person via web: %s", person_id)
         return RedirectResponse(
@@ -256,7 +256,7 @@ def delete_person(
     _ = csrf_token
 
     try:
-        people.delete(db, str(person_id))
+        People(db).delete(str(person_id))
         db.commit()
         logger.info("Deleted person via web: %s", person_id)
         return RedirectResponse(

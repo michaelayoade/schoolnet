@@ -16,7 +16,7 @@ from app.models.rbac import Permission, Role, RolePermission
 from app.schemas.rbac import RoleCreate, RolePermissionCreate, RoleUpdate
 from app.services.branding_context import load_branding_context
 from app.services.common import coerce_uuid
-from app.services.rbac import role_permissions, roles
+from app.services.rbac import RolePermissions, Roles
 from app.templates import templates
 from app.web.schoolnet_deps import require_platform_admin_auth
 
@@ -128,7 +128,7 @@ def create_role_submit(
             description=description if description else None,
             is_active=is_active == "on",
         )
-        role = roles.create(db, payload)
+        role = Roles(db).create(payload)
 
         # Assign permissions to the role
         for perm_id in permission_ids:
@@ -139,7 +139,7 @@ def create_role_submit(
                 role_id=role.id,
                 permission_id=perm_uuid,
             )
-            role_permissions.create(db, rp_payload)
+            RolePermissions(db).create(rp_payload)
 
         db.commit()
         logger.info("Created role via web: %s", payload.name)
@@ -174,7 +174,7 @@ def edit_role_form(
     auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit role form with permission checkboxes."""
-    role = roles.get(db, str(role_id))
+    role = Roles(db).get(str(role_id))
     all_permissions = list(
         db.scalars(
             select(Permission)
@@ -223,7 +223,7 @@ def edit_role_submit(
             description=description if description else None,
             is_active=is_active == "on",
         )
-        roles.update(db, str(role_id), payload)
+        Roles(db).update(str(role_id), payload)
 
         # Remove existing role permissions
         existing_rps = list(
@@ -244,7 +244,7 @@ def edit_role_submit(
                 role_id=role_id,
                 permission_id=perm_uuid,
             )
-            role_permissions.create(db, rp_payload)
+            RolePermissions(db).create(rp_payload)
 
         db.commit()
         logger.info("Updated role via web: %s", role_id)
@@ -291,7 +291,7 @@ def delete_role(
     _ = csrf_token
 
     try:
-        roles.delete(db, str(role_id))
+        Roles(db).delete(str(role_id))
         db.commit()
         logger.info("Deleted role via web: %s", role_id)
         return RedirectResponse(

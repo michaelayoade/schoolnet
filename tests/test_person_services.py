@@ -2,6 +2,8 @@
 
 import uuid
 
+import pytest  # noqa: F401
+
 from app.schemas.person import PersonCreate, PersonUpdate
 from app.services import person as person_service
 
@@ -13,8 +15,7 @@ def _unique_email() -> str:
 def test_create_person(db_session):
     """Test creating a person."""
     email = _unique_email()
-    person = person_service.people.create(
-        db_session,
+    person = person_service.People(db_session).create(
         PersonCreate(
             first_name="John",
             last_name="Doe",
@@ -29,15 +30,15 @@ def test_create_person(db_session):
 
 def test_get_person_by_id(db_session):
     """Test getting a person by ID."""
-    person = person_service.people.create(
-        db_session,
+    svc = person_service.People(db_session)
+    person = svc.create(
         PersonCreate(
             first_name="Jane",
             last_name="Smith",
             email=_unique_email(),
         ),
     )
-    fetched = person_service.people.get(db_session, str(person.id))
+    fetched = svc.get(str(person.id))
     assert fetched is not None
     assert fetched.id == person.id
     assert fetched.first_name == "Jane"
@@ -45,18 +46,16 @@ def test_get_person_by_id(db_session):
 
 def test_list_people_filter_by_email(db_session):
     """Test listing people filtered by email."""
+    svc = person_service.People(db_session)
     email = _unique_email()
-    person_service.people.create(
-        db_session,
+    svc.create(
         PersonCreate(first_name="Alice", last_name="Test", email=email),
     )
-    person_service.people.create(
-        db_session,
+    svc.create(
         PersonCreate(first_name="Bob", last_name="Other", email=_unique_email()),
     )
 
-    results, total = person_service.people.list(
-        db_session,
+    results, total = svc.list(
         email=email,
         status=None,
         is_active=None,
@@ -72,26 +71,23 @@ def test_list_people_filter_by_email(db_session):
 
 def test_list_people_filter_by_status(db_session):
     """Test listing people filtered by status."""
+    svc = person_service.People(db_session)
     email1 = _unique_email()
-    person1 = person_service.people.create(
-        db_session,
+    person1 = svc.create(
         PersonCreate(first_name="Active", last_name="User", email=email1),
     )
     email2 = _unique_email()
-    person2 = person_service.people.create(
-        db_session,
+    person2 = svc.create(
         PersonCreate(first_name="Inactive", last_name="User", email=email2),
     )
     # Update second person to inactive
-    person_service.people.update(
-        db_session,
+    svc.update(
         str(person2.id),
         PersonUpdate(status="inactive"),
     )
 
     # Query for person1 specifically with active status filter
-    active_results, active_total = person_service.people.list(
-        db_session,
+    active_results, active_total = svc.list(
         email=email1,
         status="active",
         is_active=None,
@@ -105,8 +101,7 @@ def test_list_people_filter_by_status(db_session):
     assert active_results[0].id == person1.id
 
     # Verify person2 is not returned when filtering for active
-    inactive_as_active, inactive_total = person_service.people.list(
-        db_session,
+    inactive_as_active, inactive_total = svc.list(
         email=email2,
         status="active",
         is_active=None,
@@ -121,14 +116,13 @@ def test_list_people_filter_by_status(db_session):
 
 def test_list_people_active_only(db_session):
     """Test listing only active people."""
-    person = person_service.people.create(
-        db_session,
+    svc = person_service.People(db_session)
+    person = svc.create(
         PersonCreate(first_name="ToDelete", last_name="User", email=_unique_email()),
     )
-    person_service.people.delete(db_session, str(person.id))
+    svc.delete(str(person.id))
 
-    results, _ = person_service.people.list(
-        db_session,
+    results, _ = svc.list(
         email=None,
         status=None,
         is_active=True,
@@ -143,12 +137,11 @@ def test_list_people_active_only(db_session):
 
 def test_update_person(db_session):
     """Test updating a person."""
-    person = person_service.people.create(
-        db_session,
+    svc = person_service.People(db_session)
+    person = svc.create(
         PersonCreate(first_name="Original", last_name="Name", email=_unique_email()),
     )
-    updated = person_service.people.update(
-        db_session,
+    updated = svc.update(
         str(person.id),
         PersonUpdate(first_name="Updated", last_name="Person"),
     )
@@ -158,27 +151,27 @@ def test_update_person(db_session):
 
 def test_delete_person(db_session):
     """Test deleting a person."""
-    person = person_service.people.create(
-        db_session,
+    svc = person_service.People(db_session)
+    person = svc.create(
         PersonCreate(first_name="ToDelete", last_name="User", email=_unique_email()),
     )
     person_id = person.id
-    person_service.people.delete(db_session, str(person_id))
+    svc.delete(str(person_id))
 
     # Verify person is deleted
     import pytest
 
     with pytest.raises(person_service.PersonNotFoundError) as exc_info:
-        person_service.people.get(db_session, str(person_id))
+        svc.get(str(person_id))
     assert "Person not found" in str(exc_info.value)
 
 
 def test_list_people_pagination(db_session):
     """Test pagination of people list."""
+    svc = person_service.People(db_session)
     # Create multiple people
     for i in range(5):
-        person_service.people.create(
-            db_session,
+        svc.create(
             PersonCreate(
                 first_name=f"Person{i}",
                 last_name="Test",
@@ -186,8 +179,7 @@ def test_list_people_pagination(db_session):
             ),
         )
 
-    page1, page1_total = person_service.people.list(
-        db_session,
+    page1, page1_total = svc.list(
         email=None,
         status=None,
         is_active=None,
@@ -196,8 +188,7 @@ def test_list_people_pagination(db_session):
         limit=2,
         offset=0,
     )
-    page2, page2_total = person_service.people.list(
-        db_session,
+    page2, page2_total = svc.list(
         email=None,
         status=None,
         is_active=None,

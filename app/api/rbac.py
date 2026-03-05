@@ -17,7 +17,17 @@ from app.schemas.rbac import (
     RoleRead,
     RoleUpdate,
 )
-from app.services import rbac as rbac_service
+from app.services.rbac import (
+    Permissions,
+    PersonNotFoundError,
+    PersonRoleNotFoundError,
+    PersonRoles,
+    PermissionNotFoundError,
+    RoleNotFoundError,
+    RolePermissionNotFoundError,
+    RolePermissions,
+    Roles,
+)
 
 router = APIRouter(prefix="/rbac", tags=["rbac"], dependencies=[Depends(require_role("admin"))])
 
@@ -25,7 +35,7 @@ router = APIRouter(prefix="/rbac", tags=["rbac"], dependencies=[Depends(require_
 @router.post("/roles", response_model=RoleRead, status_code=status.HTTP_201_CREATED)
 def create_role(payload: RoleCreate, db: Session = Depends(get_db)):
     try:
-        role = rbac_service.roles.create(db, payload)
+        role = Roles(db).create(payload)
         db.commit()
         return role
     except ValueError as exc:
@@ -36,8 +46,8 @@ def create_role(payload: RoleCreate, db: Session = Depends(get_db)):
 @router.get("/roles/{role_id}", response_model=RoleRead)
 def get_role(role_id: str, db: Session = Depends(get_db)):
     try:
-        return rbac_service.roles.get(db, role_id)
-    except rbac_service.RoleNotFoundError as exc:
+        return Roles(db).get(role_id)
+    except RoleNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
@@ -51,8 +61,8 @@ def list_roles(
     db: Session = Depends(get_db),
 ):
     try:
-        return rbac_service.roles.list_response(
-            db, is_active, order_by, order_dir, limit, offset
+        return Roles(db).list_response(
+            is_active, order_by, order_dir, limit, offset
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -61,10 +71,10 @@ def list_roles(
 @router.patch("/roles/{role_id}", response_model=RoleRead)
 def update_role(role_id: str, payload: RoleUpdate, db: Session = Depends(get_db)):
     try:
-        role = rbac_service.roles.update(db, role_id, payload)
+        role = Roles(db).update(role_id, payload)
         db.commit()
         return role
-    except rbac_service.RoleNotFoundError as exc:
+    except RoleNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -75,9 +85,9 @@ def update_role(role_id: str, payload: RoleUpdate, db: Session = Depends(get_db)
 @router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_role(role_id: str, db: Session = Depends(get_db)):
     try:
-        rbac_service.roles.delete(db, role_id)
+        Roles(db).delete(role_id)
         db.commit()
-    except rbac_service.RoleNotFoundError as exc:
+    except RoleNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -87,7 +97,7 @@ def delete_role(role_id: str, db: Session = Depends(get_db)):
 )
 def create_permission(payload: PermissionCreate, db: Session = Depends(get_db)):
     try:
-        permission = rbac_service.permissions.create(db, payload)
+        permission = Permissions(db).create(payload)
         db.commit()
         return permission
     except ValueError as exc:
@@ -98,8 +108,8 @@ def create_permission(payload: PermissionCreate, db: Session = Depends(get_db)):
 @router.get("/permissions/{permission_id}", response_model=PermissionRead)
 def get_permission(permission_id: str, db: Session = Depends(get_db)):
     try:
-        return rbac_service.permissions.get(db, permission_id)
-    except rbac_service.PermissionNotFoundError as exc:
+        return Permissions(db).get(permission_id)
+    except PermissionNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
@@ -113,8 +123,8 @@ def list_permissions(
     db: Session = Depends(get_db),
 ):
     try:
-        return rbac_service.permissions.list_response(
-            db, is_active, order_by, order_dir, limit, offset
+        return Permissions(db).list_response(
+            is_active, order_by, order_dir, limit, offset
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -125,10 +135,10 @@ def update_permission(
     permission_id: str, payload: PermissionUpdate, db: Session = Depends(get_db)
 ):
     try:
-        permission = rbac_service.permissions.update(db, permission_id, payload)
+        permission = Permissions(db).update(permission_id, payload)
         db.commit()
         return permission
-    except rbac_service.PermissionNotFoundError as exc:
+    except PermissionNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -139,9 +149,9 @@ def update_permission(
 @router.delete("/permissions/{permission_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_permission(permission_id: str, db: Session = Depends(get_db)):
     try:
-        rbac_service.permissions.delete(db, permission_id)
+        Permissions(db).delete(permission_id)
         db.commit()
-    except rbac_service.PermissionNotFoundError as exc:
+    except PermissionNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -155,10 +165,10 @@ def create_role_permission(
     payload: RolePermissionCreate, db: Session = Depends(get_db)
 ):
     try:
-        role_permission = rbac_service.role_permissions.create(db, payload)
+        role_permission = RolePermissions(db).create(payload)
         db.commit()
         return role_permission
-    except (rbac_service.RoleNotFoundError, rbac_service.PermissionNotFoundError) as exc:
+    except (RoleNotFoundError, PermissionNotFoundError) as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -169,8 +179,8 @@ def create_role_permission(
 @router.get("/role-permissions/{link_id}", response_model=RolePermissionRead)
 def get_role_permission(link_id: str, db: Session = Depends(get_db)):
     try:
-        return rbac_service.role_permissions.get(db, link_id)
-    except rbac_service.RolePermissionNotFoundError as exc:
+        return RolePermissions(db).get(link_id)
+    except RolePermissionNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
@@ -185,8 +195,8 @@ def list_role_permissions(
     db: Session = Depends(get_db),
 ):
     try:
-        return rbac_service.role_permissions.list_response(
-            db, role_id, permission_id, order_by, order_dir, limit, offset
+        return RolePermissions(db).list_response(
+            role_id, permission_id, order_by, order_dir, limit, offset
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -197,13 +207,13 @@ def update_role_permission(
     link_id: str, payload: RolePermissionUpdate, db: Session = Depends(get_db)
 ):
     try:
-        role_permission = rbac_service.role_permissions.update(db, link_id, payload)
+        role_permission = RolePermissions(db).update(link_id, payload)
         db.commit()
         return role_permission
-    except rbac_service.RolePermissionNotFoundError as exc:
+    except RolePermissionNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (rbac_service.RoleNotFoundError, rbac_service.PermissionNotFoundError) as exc:
+    except (RoleNotFoundError, PermissionNotFoundError) as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -214,9 +224,9 @@ def update_role_permission(
 @router.delete("/role-permissions/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_role_permission(link_id: str, db: Session = Depends(get_db)):
     try:
-        rbac_service.role_permissions.delete(db, link_id)
+        RolePermissions(db).delete(link_id)
         db.commit()
-    except rbac_service.RolePermissionNotFoundError as exc:
+    except RolePermissionNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -226,10 +236,10 @@ def delete_role_permission(link_id: str, db: Session = Depends(get_db)):
 )
 def create_person_role(payload: PersonRoleCreate, db: Session = Depends(get_db)):
     try:
-        person_role = rbac_service.person_roles.create(db, payload)
+        person_role = PersonRoles(db).create(payload)
         db.commit()
         return person_role
-    except (rbac_service.PersonNotFoundError, rbac_service.RoleNotFoundError) as exc:
+    except (PersonNotFoundError, RoleNotFoundError) as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -240,8 +250,8 @@ def create_person_role(payload: PersonRoleCreate, db: Session = Depends(get_db))
 @router.get("/person-roles/{link_id}", response_model=PersonRoleRead)
 def get_person_role(link_id: str, db: Session = Depends(get_db)):
     try:
-        return rbac_service.person_roles.get(db, link_id)
-    except rbac_service.PersonRoleNotFoundError as exc:
+        return PersonRoles(db).get(link_id)
+    except PersonRoleNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
@@ -256,8 +266,8 @@ def list_person_roles(
     db: Session = Depends(get_db),
 ):
     try:
-        return rbac_service.person_roles.list_response(
-            db, person_id, role_id, order_by, order_dir, limit, offset
+        return PersonRoles(db).list_response(
+            person_id, role_id, order_by, order_dir, limit, offset
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -268,13 +278,13 @@ def update_person_role(
     link_id: str, payload: PersonRoleUpdate, db: Session = Depends(get_db)
 ):
     try:
-        person_role = rbac_service.person_roles.update(db, link_id, payload)
+        person_role = PersonRoles(db).update(link_id, payload)
         db.commit()
         return person_role
-    except rbac_service.PersonRoleNotFoundError as exc:
+    except PersonRoleNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (rbac_service.PersonNotFoundError, rbac_service.RoleNotFoundError) as exc:
+    except (PersonNotFoundError, RoleNotFoundError) as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -285,8 +295,8 @@ def update_person_role(
 @router.delete("/person-roles/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_person_role(link_id: str, db: Session = Depends(get_db)):
     try:
-        rbac_service.person_roles.delete(db, link_id)
+        PersonRoles(db).delete(link_id)
         db.commit()
-    except rbac_service.PersonRoleNotFoundError as exc:
+    except PersonRoleNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.models.audit import AuditActorType, AuditEvent
-from app.services.audit import audit_events
+from app.services.audit import AuditEvents
 from app.services.branding_context import load_branding_context
 from app.templates import templates
 from app.web.schoolnet_deps import require_platform_admin_auth
@@ -110,7 +110,7 @@ def audit_event_detail(
     auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Show audit event detail view."""
-    event = audit_events.get(db, str(event_id))
+    event = AuditEvents(db).get(str(event_id))
     ctx = _base_context(
         request, db, auth, title="Audit Event Detail", page_title="Audit Event Detail"
     )

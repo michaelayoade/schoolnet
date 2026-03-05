@@ -30,8 +30,7 @@ def home(
     limit = 25
     offset = (page - 1) * limit
 
-    people, total_people = person_service.people.list(
-        db=db,
+    people, total_people = person_service.People(db).list(
         email=None,
         status=None,
         is_active=None,

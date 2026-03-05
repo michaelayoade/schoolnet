@@ -17,13 +17,21 @@ def _setup_rating_scenario(db_session):
     from app.models.auth import Session as AuthSession, SessionStatus
     from app.models.rbac import Role, PersonRole
     from app.models.school import (
-        School, SchoolType, SchoolCategory, SchoolGender, SchoolStatus,
-        AdmissionForm, AdmissionFormStatus, Application, ApplicationStatus,
+        School,
+        SchoolType,
+        SchoolCategory,
+        SchoolGender,
+        SchoolStatus,
+        AdmissionForm,
+        AdmissionFormStatus,
+        Application,
+        ApplicationStatus,
     )
     from app.models.billing import Product, Price, PriceType
 
     parent = Person(
-        first_name="Rater", last_name="Parent",
+        first_name="Rater",
+        last_name="Parent",
         email=f"rater-{uuid.uuid4().hex[:8]}@example.com",
     )
     db_session.add(parent)
@@ -47,12 +55,11 @@ def _setup_rating_scenario(db_session):
     db_session.add(auth_sess)
     db_session.flush()
 
-    token = _create_access_token(
-        str(parent.id), str(auth_sess.id), roles=["parent"]
-    )
+    token = _create_access_token(str(parent.id), str(auth_sess.id), roles=["parent"])
 
     owner = Person(
-        first_name="Owner", last_name="Rate",
+        first_name="Owner",
+        last_name="Rate",
         email=f"owner-{uuid.uuid4().hex[:8]}@example.com",
     )
     db_session.add(owner)
@@ -60,9 +67,13 @@ def _setup_rating_scenario(db_session):
 
     slug = f"rate-school-{uuid.uuid4().hex[:6]}"
     school = School(
-        owner_id=owner.id, name="Rate Test School", slug=slug,
-        school_type=SchoolType.primary, category=SchoolCategory.private,
-        gender=SchoolGender.mixed, status=SchoolStatus.active,
+        owner_id=owner.id,
+        name="Rate Test School",
+        slug=slug,
+        school_type=SchoolType.primary,
+        category=SchoolCategory.private,
+        gender=SchoolGender.mixed,
+        status=SchoolStatus.active,
     )
     db_session.add(school)
     db_session.flush()
@@ -73,22 +84,29 @@ def _setup_rating_scenario(db_session):
     db_session.flush()
 
     price = Price(
-        product_id=product.id, currency="NGN", unit_amount=500000,
-        type=PriceType.one_time, is_active=True,
+        product_id=product.id,
+        currency="NGN",
+        unit_amount=500000,
+        type=PriceType.one_time,
+        is_active=True,
     )
     db_session.add(price)
     db_session.flush()
 
     form = AdmissionForm(
-        school_id=school.id, product_id=product.id, price_id=price.id,
-        title="Rate Test Form", academic_year="2025/2026",
+        school_id=school.id,
+        product_id=product.id,
+        price_id=price.id,
+        title="Rate Test Form",
+        academic_year="2025/2026",
         status=AdmissionFormStatus.active,
     )
     db_session.add(form)
     db_session.flush()
 
     application = Application(
-        admission_form_id=form.id, parent_id=parent.id,
+        admission_form_id=form.id,
+        parent_id=parent.id,
         application_number=f"RATE-{uuid.uuid4().hex[:6].upper()}",
         status=ApplicationStatus.submitted,
         submitted_at=datetime.now(timezone.utc),

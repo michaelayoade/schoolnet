@@ -1,4 +1,5 @@
 """Tests for RateLimitMiddleware."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -38,7 +39,9 @@ def app_with_rate_limit() -> FastAPI:
 @pytest_asyncio.fixture
 async def client(app_with_rate_limit: FastAPI) -> httpx.AsyncClient:
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app_with_rate_limit, raise_app_exceptions=True),
+        transport=httpx.ASGITransport(
+            app=app_with_rate_limit, raise_app_exceptions=True
+        ),
         base_url="http://test",
     ) as client:
         yield client
@@ -143,6 +146,7 @@ class TestRateLimitMiddleware:
 class TestRateLimitPaths:
     def test_login_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
         assert "/auth/login" in _RATE_LIMIT_PATHS
         max_req, window = _RATE_LIMIT_PATHS["/auth/login"]
         assert max_req == 10
@@ -150,6 +154,7 @@ class TestRateLimitPaths:
 
     def test_password_reset_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
         assert "/auth/forgot-password" in _RATE_LIMIT_PATHS
         max_req, window = _RATE_LIMIT_PATHS["/auth/forgot-password"]
         assert max_req == 5
@@ -157,14 +162,17 @@ class TestRateLimitPaths:
 
     def test_mfa_verify_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
         assert "/auth/mfa/verify" in _RATE_LIMIT_PATHS
 
     def test_api_reset_path_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
         assert "/auth/reset-password" in _RATE_LIMIT_PATHS
 
     def test_web_login_paths_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
         assert "/login" in _RATE_LIMIT_PATHS
         assert "/admin/login" in _RATE_LIMIT_PATHS
         assert "/mfa-verify" in _RATE_LIMIT_PATHS
@@ -172,6 +180,7 @@ class TestRateLimitPaths:
 
     def test_web_registration_and_reset_paths_configured(self) -> None:
         from app.middleware.rate_limit import _RATE_LIMIT_PATHS
+
         assert "/forgot-password" in _RATE_LIMIT_PATHS
         assert "/reset-password" in _RATE_LIMIT_PATHS
         assert "/register/parent" in _RATE_LIMIT_PATHS

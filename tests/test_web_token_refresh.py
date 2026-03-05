@@ -34,7 +34,8 @@ def _make_person_with_role(db_session, role_name):
     from app.services.auth_flow import hash_password
 
     person = Person(
-        first_name="Test", last_name="User",
+        first_name="Test",
+        last_name="User",
         email=f"{role_name}-{uuid.uuid4().hex[:8]}@example.com",
         email_verified=True,
     )

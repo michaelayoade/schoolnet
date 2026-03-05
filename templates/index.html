@@ -2,24 +2,24 @@
 {% from "components/macros.html" import pagination, sortable_th, status_badge %}
 
 {% block content %}
-  {% set brand_name = brand.name | default("Starter Template") %}
-  {% set brand_tagline = brand.tagline | default("FastAPI starter", true) %}
+  {% set brand_name = brand.name | default("SchoolNet") %}
+  {% set brand_tagline = brand.tagline | default("School admissions made simple", true) %}
   {% set brand_logo_url = brand.logo_url | default("", true) %}
-  {% set brand_mark = brand.mark | default("ST") %}
+  {% set brand_mark = brand.mark | default("SN") %}
   <main class="mx-auto max-w-5xl px-6 py-16 bg-noise bg-mesh min-h-screen">
     <div class="stagger-in rounded-3xl bg-white p-10 shadow-xl shadow-slate-200/40 dark:bg-slate-800 dark:shadow-slate-900/40 card-hover">
       <div class="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
         <div>
           <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary-600 dark:text-primary-400">
-            Starter Dashboard
+            SchoolNet Dashboard
           </p>
           <h1 class="mt-4 text-4xl font-bold leading-tight text-slate-900 dark:text-white md:text-5xl font-display tracking-tight">
-            Kickstart your
-            <span class="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent">next project.</span>
+            Streamline your
+            <span class="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent">school admissions.</span>
           </h1>
           <p class="mt-4 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-            A clean FastAPI base with auth, roles, settings, and task scheduling to
-            build on with your own domain models.
+            Manage applications, track payments, and connect parents with schools
+            — all in one platform.
           </p>
         </div>
         <div

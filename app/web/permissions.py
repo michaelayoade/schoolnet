@@ -15,7 +15,7 @@ from app.api.deps import get_db
 from app.models.rbac import Permission
 from app.schemas.rbac import PermissionCreate, PermissionUpdate
 from app.services.branding_context import load_branding_context
-from app.services.rbac import permissions
+from app.services.rbac import Permissions
 from app.templates import templates
 from app.web.schoolnet_deps import require_platform_admin_auth
 
@@ -123,7 +123,7 @@ def create_permission_submit(
             description=description if description else None,
             is_active=is_active == "on",
         )
-        permissions.create(db, payload)
+        Permissions(db).create(payload)
         db.commit()
         logger.info("Created permission via web: %s", payload.key)
         return RedirectResponse(
@@ -153,7 +153,7 @@ def edit_permission_form(
     auth: dict = Depends(require_platform_admin_auth),
 ) -> HTMLResponse:
     """Render the edit permission form."""
-    permission = permissions.get(db, str(permission_id))
+    permission = Permissions(db).get(str(permission_id))
     ctx = _base_context(
         request, db, auth, title="Edit Permission", page_title="Edit Permission"
     )
@@ -186,7 +186,7 @@ def edit_permission_submit(
             description=description if description else None,
             is_active=is_active == "on",
         )
-        permissions.update(db, str(permission_id), payload)
+        Permissions(db).update(str(permission_id), payload)
         db.commit()
         logger.info("Updated permission via web: %s", permission_id)
         return RedirectResponse(
@@ -217,7 +217,7 @@ def delete_permission(
     _ = csrf_token
 
     try:
-        permissions.delete(db, str(permission_id))
+        Permissions(db).delete(str(permission_id))
         db.commit()
         logger.info("Deleted permission via web: %s", permission_id)
         return RedirectResponse(

@@ -77,14 +77,14 @@ class TimestampMixin:
 
 
 # Create a mock db module
-mock_db_module = ModuleType('app.db')
+mock_db_module = ModuleType("app.db")
 mock_db_module.Base = TestBase
 mock_db_module.TimestampMixin = TimestampMixin
 mock_db_module.SessionLocal = _TestSessionLocal
 mock_db_module.get_engine = lambda: _test_engine
 
 # Also mock app.config to prevent .env loading
-mock_config_module = ModuleType('app.config')
+mock_config_module = ModuleType("app.config")
 
 
 class MockSettings:
@@ -99,7 +99,7 @@ class MockSettings:
     avatar_max_size_bytes = 2 * 1024 * 1024
     avatar_allowed_types = "image/jpeg,image/png,image/gif,image/webp"
     avatar_url_prefix = "/static/avatars"
-    brand_name = "Starter Template"
+    brand_name = "SchoolNet"
     brand_tagline = "FastAPI starter"
     brand_logo_url = None
     cors_origins = ""
@@ -112,7 +112,9 @@ class MockSettings:
     s3_secret_key = ""
     s3_endpoint_url = ""
     upload_max_size_bytes = 10 * 1024 * 1024
-    upload_allowed_types = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    upload_allowed_types = (
+        "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    )
     branding_upload_dir = "static/branding"
     branding_max_size_bytes = 5 * 1024 * 1024
     branding_allowed_types = "image/jpeg,image/png"
@@ -128,8 +130,8 @@ mock_config_module.Settings = MockSettings
 mock_config_module.validate_settings = lambda s: []
 
 # Insert mocks before any app imports
-sys.modules['app.config'] = mock_config_module
-sys.modules['app.db'] = mock_db_module
+sys.modules["app.config"] = mock_config_module
+sys.modules["app.db"] = mock_db_module
 
 # Set environment variables
 os.environ["JWT_SECRET"] = "test-secret"
@@ -278,7 +280,9 @@ def client(db_session):
     )
 
     class SyncASGIClient:
-        def __init__(self, loop: asyncio.AbstractEventLoop, async_client: httpx.AsyncClient):
+        def __init__(
+            self, loop: asyncio.AbstractEventLoop, async_client: httpx.AsyncClient
+        ):
             self._loop = loop
             self._client = async_client
 
@@ -310,7 +314,9 @@ def client(db_session):
         # Starlette's TestClient runs the app in a different thread; sharing a single
         # SQLAlchemy Session object across threads can hang. Use a per-request session
         # bound to the same StaticPool engine so data remains shared.
-        Session = sessionmaker(bind=db_session.get_bind(), autoflush=False, autocommit=False)
+        Session = sessionmaker(
+            bind=db_session.get_bind(), autoflush=False, autocommit=False
+        )
         session = Session()
         try:
             yield session
@@ -350,7 +356,9 @@ def client(db_session):
     app.state.disable_rate_limit = False
 
 
-def _create_access_token(person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None) -> str:
+def _create_access_token(
+    person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None
+) -> str:
     """Create a JWT access token for testing."""
     secret = os.getenv("JWT_SECRET", "test-secret")
     algorithm = os.getenv("JWT_ALGORITHM", "HS256")
@@ -559,7 +567,9 @@ def scheduled_task(db_session):
 @pytest.fixture()
 def billing_product(db_session):
     """Create a test billing product."""
-    product = Product(name=f"Product {uuid.uuid4().hex[:8]}", description="Test product")
+    product = Product(
+        name=f"Product {uuid.uuid4().hex[:8]}", description="Test product"
+    )
     db_session.add(product)
     db_session.commit()
     db_session.refresh(product)

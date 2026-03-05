@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "starter_template"
+name = "schoolnet"
 version = "0.1.0"
-description = "Starter API and web UI template"
+description = "School admissions platform — FastAPI + HTMX"
 authors = ["Codex <codex@local>"]
 package-mode = false
 

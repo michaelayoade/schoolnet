@@ -16,6 +16,9 @@ class PersonNotFoundError(ValueError):
 
 
 class People(ListResponseMixin):
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
     @staticmethod
     def _apply_ordering(stmt, order_by: str, order_dir: str):
         allowed_columns = {
@@ -32,24 +35,21 @@ class People(ListResponseMixin):
             return stmt.order_by(column.desc())
         return stmt.order_by(column.asc())
 
-    @staticmethod
-    def create(db: Session, payload: PersonCreate):
+    def create(self, payload: PersonCreate):
         person = Person(**payload.model_dump())
-        db.add(person)
-        db.flush()
-        db.refresh(person)
+        self.db.add(person)
+        self.db.flush()
+        self.db.refresh(person)
         return person
 
-    @staticmethod
-    def get(db: Session, person_id: str):
-        person = db.get(Person, coerce_uuid(person_id))
+    def get(self, person_id: str):
+        person = self.db.get(Person, coerce_uuid(person_id))
         if not person:
             raise PersonNotFoundError("Person not found")
         return person
 
-    @staticmethod
     def list(
-        db: Session,
+        self,
         email: str | None,
         status: str | None,
         is_active: bool | None,
@@ -71,31 +71,26 @@ class People(ListResponseMixin):
             stmt = stmt.where(Person.is_active == is_active)
 
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
-        total = db.scalar(count_stmt) or 0
+        total = self.db.scalar(count_stmt) or 0
 
         stmt = People._apply_ordering(stmt, order_by, order_dir)
         stmt = stmt.limit(limit).offset(offset)
-        items = list(db.scalars(stmt).all())
+        items = list(self.db.scalars(stmt).all())
         return items, total
 
-    @staticmethod
-    def update(db: Session, person_id: str, payload: PersonUpdate):
-        person = db.get(Person, coerce_uuid(person_id))
+    def update(self, person_id: str, payload: PersonUpdate):
+        person = self.db.get(Person, coerce_uuid(person_id))
         if not person:
             raise PersonNotFoundError("Person not found")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(person, key, value)
-        db.flush()
-        db.refresh(person)
+        self.db.flush()
+        self.db.refresh(person)
         return person
 
-    @staticmethod
-    def delete(db: Session, person_id: str):
-        person = db.get(Person, coerce_uuid(person_id))
+    def delete(self, person_id: str):
+        person = self.db.get(Person, coerce_uuid(person_id))
         if not person:
             raise PersonNotFoundError("Person not found")
-        db.delete(person)
-        db.flush()
-
-
-people = People()
+        self.db.delete(person)
+        self.db.flush()

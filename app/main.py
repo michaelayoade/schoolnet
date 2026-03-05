@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):  # type: ignore[arg-type]
     logger.info("Application shutting down")
 
 
-app = FastAPI(title="Starter Template API", lifespan=lifespan)
+app = FastAPI(title="SchoolNet API", lifespan=lifespan)
 
 _AUDIT_SETTINGS_CACHE: dict[str, Any] | None = None
 _AUDIT_SETTINGS_CACHE_AT: float | None = None
@@ -143,8 +143,8 @@ async def audit_middleware(
         if should_log:
             db = SessionLocal()
             try:
-                audit_service.audit_events.log_request(
-                    db, request, Response(status_code=500)
+                audit_service.AuditEvents(db).log_request(
+                    request, Response(status_code=500)
                 )
             finally:
                 db.close()
@@ -152,7 +152,7 @@ async def audit_middleware(
     if should_log:
         db = SessionLocal()
         try:
-            audit_service.audit_events.log_request(db, request, response)
+            audit_service.AuditEvents(db).log_request(request, response)
         finally:
             db.close()
     return response

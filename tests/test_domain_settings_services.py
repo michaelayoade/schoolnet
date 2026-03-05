@@ -9,9 +9,8 @@ from app.services import settings_api as settings_api_service
 
 
 def test_domain_setting_domain_mismatch(db_session):
-    settings = domain_settings_service.DomainSettings(domain=SettingDomain.auth)
+    settings = domain_settings_service.DomainSettings(db_session, domain=SettingDomain.auth)
     created = settings.create(
-        db_session,
         DomainSettingCreate(
             domain=SettingDomain.auth,
             key=f"test_setting_{uuid.uuid4().hex[:8]}",
@@ -22,7 +21,6 @@ def test_domain_setting_domain_mismatch(db_session):
     )
     with pytest.raises(ValueError) as exc:
         settings.update(
-            db_session,
             str(created.id),
             DomainSettingUpdate(domain=SettingDomain.audit),
         )

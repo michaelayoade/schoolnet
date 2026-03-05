@@ -12,7 +12,7 @@ router = APIRouter(prefix="/people", tags=["people"], dependencies=[Depends(requ
 @router.post("", response_model=PersonRead, status_code=status.HTTP_201_CREATED)
 def create_person(payload: PersonCreate, db: Session = Depends(get_db)):
     try:
-        person = person_service.people.create(db, payload)
+        person = person_service.People(db).create(payload)
         db.commit()
         return person
     except ValueError as exc:
@@ -23,7 +23,7 @@ def create_person(payload: PersonCreate, db: Session = Depends(get_db)):
 @router.get("/{person_id}", response_model=PersonRead)
 def get_person(person_id: str, db: Session = Depends(get_db)):
     try:
-        return person_service.people.get(db, person_id)
+        return person_service.People(db).get(person_id)
     except person_service.PersonNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -40,8 +40,8 @@ def list_people(
     db: Session = Depends(get_db),
 ):
     try:
-        return person_service.people.list_response(
-            db, email, status, is_active, order_by, order_dir, limit, offset
+        return person_service.People(db).list_response(
+            email, status, is_active, order_by, order_dir, limit, offset
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -50,7 +50,7 @@ def list_people(
 @router.patch("/{person_id}", response_model=PersonRead)
 def update_person(person_id: str, payload: PersonUpdate, db: Session = Depends(get_db)):
     try:
-        person = person_service.people.update(db, person_id, payload)
+        person = person_service.People(db).update(person_id, payload)
         db.commit()
         return person
     except person_service.PersonNotFoundError as exc:
@@ -64,7 +64,7 @@ def update_person(person_id: str, payload: PersonUpdate, db: Session = Depends(g
 @router.delete("/{person_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_person(person_id: str, db: Session = Depends(get_db)):
     try:
-        person_service.people.delete(db, person_id)
+        person_service.People(db).delete(person_id)
         db.commit()
     except person_service.PersonNotFoundError as exc:
         db.rollback()

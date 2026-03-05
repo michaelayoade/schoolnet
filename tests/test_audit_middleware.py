@@ -252,7 +252,7 @@ class TestAuditMiddlewareReadTriggers:
             mock_session.return_value = mock_db
             await audit_middleware(request, call_next)
             # GET without trigger should not log
-            mock_audit.audit_events.log_request.assert_not_called()
+            mock_audit.AuditEvents.return_value.log_request.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_get_request_logged_with_header_trigger(self):
@@ -286,7 +286,7 @@ class TestAuditMiddlewareReadTriggers:
             mock_session.return_value = mock_db
             await audit_middleware(request, call_next)
             # GET with header trigger should log
-            mock_audit.audit_events.log_request.assert_called_once()
+            mock_audit.AuditEvents.return_value.log_request.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_request_logged_with_query_trigger(self):
@@ -317,7 +317,7 @@ class TestAuditMiddlewareReadTriggers:
             mock_db = MagicMock()
             mock_session.return_value = mock_db
             await audit_middleware(request, call_next)
-            mock_audit.audit_events.log_request.assert_called_once()
+            mock_audit.AuditEvents.return_value.log_request.assert_called_once()
 
 
 class TestAuditMiddlewareExceptionLogging:
@@ -353,9 +353,9 @@ class TestAuditMiddlewareExceptionLogging:
             with pytest.raises(Exception, match="Internal error"):
                 await audit_middleware(request, call_next)
             # Exception should be logged with 500 status
-            mock_audit.audit_events.log_request.assert_called_once()
-            call_args = mock_audit.audit_events.log_request.call_args
-            assert call_args[0][2].status_code == 500
+            mock_audit.AuditEvents.return_value.log_request.assert_called_once()
+            call_args = mock_audit.AuditEvents.return_value.log_request.call_args
+            assert call_args[0][1].status_code == 500
 
     @pytest.mark.asyncio
     async def test_exception_not_logged_for_skipped_path(self):
@@ -387,7 +387,7 @@ class TestAuditMiddlewareExceptionLogging:
             with pytest.raises(Exception, match="Static file error"):
                 await audit_middleware(request, call_next)
             # Skipped path should not log
-            mock_audit.audit_events.log_request.assert_not_called()
+            mock_audit.AuditEvents.return_value.log_request.assert_not_called()
 
 
 class TestAuditMiddlewareDisabled:
@@ -419,4 +419,4 @@ class TestAuditMiddlewareDisabled:
             mock_db = MagicMock()
             mock_session.return_value = mock_db
             await audit_middleware(request, call_next)
-            mock_audit.audit_events.log_request.assert_not_called()
+            mock_audit.AuditEvents.return_value.log_request.assert_not_called()

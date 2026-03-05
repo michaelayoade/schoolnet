@@ -1,4 +1,5 @@
 """Tests for the paginate() helper and common utilities."""
+
 from __future__ import annotations
 
 import uuid
@@ -12,6 +13,7 @@ from app.services.common import apply_ordering, apply_pagination, coerce_uuid, p
 
 
 # ── Test DB setup ────────────────────────────────────────
+
 
 class _Base(DeclarativeBase):
     pass

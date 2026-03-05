@@ -25,7 +25,8 @@ class SettingDomainRequiredError(ValueError):
 
 
 class DomainSettings(ListResponseMixin):
-    def __init__(self, domain: SettingDomain | None = None) -> None:
+    def __init__(self, db: Session, domain: SettingDomain | None = None) -> None:
+        self.db = db
         self.domain = domain
 
     def _resolve_domain(self, payload_domain: SettingDomain | None) -> SettingDomain:
@@ -52,24 +53,23 @@ class DomainSettings(ListResponseMixin):
             return stmt.order_by(column.desc())
         return stmt.order_by(column.asc())
 
-    def create(self, db: Session, payload: DomainSettingCreate):
+    def create(self, payload: DomainSettingCreate):
         data = payload.model_dump()
         data["domain"] = self._resolve_domain(payload.domain)
         setting = DomainSetting(**data)
-        db.add(setting)
-        db.flush()
-        db.refresh(setting)
+        self.db.add(setting)
+        self.db.flush()
+        self.db.refresh(setting)
         return setting
 
-    def get(self, db: Session, setting_id: str):
-        setting = db.get(DomainSetting, coerce_uuid(setting_id))
+    def get(self, setting_id: str):
+        setting = self.db.get(DomainSetting, coerce_uuid(setting_id))
         if not setting or (self.domain and setting.domain != self.domain):
             raise SettingNotFoundError("Setting not found")
         return setting
 
     def list(
         self,
-        db: Session,
         domain: SettingDomain | None,
         is_active: bool | None,
         order_by: str,
@@ -87,15 +87,15 @@ class DomainSettings(ListResponseMixin):
             stmt = stmt.where(DomainSetting.is_active == is_active)
 
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
-        total = db.scalar(count_stmt) or 0
+        total = self.db.scalar(count_stmt) or 0
 
         stmt = self._apply_ordering(stmt, order_by, order_dir)
         stmt = stmt.limit(limit).offset(offset)
-        items = list(db.scalars(stmt).all())
+        items = list(self.db.scalars(stmt).all())
         return items, total
 
-    def update(self, db: Session, setting_id: str, payload: DomainSettingUpdate):
-        setting = db.get(DomainSetting, coerce_uuid(setting_id))
+    def update(self, setting_id: str, payload: DomainSettingUpdate):
+        setting = self.db.get(DomainSetting, coerce_uuid(setting_id))
         if not setting or (self.domain and setting.domain != self.domain):
             raise SettingNotFoundError("Setting not found")
         data = payload.model_dump(exclude_unset=True)
@@ -103,38 +103,38 @@ class DomainSettings(ListResponseMixin):
             raise SettingDomainMismatchError("Setting domain mismatch")
         for key, value in data.items():
             setattr(setting, key, value)
-        db.flush()
-        db.refresh(setting)
+        self.db.flush()
+        self.db.refresh(setting)
         return setting
 
-    def get_by_key(self, db: Session, key: str):
+    def get_by_key(self, key: str):
         if not self.domain:
             raise SettingDomainRequiredError("Setting domain is required")
         stmt = select(DomainSetting).where(
             DomainSetting.domain == self.domain,
             DomainSetting.key == key,
         )
-        setting = db.scalar(stmt)
+        setting = self.db.scalar(stmt)
         if not setting:
             raise SettingNotFoundError("Setting not found")
         return setting
 
-    def upsert_by_key(self, db: Session, key: str, payload: DomainSettingUpdate):
+    def upsert_by_key(self, key: str, payload: DomainSettingUpdate):
         if not self.domain:
             raise SettingDomainRequiredError("Setting domain is required")
         stmt = select(DomainSetting).where(
             DomainSetting.domain == self.domain,
             DomainSetting.key == key,
         )
-        setting = db.scalar(stmt)
+        setting = self.db.scalar(stmt)
         if setting:
             data = payload.model_dump(exclude_unset=True)
             data.pop("domain", None)
             data.pop("key", None)
             for field, value in data.items():
                 setattr(setting, field, value)
-            db.flush()
-            db.refresh(setting)
+            self.db.flush()
+            self.db.refresh(setting)
             return setting
         create_payload = DomainSettingCreate(
             domain=self.domain,
@@ -145,11 +145,10 @@ class DomainSettings(ListResponseMixin):
             is_secret=payload.is_secret or False,
             is_active=True if payload.is_active is None else payload.is_active,
         )
-        return self.create(db, create_payload)
+        return self.create(create_payload)
 
     def ensure_by_key(
         self,
-        db: Session,
         key: str,
         value_type: SettingValueType,
         value_text: str | None = None,
@@ -163,7 +162,7 @@ class DomainSettings(ListResponseMixin):
             DomainSetting.domain == self.domain,
             DomainSetting.key == key,
         )
-        existing = db.scalar(stmt)
+        existing = self.db.scalar(stmt)
         if existing:
             return existing
         payload = DomainSettingCreate(
@@ -175,18 +174,11 @@ class DomainSettings(ListResponseMixin):
             is_secret=is_secret,
             is_active=True,
         )
-        return self.create(db, payload)
+        return self.create(payload)
 
-    def delete(self, db: Session, setting_id: str):
-        setting = db.get(DomainSetting, coerce_uuid(setting_id))
+    def delete(self, setting_id: str):
+        setting = self.db.get(DomainSetting, coerce_uuid(setting_id))
         if not setting or (self.domain and setting.domain != self.domain):
             raise SettingNotFoundError("Setting not found")
         setting.is_active = False
-        db.flush()
-
-
-settings = DomainSettings()
-auth_settings = DomainSettings(SettingDomain.auth)
-audit_settings = DomainSettings(SettingDomain.audit)
-scheduler_settings = DomainSettings(SettingDomain.scheduler)
-billing_settings = DomainSettings(SettingDomain.billing)
+        self.db.flush()

@@ -31,6 +31,9 @@ def _validate_schedule_type(value):
 
 
 class ScheduledTasks(ListResponseMixin):
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
     @staticmethod
     def _apply_ordering(stmt, order_by: str, order_dir: str):
         allowed_columns = {
@@ -46,26 +49,23 @@ class ScheduledTasks(ListResponseMixin):
             return stmt.order_by(column.desc())
         return stmt.order_by(column.asc())
 
-    @staticmethod
-    def create(db: Session, payload: ScheduledTaskCreate):
+    def create(self, payload: ScheduledTaskCreate):
         if payload.interval_seconds < 1:
             raise ValueError("interval_seconds must be >= 1")
         task = ScheduledTask(**payload.model_dump())
-        db.add(task)
-        db.flush()
-        db.refresh(task)
+        self.db.add(task)
+        self.db.flush()
+        self.db.refresh(task)
         return task
 
-    @staticmethod
-    def get(db: Session, task_id: str):
-        task = db.get(ScheduledTask, coerce_uuid(task_id))
+    def get(self, task_id: str):
+        task = self.db.get(ScheduledTask, coerce_uuid(task_id))
         if not task:
             raise ScheduledTaskNotFoundError("Scheduled task not found")
         return task
 
-    @staticmethod
     def list(
-        db: Session,
+        self,
         enabled: bool | None,
         order_by: str,
         order_dir: str,
@@ -77,16 +77,15 @@ class ScheduledTasks(ListResponseMixin):
             stmt = stmt.where(ScheduledTask.enabled == enabled)
 
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
-        total = db.scalar(count_stmt) or 0
+        total = self.db.scalar(count_stmt) or 0
 
         stmt = ScheduledTasks._apply_ordering(stmt, order_by, order_dir)
         stmt = stmt.limit(limit).offset(offset)
-        items = list(db.scalars(stmt).all())
+        items = list(self.db.scalars(stmt).all())
         return items, total
 
-    @staticmethod
-    def update(db: Session, task_id: str, payload: ScheduledTaskUpdate):
-        task = db.get(ScheduledTask, coerce_uuid(task_id))
+    def update(self, task_id: str, payload: ScheduledTaskUpdate):
+        task = self.db.get(ScheduledTask, coerce_uuid(task_id))
         if not task:
             raise ScheduledTaskNotFoundError("Scheduled task not found")
         data = payload.model_dump(exclude_unset=True)
@@ -97,20 +96,16 @@ class ScheduledTasks(ListResponseMixin):
                 raise ValueError("interval_seconds must be >= 1")
         for key, value in data.items():
             setattr(task, key, value)
-        db.flush()
-        db.refresh(task)
+        self.db.flush()
+        self.db.refresh(task)
         return task
 
-    @staticmethod
-    def delete(db: Session, task_id: str):
-        task = db.get(ScheduledTask, coerce_uuid(task_id))
+    def delete(self, task_id: str):
+        task = self.db.get(ScheduledTask, coerce_uuid(task_id))
         if not task:
             raise ScheduledTaskNotFoundError("Scheduled task not found")
-        db.delete(task)
-        db.flush()
-
-
-scheduled_tasks = ScheduledTasks()
+        self.db.delete(task)
+        self.db.flush()
 
 
 def refresh_schedule() -> dict:
@@ -120,8 +115,6 @@ def refresh_schedule() -> dict:
 def enqueue_task(task_name: str, args: list | None, kwargs: dict | None) -> dict:
     from app.celery_app import celery_app
 
-    # API endpoints should never hang waiting for a broker/backend to become available.
-    # Disable retries and ignore results so failures surface quickly.
     try:
         async_result = celery_app.send_task(
             task_name,

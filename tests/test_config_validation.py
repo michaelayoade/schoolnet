@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+
+import pytest  # noqa: F401
 from unittest.mock import patch
 
 

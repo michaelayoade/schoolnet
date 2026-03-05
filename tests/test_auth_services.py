@@ -33,9 +33,9 @@ def test_user_credentials_soft_delete(db_session, person):
         username="user@example.com",
         password_hash=hash_password("secret"),
     )
-    credential = auth_service.user_credentials.create(db_session, payload)
-    active, active_total = auth_service.user_credentials.list(
-        db_session,
+    svc = auth_service.UserCredentials(db_session)
+    credential = svc.create(payload)
+    active, active_total = svc.list(
         person_id=str(person.id),
         provider=None,
         is_active=None,
@@ -46,9 +46,8 @@ def test_user_credentials_soft_delete(db_session, person):
     )
     assert active_total == 1
     assert len(active) == 1
-    auth_service.user_credentials.delete(db_session, str(credential.id))
-    active, active_total = auth_service.user_credentials.list(
-        db_session,
+    svc.delete(str(credential.id))
+    active, active_total = svc.list(
         person_id=str(person.id),
         provider=None,
         is_active=None,
@@ -57,8 +56,7 @@ def test_user_credentials_soft_delete(db_session, person):
         limit=25,
         offset=0,
     )
-    inactive, inactive_total = auth_service.user_credentials.list(
-        db_session,
+    inactive, inactive_total = svc.list(
         person_id=str(person.id),
         provider=None,
         is_active=False,
@@ -84,9 +82,9 @@ def test_mfa_primary_switch(db_session, person, monkeypatch):
         is_primary=True,
         enabled=True,
     )
-    first = auth_service.mfa_methods.create(db_session, payload)
-    second = auth_service.mfa_methods.create(
-        db_session,
+    mfa_svc = auth_service.MFAMethods(db_session)
+    first = mfa_svc.create(payload)
+    second = mfa_svc.create(
         MFAMethodCreate(
             person_id=person.id,
             method_type="totp",
@@ -109,8 +107,8 @@ def test_mfa_secret_is_encrypted_on_create_and_update(db_session, person, monkey
     key = Fernet.generate_key().decode("utf-8")
     monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)
 
-    created = auth_service.mfa_methods.create(
-        db_session,
+    mfa_svc = auth_service.MFAMethods(db_session)
+    created = mfa_svc.create(
         MFAMethodCreate(
             person_id=person.id,
             method_type="totp",
@@ -122,8 +120,7 @@ def test_mfa_secret_is_encrypted_on_create_and_update(db_session, person, monkey
     # EncryptedSecretString decrypts transparently on read
     assert created.secret == "JBSWY3DPEHPK3PXP"
 
-    updated = auth_service.mfa_methods.update(
-        db_session,
+    updated = mfa_svc.update(
         str(created.id),
         MFAMethodUpdate(secret="KRSXG5DSNFXGOIDP"),
     )
@@ -175,8 +172,9 @@ def test_session_delete_revokes(db_session, person):
         user_agent="pytest",
         expires_at="2099-01-01T00:00:00+00:00",
     )
-    session = auth_service.sessions.create(db_session, payload)
-    auth_service.sessions.delete(db_session, str(session.id))
+    sessions_svc = auth_service.Sessions(db_session)
+    session = sessions_svc.create(payload)
+    sessions_svc.delete(str(session.id))
     db_session.refresh(session)
     assert session.status == SessionStatus.revoked
     assert session.revoked_at is not None
@@ -186,7 +184,7 @@ def test_api_key_generate_with_redis(monkeypatch, db_session):
     fake = _FakeRedis()
     monkeypatch.setattr(auth_service, "_get_redis_client", lambda: fake)
     payload = ApiKeyGenerateRequest(label="test")
-    result = auth_service.api_keys.generate_with_rate_limit(db_session, payload, None)
+    result = auth_service.ApiKeys(db_session).generate_with_rate_limit(payload, None)
     raw_key = result["key"]
     api_key = result["api_key"]
     assert hashlib.sha256(raw_key.encode("utf-8")).hexdigest() == api_key.key_hash
@@ -195,7 +193,7 @@ def test_api_key_generate_with_redis(monkeypatch, db_session):
 def test_api_key_rate_limit_requires_redis(monkeypatch, db_session):
     monkeypatch.setattr(auth_service, "_get_redis_client", lambda: None)
     with pytest.raises(auth_service.RateLimitUnavailableError) as exc:
-        auth_service.api_keys.generate_with_rate_limit(
-            db_session, ApiKeyGenerateRequest(label="test"), None
+        auth_service.ApiKeys(db_session).generate_with_rate_limit(
+            ApiKeyGenerateRequest(label="test"), None
         )
     assert "Rate limiting unavailable" in str(exc.value)

@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 from app.db import SessionLocal
 from app.schemas.settings import DomainSettingUpdate
 from app.services.settings_spec import (
-    DOMAIN_SETTINGS_SERVICE,
     SETTINGS_SPECS,
     coerce_value,
+    get_domain_service,
     normalize_for_db,
 )
 from app.services.secrets import is_openbao_ref
@@ -69,11 +69,11 @@ def main():
                 )
                 updated += 1
                 continue
-            service = DOMAIN_SETTINGS_SERVICE.get(spec.domain)
+            service = get_domain_service(db, spec.domain)
             if not service:
                 errors.append(f"{spec.domain.value}.{spec.key}: no domain service")
                 continue
-            service.upsert_by_key(db, spec.key, payload)
+            service.upsert_by_key(spec.key, payload)
             updated += 1
     finally:
         db.close()

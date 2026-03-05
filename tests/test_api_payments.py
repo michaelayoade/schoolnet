@@ -6,7 +6,9 @@ def test_paystack_webhook_rejects_when_unconfigured(client, monkeypatch):
 
     monkeypatch.setattr(payments.paystack_gateway, "is_configured", lambda: False)
 
-    response = client.post("/payments/webhook/paystack", content=b'{"event":"charge.success"}')
+    response = client.post(
+        "/payments/webhook/paystack", content=b'{"event":"charge.success"}'
+    )
 
     assert response.status_code == 503
     assert response.json()["message"] == "Payment webhook is not configured"
@@ -17,10 +19,14 @@ def test_paystack_webhook_rejects_invalid_signature(client, monkeypatch):
 
     monkeypatch.setattr(payments.paystack_gateway, "is_configured", lambda: True)
     monkeypatch.setattr(
-        payments.paystack_gateway, "validate_webhook_signature", lambda _body, _sig: False
+        payments.paystack_gateway,
+        "validate_webhook_signature",
+        lambda _body, _sig: False,
     )
 
-    response = client.post("/payments/webhook/paystack", content=b'{"event":"charge.success"}')
+    response = client.post(
+        "/payments/webhook/paystack", content=b'{"event":"charge.success"}'
+    )
 
     assert response.status_code == 400
     assert response.json()["message"] == "Invalid signature"
@@ -33,7 +39,9 @@ def test_paystack_webhook_accepts_valid_signature(client, monkeypatch):
 
     monkeypatch.setattr(payments.paystack_gateway, "is_configured", lambda: True)
     monkeypatch.setattr(
-        payments.paystack_gateway, "validate_webhook_signature", lambda _body, _sig: True
+        payments.paystack_gateway,
+        "validate_webhook_signature",
+        lambda _body, _sig: True,
     )
 
     def _handle_webhook(self, event_type, event_id, payload):

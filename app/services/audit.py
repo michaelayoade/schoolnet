@@ -17,6 +17,9 @@ class AuditEventNotFoundError(ValueError):
 
 
 class AuditEvents(ListResponseMixin):
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
     @staticmethod
     def _apply_ordering(stmt, order_by: str, order_dir: str):
         allowed_columns = {
@@ -44,27 +47,24 @@ class AuditEvents(ListResponseMixin):
             allowed = ", ".join(sorted(a.value for a in AuditActorType))
             raise ValueError(f"Invalid actor_type. Allowed: {allowed}") from exc
 
-    @staticmethod
-    def create(db: Session, payload: AuditEventCreate):
+    def create(self, payload: AuditEventCreate):
         data = payload.model_dump()
         if payload.occurred_at is None:
             data.pop("occurred_at", None)
         event = AuditEvent(**data)
-        db.add(event)
-        db.flush()
-        db.refresh(event)
+        self.db.add(event)
+        self.db.flush()
+        self.db.refresh(event)
         return event
 
-    @staticmethod
-    def get(db: Session, event_id: str):
-        event = db.get(AuditEvent, coerce_uuid(event_id))
+    def get(self, event_id: str):
+        event = self.db.get(AuditEvent, coerce_uuid(event_id))
         if not event:
             raise AuditEventNotFoundError("Audit event not found")
         return event
 
-    @staticmethod
     def list(
-        db: Session,
+        self,
         actor_id: str | None,
         actor_type: AuditActorType | None,
         action: str | None,
@@ -99,15 +99,14 @@ class AuditEvents(ListResponseMixin):
             stmt = stmt.where(AuditEvent.is_active == is_active)
 
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
-        total = db.scalar(count_stmt) or 0
+        total = self.db.scalar(count_stmt) or 0
 
         stmt = AuditEvents._apply_ordering(stmt, order_by, order_dir)
         stmt = stmt.limit(limit).offset(offset)
-        items = list(db.scalars(stmt).all())
+        items = list(self.db.scalars(stmt).all())
         return items, total
 
-    @staticmethod
-    def log_request(db: Session, request: Request, response: Response):
+    def log_request(self, request: Request, response: Response):
         actor_type = request.headers.get("x-actor-type", AuditActorType.system.value)
         actor_id = request.headers.get("x-actor-id")
         request_id = request.headers.get("x-request-id")
@@ -139,16 +138,12 @@ class AuditEvents(ListResponseMixin):
             },
         )
         event = AuditEvent(**payload.model_dump())
-        db.add(event)
-        db.flush()
+        self.db.add(event)
+        self.db.flush()
 
-    @staticmethod
-    def delete(db: Session, event_id: str):
-        event = db.get(AuditEvent, coerce_uuid(event_id))
+    def delete(self, event_id: str):
+        event = self.db.get(AuditEvent, coerce_uuid(event_id))
         if not event:
             raise AuditEventNotFoundError("Audit event not found")
         event.is_active = False
-        db.flush()
-
-
-audit_events = AuditEvents()
+        self.db.flush()

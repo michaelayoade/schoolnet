@@ -1,41 +1,39 @@
-# Starter Template
+# SchoolNet
 
-A production-ready FastAPI starter template with enterprise-grade features including authentication, RBAC, audit logging, background jobs, and full observability.
+School admissions platform — manage applications, track payments, and connect parents with schools.
+
+Built with FastAPI + SQLAlchemy 2.0 + Jinja2/HTMX/Alpine.js + PostgreSQL.
 
 ## Features
 
+- **School Admissions**
+  - Dynamic admission forms per school
+  - Application submission and tracking
+  - Document uploads and verification
+  - Multi-ward support for parents
+
+- **Payments**
+  - Paystack integration for application fees
+  - Commission tracking and settlement
+  - Invoice generation
+
 - **Authentication & Security**
-  - JWT-based authentication with refresh token rotation
-  - Multi-factor authentication (TOTP, SMS, Email)
-  - API key management with rate limiting (Redis-backed; in-memory fallback when Redis is unavailable)
-  - Session management with token hashing
-  - Password policies (minimum 8 characters) and account lockout
-  - WebSocket authentication via `Sec-WebSocket-Protocol` header (token never exposed in URLs or logs)
-
-- **Authorization**
+  - JWT-based auth with refresh token rotation
+  - Multi-factor authentication (TOTP)
+  - API key management with Redis-backed rate limiting
   - Role-based access control (RBAC)
-  - Fine-grained permissions system
-  - Scope-based API access
 
-- **Audit & Compliance**
-  - Comprehensive audit logging
-  - Request/response tracking
-  - Actor and IP address logging
+- **Multi-Portal UI**
+  - Parent portal — apply, track, manage wards
+  - School portal — review applications, manage forms, verify documents
+  - Admin portal — manage schools, users, system settings
 
 - **Background Jobs**
   - Celery workers with Redis broker
   - Database-backed Beat scheduler
-  - Persistent scheduled tasks
 
 - **Observability**
-  - Prometheus metrics
-  - OpenTelemetry distributed tracing
-  - Structured JSON logging
-
-- **Web UI**
-  - Jinja2 server-side rendering
-  - Static file serving
-  - Avatar upload handling
+  - Prometheus metrics, OpenTelemetry tracing, structured logging
 
 ## Tech Stack
 
@@ -47,294 +45,89 @@ A production-ready FastAPI starter template with enterprise-grade features inclu
 | Migrations | Alembic |
 | Cache/Broker | Redis 7 |
 | Task Queue | Celery 5.4 |
-| Auth | python-jose, passlib, pyotp |
-| Tracing | OpenTelemetry |
-| Metrics | Prometheus |
+| Frontend | Jinja2 + HTMX + Alpine.js + Tailwind CSS |
+| Payments | Paystack |
+
+## Getting Started
+
+### Docker (Recommended)
+
+```bash
+cp .env.example .env
+# Edit .env with your secrets
+
+docker compose up -d
+
+# Run migrations
+docker exec schoolnet_app alembic upgrade head
+
+# Create admin user
+docker exec schoolnet_app python scripts/seed_admin.py --username admin --password <password>
+```
+
+Services:
+- **App**: http://localhost:8006
+- **PostgreSQL**: localhost:5436
+- **Redis**: localhost:6381
+
+### Local Development
+
+```bash
+poetry install
+docker compose up -d db redis   # databases only
+alembic upgrade head
+uvicorn app.main:app --reload --port 8001
+```
+
+## Configuration
+
+Key environment variables (see `.env.example` for full list):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://...schoolnet` |
+| `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
+| `JWT_SECRET` | JWT signing secret | Required |
+| `TOTP_ISSUER` | TOTP issuer name | `schoolnet` |
+| `TOTP_ENCRYPTION_KEY` | TOTP encryption key | Required |
+| `BRAND_NAME` | Platform display name | `SchoolNet` |
+| `PAYSTACK_SECRET_KEY` | Paystack secret key | - |
+| `OTEL_SERVICE_NAME` | Tracing service name | `schoolnet` |
+
+### OpenBao Integration
+
+Secrets can be resolved from OpenBao:
+```bash
+JWT_SECRET=openbao://secret/data/schoolnet#jwt_secret
+```
+
+## Testing
+
+Tests run inside Docker (requires Python 3.11+):
+
+```bash
+docker exec schoolnet_app poetry run pytest tests/ -x -q
+```
 
 ## Project Structure
 
 ```
 ├── app/
-│   ├── api/              # Route handlers
+│   ├── api/              # API route handlers
+│   ├── web/              # Web UI routes (HTMX)
 │   ├── models/           # SQLAlchemy ORM models
 │   ├── schemas/          # Pydantic validation schemas
 │   ├── services/         # Business logic layer
 │   ├── tasks/            # Celery background tasks
-│   ├── main.py           # FastAPI app initialization
-│   ├── config.py         # Application settings
-│   ├── db.py             # Database configuration
-│   ├── celery_app.py     # Celery configuration
-│   └── telemetry.py      # OpenTelemetry setup
+│   └── main.py           # FastAPI app + middleware
 ├── templates/            # Jinja2 HTML templates
+│   ├── parent/           # Parent portal
+│   ├── school/           # School portal
+│   └── admin/            # Admin portal
 ├── static/               # Static assets
 ├── alembic/              # Database migrations
-├── scripts/              # Utility scripts
-├── tests/                # Test suite
-├── docker-compose.yml    # Container orchestration
-└── Dockerfile            # Container image
+└── tests/                # Test suite
 ```
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.11 or 3.12
-- PostgreSQL 16
-- Redis 7
-- [Poetry](https://python-poetry.org/) (recommended) or pip
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd starter_template
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Install dependencies**
-   ```bash
-   # Using Poetry (recommended)
-   poetry install
-
-   # Or using pip
-   pip install -r requirements.txt
-   ```
-
-   **Optional: S3 storage support**
-   ```bash
-   # Poetry
-   poetry install -E s3
-
-   # pip
-   pip install .[s3]
-   ```
-   Required when `STORAGE_BACKEND=s3` is set. Without this, the application will crash with `ImportError` on startup.
-
-### Running with Docker (Recommended)
-
-The easiest way to run the application is with Docker Compose:
-
-```bash
-# Start all services
-docker compose up -d
-
-# View logs
-docker compose logs -f app
-
-# Stop all services
-docker compose down
-```
-
-Services:
-- **App**: http://localhost:8006
-- **PostgreSQL**: localhost:5435 (loopback-only)
-- **Redis**: localhost:6380 (loopback-only)
-
-### Running Locally
-
-1. **Start PostgreSQL and Redis** (or use Docker for just the databases)
-   ```bash
-   docker compose up -d db redis
-   ```
-
-2. **Run database migrations**
-   ```bash
-   alembic upgrade head
-   ```
-
-3. **Seed initial data**
-   ```bash
-   # Initialize RBAC roles and permissions
-   python scripts/seed_rbac.py
-
-   # Create admin user
-   python scripts/seed_admin.py --username admin --password <password>
-
-   # Sync settings
-   python scripts/settings_sync.py
-   ```
-
-4. **Start the application**
-   ```bash
-   uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
-   ```
-
-5. **Start Celery worker** (in a separate terminal)
-   ```bash
-   celery -A app.celery_app worker -l info
-   ```
-
-6. **Start Celery Beat scheduler** (in a separate terminal)
-   ```bash
-   celery -A app.celery_app beat -l info
-   ```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://postgres:postgres@localhost:5435/starter_template` |
-| `REDIS_URL` | Redis connection string | `redis://:redis@localhost:6380/0` |
-| `CELERY_BROKER_URL` | Celery broker URL | `redis://:redis@localhost:6380/0` |
-| `CELERY_RESULT_BACKEND` | Celery result backend | `redis://:redis@localhost:6380/1` |
-| `JWT_SECRET` | JWT signing secret | Required |
-| `JWT_ALGORITHM` | JWT algorithm | `HS256` |
-| `JWT_ACCESS_TTL_MINUTES` | Access token TTL | `15` |
-| `JWT_REFRESH_TTL_DAYS` | Refresh token TTL | `30` |
-| `TOTP_ISSUER` | TOTP issuer name | `starter_template` |
-| `TOTP_ENCRYPTION_KEY` | TOTP secret encryption key | Required |
-| `REFRESH_COOKIE_SECURE` | Set auth cookies with `Secure` flag (`true`/`1`/`yes`) | `false` |
-| `TRUSTED_PROXIES` | Comma-separated IPs/CIDRs trusted to set `X-Forwarded-For` | `` (empty = none) |
-| `METRICS_TOKEN` | Bearer token required to access `/metrics` endpoint | Required |
-| `OTEL_ENABLED` | Enable OpenTelemetry | `false` |
-| `OTEL_SERVICE_NAME` | Service name for tracing | `starter_template` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | - |
-
-### Secret Rotation (Local `.env`)
-
-For local/self-hosted installs that keep secrets in `.env`, run:
-
-```bash
-python3 scripts/rotate_local_secrets.py --env-file .env --write
-```
-
-What it rotates:
-- `POSTGRES_PASSWORD`
-- `REDIS_PASSWORD`
-- `SECRET_KEY`
-- `JWT_SECRET` (unless it is an OpenBao reference)
-- `TOTP_ENCRYPTION_KEY` (unless it is an OpenBao reference)
-
-It also updates dependent URLs:
-- `DATABASE_URL`
-- `REDIS_URL`
-- `CELERY_BROKER_URL`
-- `CELERY_RESULT_BACKEND`
-
-After rotation, apply matching credential changes in PostgreSQL/Redis and restart services.
-
-### OpenBao Integration
-
-Secrets can be resolved from OpenBao by using the `openbao://` prefix:
-
-```bash
-JWT_SECRET=openbao://secret/data/starter_template#jwt_secret
-```
-
-Configure OpenBao connection:
-```bash
-OPENBAO_ADDR=https://vault.example.com
-OPENBAO_TOKEN=<token>
-OPENBAO_NAMESPACE=<namespace>
-OPENBAO_KV_VERSION=2
-```
-
-## API Endpoints
-
-### Authentication (`/auth`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/login` | User login |
-| POST | `/auth/refresh` | Refresh access token |
-| POST | `/auth/logout` | Logout and revoke session |
-| GET | `/auth/me` | Get current user profile |
-| PUT | `/auth/me` | Update current user profile |
-| POST | `/auth/password-change` | Change password |
-| POST | `/auth/password-reset-request` | Request password reset |
-| POST | `/auth/password-reset` | Complete password reset |
-| POST | `/auth/mfa/setup` | Setup MFA |
-| POST | `/auth/mfa/verify` | Verify MFA code |
-| GET | `/auth/sessions` | List user sessions |
-| DELETE | `/auth/sessions/{id}` | Revoke session |
-
-### People (`/people`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/people` | Create person |
-| GET | `/people` | List people |
-| GET | `/people/{id}` | Get person |
-| PUT | `/people/{id}` | Update person |
-| DELETE | `/people/{id}` | Delete person |
-
-### RBAC (`/roles`, `/permissions`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/roles` | Create role |
-| GET | `/roles` | List roles |
-| PUT | `/roles/{id}` | Update role |
-| DELETE | `/roles/{id}` | Delete role |
-| POST | `/permissions` | Create permission |
-| GET | `/permissions` | List permissions |
-
-### Monitoring
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/metrics` | Prometheus metrics |
-
-## Development
-
-### Code Style
-
-The project follows standard Python conventions with:
-- Type hints throughout
-- Pydantic for data validation
-- SQLAlchemy 2.0 mapped column syntax
-
-### Adding New Endpoints
-
-1. Create model in `app/models/`
-2. Create schemas in `app/schemas/`
-3. Implement service logic in `app/services/`
-4. Add route handlers in `app/api/`
-5. Register router in `app/main.py`
-
-### Database Migrations
-
-```bash
-# Create a new migration
-alembic revision --autogenerate -m "description"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback one migration
-alembic downgrade -1
-```
-
-## Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=app --cov-report=html
-
-# Run specific test file
-pytest tests/test_auth_flow.py
-```
-
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `scripts/seed_admin.py` | Create admin user |
-| `scripts/seed_rbac.py` | Initialize roles and permissions |
-| `scripts/settings_sync.py` | Sync settings with database |
-| `scripts/settings_validate.py` | Validate settings configuration |
 
 ## License
 

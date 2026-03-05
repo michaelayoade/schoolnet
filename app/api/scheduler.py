@@ -23,8 +23,8 @@ def list_scheduled_tasks(
     db: Session = Depends(get_db),
 ):
     try:
-        return scheduler_service.scheduled_tasks.list_response(
-            db, enabled, order_by, order_dir, limit, offset
+        return scheduler_service.ScheduledTasks(db).list_response(
+            enabled, order_by, order_dir, limit, offset
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -37,7 +37,7 @@ def list_scheduled_tasks(
 )
 def create_scheduled_task(payload: ScheduledTaskCreate, db: Session = Depends(get_db)):
     try:
-        task = scheduler_service.scheduled_tasks.create(db, payload)
+        task = scheduler_service.ScheduledTasks(db).create(payload)
         db.commit()
         return task
     except ValueError as exc:
@@ -48,7 +48,7 @@ def create_scheduled_task(payload: ScheduledTaskCreate, db: Session = Depends(ge
 @router.get("/tasks/{task_id}", response_model=ScheduledTaskRead)
 def get_scheduled_task(task_id: str, db: Session = Depends(get_db)):
     try:
-        return scheduler_service.scheduled_tasks.get(db, task_id)
+        return scheduler_service.ScheduledTasks(db).get(task_id)
     except scheduler_service.ScheduledTaskNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -58,7 +58,7 @@ def update_scheduled_task(
     task_id: str, payload: ScheduledTaskUpdate, db: Session = Depends(get_db)
 ):
     try:
-        task = scheduler_service.scheduled_tasks.update(db, task_id, payload)
+        task = scheduler_service.ScheduledTasks(db).update(task_id, payload)
         db.commit()
         return task
     except scheduler_service.ScheduledTaskNotFoundError as exc:
@@ -72,7 +72,7 @@ def update_scheduled_task(
 @router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_scheduled_task(task_id: str, db: Session = Depends(get_db)):
     try:
-        scheduler_service.scheduled_tasks.delete(db, task_id)
+        scheduler_service.ScheduledTasks(db).delete(task_id)
         db.commit()
     except scheduler_service.ScheduledTaskNotFoundError as exc:
         db.rollback()
@@ -87,7 +87,7 @@ def refresh_schedule():
 @router.post("/tasks/{task_id}/enqueue", status_code=status.HTTP_202_ACCEPTED)
 def enqueue_scheduled_task(task_id: str, db: Session = Depends(get_db)):
     try:
-        task = scheduler_service.scheduled_tasks.get(db, task_id)
+        task = scheduler_service.ScheduledTasks(db).get(task_id)
     except scheduler_service.ScheduledTaskNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:

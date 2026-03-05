@@ -44,7 +44,7 @@ def _shift_lightness(hex_color: str, factor: float) -> str:
 
 
 def _default_branding() -> dict[str, Any]:
-    name = getattr(settings, "brand_name", "Starter Template")
+    name = getattr(settings, "brand_name", "SchoolNet")
     return {
         "display_name": name,
         "tagline": getattr(settings, "brand_tagline", "FastAPI starter"),
