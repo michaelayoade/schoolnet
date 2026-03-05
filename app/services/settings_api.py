@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingDomain, SettingValueType
 from app.schemas.settings import DomainSettingUpdate
-from app.services.domain_settings import SettingNotFoundError
 from app.services import settings_spec
+from app.services.domain_settings import SettingNotFoundError
 from app.services.response import list_response
 
 

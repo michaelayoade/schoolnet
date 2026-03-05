@@ -18,11 +18,11 @@ from app.schemas.rbac import (
     RoleUpdate,
 )
 from app.services.rbac import (
+    PermissionNotFoundError,
     Permissions,
     PersonNotFoundError,
     PersonRoleNotFoundError,
     PersonRoles,
-    PermissionNotFoundError,
     RoleNotFoundError,
     RolePermissionNotFoundError,
     RolePermissions,

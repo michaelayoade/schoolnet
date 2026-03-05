@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _token_from_subprotocol(websocket: WebSocket) -> str:
+    """Return first offered websocket subprotocol token or empty string."""
+    subprotocols = websocket.scope.get("subprotocols") or []
+    return subprotocols[0] if subprotocols else ""
+
+
 def _authenticate_ws(token: str) -> str | None:
     """Validate JWT token and return person_id or None."""
     if not token:
@@ -36,7 +42,7 @@ async def ws_notifications(websocket: WebSocket) -> None:
 
     Authenticate via query param: /ws/notifications?token=<JWT>
     """
-    token = websocket.query_params.get("token", "")
+    token = _token_from_subprotocol(websocket)
     person_id_str = _authenticate_ws(token)
     if not person_id_str:
         await websocket.close(code=4001, reason="Unauthorized")

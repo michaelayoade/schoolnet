@@ -232,7 +232,7 @@ def edit_customer_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle customer edit form submission."""
     _ = csrf_token
-    data = {
+    data = {  # noqa: F841
         "name": name,
         "email": email,
         "currency": currency,
