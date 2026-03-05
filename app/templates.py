@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import html
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
