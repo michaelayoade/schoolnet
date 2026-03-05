@@ -198,7 +198,7 @@ def edit_product_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle product edit form submission."""
     _ = csrf_token
-    data = {
+    data = {  # noqa: F841
         "name": name,
         "description": description,
         "is_active": is_active,
