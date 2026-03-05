@@ -74,6 +74,14 @@ poetry.lock
 # Docker
 .docker/
 
+# Node
+node_modules/
+package-lock.json
+
+# Temporary screenshots and reports
+tmp-screenshots*/
+reports/
+
 # Seabone Agent Swarm
 .env.agent-swarm
 .seabone/active-tasks.json
@@ -83,6 +91,11 @@ poetry.lock
 .seabone/pm-state.json
 .seabone/orchestrator-state.json
 .seabone/ci-state.json
+.seabone/last-report.txt
+.seabone/learnings.json
+.seabone/loop-spawned.json
+.seabone/loop-state.json
+.seabone/shared-context.json
 .seabone/logs/
 .seabone/findings/
 .seabone/reports/
