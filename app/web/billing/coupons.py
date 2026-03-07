@@ -226,7 +226,7 @@ def edit_coupon_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle coupon edit form submission."""
     _ = csrf_token
-    data = {
+    _data = {
         "name": name,
         "percent_off": percent_off,
         "amount_off": amount_off,

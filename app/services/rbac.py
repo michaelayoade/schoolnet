@@ -241,7 +241,9 @@ class RolePermissions(ListResponseMixin):
         if role_id:
             stmt = stmt.where(RolePermission.role_id == coerce_uuid(role_id))
         if permission_id:
-            stmt = stmt.where(RolePermission.permission_id == coerce_uuid(permission_id))
+            stmt = stmt.where(
+                RolePermission.permission_id == coerce_uuid(permission_id)
+            )
 
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0
@@ -252,7 +254,9 @@ class RolePermissions(ListResponseMixin):
         return items, total
 
     @staticmethod
-    def _validate_link_ids(db: Session, role_id: UUID | None, permission_id: UUID | None):
+    def _validate_link_ids(
+        db: Session, role_id: UUID | None, permission_id: UUID | None
+    ):
         if role_id is not None:
             role = db.get(Role, role_id)
             if not role:

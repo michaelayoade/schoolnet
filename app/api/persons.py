@@ -6,7 +6,9 @@ from app.schemas.common import ListResponse
 from app.schemas.person import PersonCreate, PersonRead, PersonUpdate
 from app.services import person as person_service
 
-router = APIRouter(prefix="/people", tags=["people"], dependencies=[Depends(require_role("admin"))])
+router = APIRouter(
+    prefix="/people", tags=["people"], dependencies=[Depends(require_role("admin"))]
+)
 
 
 @router.post("", response_model=PersonRead, status_code=status.HTTP_201_CREATED)

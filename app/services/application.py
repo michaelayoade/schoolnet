@@ -188,7 +188,9 @@ class ApplicationService:
                 payment_intent.status = PaymentIntentStatus.requires_action
             except (ValueError, RuntimeError) as e:
                 logger.error("Paystack init failed: %s", e)
-                raise ValueError("Payment initialization failed. Please try again later.")
+                raise ValueError(
+                    "Payment initialization failed. Please try again later."
+                )
         else:
             # Dev mode: skip Paystack, mark as succeeded
             payment_intent.status = PaymentIntentStatus.succeeded
@@ -549,9 +551,7 @@ class ApplicationService:
                     else "Parent"
                 )
                 form = application.admission_form
-                school_name = (
-                    form.school.name if form and form.school else "the school"
-                )
+                school_name = form.school.name if form and form.school else "the school"
                 send_application_status_email_task.delay(
                     recipient_email=parent.email,
                     parent_name=parent_name,

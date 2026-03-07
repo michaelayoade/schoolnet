@@ -247,7 +247,7 @@ def edit_entitlement_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle entitlement edit form submission."""
     _ = csrf_token
-    data = {
+    _data = {
         "feature_key": feature_key,
         "value_type": value_type,
         "value_text": value_text,

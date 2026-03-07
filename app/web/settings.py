@@ -111,7 +111,7 @@ def edit_setting_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle setting edit form submission."""
     _ = csrf_token
-    data = {
+    _data = {
         "value_text": value_text,
         "value_json": value_json,
         "is_active": is_active,

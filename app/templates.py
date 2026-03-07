@@ -33,7 +33,7 @@ def _nl2br(value: str | None) -> Markup:
     if not value:
         return Markup("")
     escaped = html.escape(str(value))
-    return Markup(escaped.replace("\n", "<br>\n"))
+    return Markup(escaped.replace("\n", "<br>\n"))  # noqa: S704
 
 
 def _format_date(value: date | datetime | None, fmt: str = "%d %b %Y") -> str:
@@ -126,4 +126,4 @@ templates.env.filters["format_currency"] = _format_currency
 templates.env.filters["format_naira"] = _format_naira
 templates.env.filters["format_number"] = _format_number
 templates.env.filters["timeago"] = _timeago
-templates.env.globals["current_year"] = datetime.now(UTC).year
+templates.env.globals["current_year"] = datetime.now(timezone.utc).year

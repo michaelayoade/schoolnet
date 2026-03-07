@@ -50,9 +50,7 @@ class PlatformStatsService:
         )
 
         total_schools = self._count(
-            select(func.count())
-            .select_from(School)
-            .where(School.is_active.is_(True))
+            select(func.count()).select_from(School).where(School.is_active.is_(True))
         )
         active_schools = self._count(
             select(func.count())

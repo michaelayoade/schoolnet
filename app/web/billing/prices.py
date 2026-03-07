@@ -263,7 +263,7 @@ def edit_price_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle price edit form submission."""
     _ = csrf_token
-    data = {
+    _data = {
         "currency": currency,
         "unit_amount": unit_amount,
         "type": type,

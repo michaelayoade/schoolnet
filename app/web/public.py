@@ -400,7 +400,11 @@ def login_submit(
         branding = load_branding_context(db)
         return templates.TemplateResponse(
             "public/auth/login.html",
-            {"request": request, "error_message": "Invalid email or password", **branding},
+            {
+                "request": request,
+                "error_message": "Invalid email or password",
+                **branding,
+            },
         )
 
     # Check email verification

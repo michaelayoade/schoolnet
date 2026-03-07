@@ -183,9 +183,7 @@ def edit_form_page(
             url="/school/forms?error=Form+not+found", status_code=303
         )
     if not school or form.school_id != school.id:
-        return RedirectResponse(
-            url="/school/forms?error=Forbidden", status_code=303
-        )
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=303)
     price_amount = svc.get_price_amount(form)
     return templates.TemplateResponse(
         "school/forms/edit.html",
@@ -216,9 +214,7 @@ def edit_form_submit(
             url="/school/forms?error=Form+not+found", status_code=303
         )
     if not school or form.school_id != school.id:
-        return RedirectResponse(
-            url="/school/forms?error=Forbidden", status_code=303
-        )
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=303)
 
     from app.schemas.school import AdmissionFormUpdate
 
@@ -255,9 +251,7 @@ def activate_form(
             url="/school/forms?error=Form+not+found", status_code=303
         )
     if not school or form.school_id != school.id:
-        return RedirectResponse(
-            url="/school/forms?error=Forbidden", status_code=303
-        )
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=303)
     svc.activate(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+activated", status_code=303)
@@ -278,9 +272,7 @@ def close_form(
             url="/school/forms?error=Form+not+found", status_code=303
         )
     if not school or form.school_id != school.id:
-        return RedirectResponse(
-            url="/school/forms?error=Forbidden", status_code=303
-        )
+        return RedirectResponse(url="/school/forms?error=Forbidden", status_code=303)
     svc.close(form)
     db.commit()
     return RedirectResponse(url="/school/forms?success=Form+closed", status_code=303)

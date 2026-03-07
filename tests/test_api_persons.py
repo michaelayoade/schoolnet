@@ -1,5 +1,7 @@
 import uuid
 
+import pytest
+
 
 @pytest.fixture()
 def auth_headers(admin_headers):

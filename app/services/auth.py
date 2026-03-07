@@ -97,7 +97,9 @@ def _parse_enum(value: str | None, enum_cls: type[EnumT], label: str) -> EnumT |
         raise ValueError(f"Invalid {label}") from exc
 
 
-def _apply_ordering(stmt, order_by: str, order_dir: str, allowed_columns: dict[str, Any]):
+def _apply_ordering(
+    stmt, order_by: str, order_dir: str, allowed_columns: dict[str, Any]
+):
     column = allowed_columns.get(order_by)
     if column is None:
         raise ValueError(
@@ -462,7 +464,9 @@ class ApiKeys(ListResponseMixin):
         )
         redis_client = _get_redis_client()
         if not redis_client:
-            raise RateLimitUnavailableError("Rate limiting unavailable (Redis required)")
+            raise RateLimitUnavailableError(
+                "Rate limiting unavailable (Redis required)"
+            )
         window = max(window_seconds, 1)
         key = f"api_key_rl:{client_ip}:{int(time.time() // window)}"
         try:

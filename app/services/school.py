@@ -170,7 +170,9 @@ class SchoolService:
         """List all active admission forms for a school."""
         stmt = (
             select(AdmissionForm)
-            .where(AdmissionForm.school_id == school_id, AdmissionForm.is_active.is_(True))
+            .where(
+                AdmissionForm.school_id == school_id, AdmissionForm.is_active.is_(True)
+            )
             .order_by(AdmissionForm.title)
         )
         return list(self.db.scalars(stmt).all())
@@ -213,17 +215,26 @@ class SchoolService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.scalar(count_stmt) or 0
 
-        stmt = stmt.order_by(School.is_featured.desc(), School.name).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(School.is_featured.desc(), School.name)
+            .limit(limit)
+            .offset(offset)
+        )
         schools = list(self.db.scalars(stmt).all())
         return schools, total
 
     def get_featured(self, limit: int = 6) -> list[School]:
         """Get featured schools, falling back to recently verified active schools."""
-        stmt = select(School).where(
-            School.status == SchoolStatus.active,
-            School.is_active.is_(True),
-            School.is_featured.is_(True),
-        ).order_by(School.name).limit(limit)
+        stmt = (
+            select(School)
+            .where(
+                School.status == SchoolStatus.active,
+                School.is_active.is_(True),
+                School.is_featured.is_(True),
+            )
+            .order_by(School.name)
+            .limit(limit)
+        )
         featured = list(self.db.scalars(stmt).all())
         if len(featured) < limit:
             # Fill with non-featured active schools
@@ -418,12 +429,9 @@ class SchoolService:
         )
 
         # Revenue — sum of paid invoices linked to this school's applications
-        invoice_ids_stmt = (
-            select(Application.invoice_id)
-            .where(
-                Application.admission_form_id.in_(form_ids_stmt),
-                Application.invoice_id.isnot(None),
-            )
+        invoice_ids_stmt = select(Application.invoice_id).where(
+            Application.admission_form_id.in_(form_ids_stmt),
+            Application.invoice_id.isnot(None),
         )
         total_revenue: int = (
             self.db.scalar(

@@ -19,7 +19,9 @@ from app.schemas.rbac import (
 )
 from app.services import rbac as rbac_service
 
-router = APIRouter(prefix="/rbac", tags=["rbac"], dependencies=[Depends(require_role("admin"))])
+router = APIRouter(
+    prefix="/rbac", tags=["rbac"], dependencies=[Depends(require_role("admin"))]
+)
 
 
 @router.post("/roles", response_model=RoleRead, status_code=status.HTTP_201_CREATED)
@@ -158,7 +160,10 @@ def create_role_permission(
         role_permission = rbac_service.role_permissions.create(db, payload)
         db.commit()
         return role_permission
-    except (rbac_service.RoleNotFoundError, rbac_service.PermissionNotFoundError) as exc:
+    except (
+        rbac_service.RoleNotFoundError,
+        rbac_service.PermissionNotFoundError,
+    ) as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -203,7 +208,10 @@ def update_role_permission(
     except rbac_service.RolePermissionNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (rbac_service.RoleNotFoundError, rbac_service.PermissionNotFoundError) as exc:
+    except (
+        rbac_service.RoleNotFoundError,
+        rbac_service.PermissionNotFoundError,
+    ) as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

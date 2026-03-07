@@ -49,7 +49,9 @@ class EncryptedSecretString(TypeDecorator[str]):
             return self._fernet().decrypt(value.encode("utf-8")).decode("utf-8")
         except InvalidToken:
             # Legacy plaintext value stored before encryption was enabled.
-            logger.warning("Could not decrypt value; returning as-is (legacy plaintext?)")
+            logger.warning(
+                "Could not decrypt value; returning as-is (legacy plaintext?)"
+            )
             return value
         except RuntimeError:
             # Encryption key not configured -- return ciphertext so the caller

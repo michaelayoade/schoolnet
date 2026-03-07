@@ -19,8 +19,10 @@ logger = logging.getLogger(__name__)
 try:
     from redis.exceptions import RedisError as _RedisError
 except ImportError:
+
     class _RedisError(Exception):  # type: ignore[no-redef]
         pass
+
 
 RedisError = _RedisError
 

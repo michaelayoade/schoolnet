@@ -47,11 +47,13 @@ class AuthFlowServiceError(ValueError):
 def _raise_service_error(status_code: int, detail: Any) -> NoReturn:
     raise AuthFlowServiceError(status_code=status_code, detail=detail)
 
+
 PASSWORD_CONTEXT = CryptContext(
     schemes=["pbkdf2_sha256", "bcrypt"],
     default="pbkdf2_sha256",
     deprecated="auto",
 )
+
 
 def _env_value(name: str) -> str | None:
     value = os.getenv(name)

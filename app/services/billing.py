@@ -425,8 +425,7 @@ class Subscriptions(ListResponseMixin):
             stmt = stmt.where(Subscription.customer_id == coerce_uuid(customer_id))
         if status:
             stmt = stmt.where(
-                Subscription.status
-                == _parse_enum(status, SubscriptionStatus, "status")
+                Subscription.status == _parse_enum(status, SubscriptionStatus, "status")
             )
         if is_active is not None:
             stmt = stmt.where(Subscription.is_active == is_active)
@@ -603,9 +602,7 @@ class Invoices(ListResponseMixin):
         if customer_id:
             stmt = stmt.where(Invoice.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            stmt = stmt.where(
-                Invoice.subscription_id == coerce_uuid(subscription_id)
-            )
+            stmt = stmt.where(Invoice.subscription_id == coerce_uuid(subscription_id))
         if status:
             stmt = stmt.where(
                 Invoice.status == _parse_enum(status, InvoiceStatus, "status")
@@ -1094,9 +1091,7 @@ class Discounts(ListResponseMixin):
         if customer_id:
             stmt = stmt.where(Discount.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            stmt = stmt.where(
-                Discount.subscription_id == coerce_uuid(subscription_id)
-            )
+            stmt = stmt.where(Discount.subscription_id == coerce_uuid(subscription_id))
         if coupon_id:
             stmt = stmt.where(Discount.coupon_id == coerce_uuid(coupon_id))
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
@@ -1248,8 +1243,7 @@ class WebhookEvents(ListResponseMixin):
             stmt = stmt.where(WebhookEvent.event_type == event_type)
         if status:
             stmt = stmt.where(
-                WebhookEvent.status
-                == _parse_enum(status, WebhookEventStatus, "status")
+                WebhookEvent.status == _parse_enum(status, WebhookEventStatus, "status")
             )
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0

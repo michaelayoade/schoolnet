@@ -6,7 +6,9 @@ from app.schemas.common import ListResponse
 from app.schemas.settings import DomainSettingRead, DomainSettingUpdate
 from app.services import settings_api as settings_service
 
-router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(require_role("admin"))])
+router = APIRouter(
+    prefix="/settings", tags=["settings"], dependencies=[Depends(require_role("admin"))]
+)
 
 
 @router.get(

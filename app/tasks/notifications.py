@@ -34,7 +34,7 @@ def send_notification_email_task(
         return {"success": success, "recipient": recipient_email}
     except (OSError, ConnectionError) as exc:
         logger.warning("Email send failed (retrying): %s", exc)
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
     finally:
         if db:
             db.close()
@@ -74,7 +74,7 @@ def send_application_status_email_task(
         return {"success": success, "recipient": recipient_email}
     except (OSError, ConnectionError) as exc:
         logger.warning("Application status email failed (retrying): %s", exc)
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
     finally:
         if db:
             db.close()
@@ -113,7 +113,7 @@ def send_payment_receipt_email_task(
         return {"success": success, "recipient": recipient_email}
     except (OSError, ConnectionError) as exc:
         logger.warning("Payment receipt email failed (retrying): %s", exc)
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
     finally:
         if db:
             db.close()
@@ -151,7 +151,7 @@ def send_new_application_email_task(
         return {"success": success, "recipient": recipient_email}
     except (OSError, ConnectionError) as exc:
         logger.warning("New application email failed (retrying): %s", exc)
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
     finally:
         if db:
             db.close()

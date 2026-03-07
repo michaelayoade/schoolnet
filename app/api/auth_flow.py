@@ -55,7 +55,9 @@ def _raise_auth_flow_http(exc: auth_flow_service.AuthFlowServiceError) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
-def _auth_flow_error_requires_commit(exc: auth_flow_service.AuthFlowServiceError) -> bool:
+def _auth_flow_error_requires_commit(
+    exc: auth_flow_service.AuthFlowServiceError,
+) -> bool:
     return str(exc.detail) in {
         "Invalid credentials",
         "Refresh token reuse detected",

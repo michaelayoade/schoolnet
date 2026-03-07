@@ -49,14 +49,14 @@ class TestWebAuth:
         assert response.status_code == 200
         assert b"Invalid" in response.content or b"required" in response.content
 
-    def test_login_success_redirects_to_safe_next(self, client, user_credential):
+    def test_login_success_redirects_to_safe_next(self, client, person, user_credential):
         resp = client.get("/admin/login")
         csrf_token = resp.cookies.get("csrf_token", "")
 
         response = client.post(
             "/admin/login",
             data={
-                "username": user_credential.username,
+                "email": person.email,
                 "password": "testpassword123",
                 "next": "/admin/people",
                 "csrf_token": csrf_token,
@@ -68,14 +68,14 @@ class TestWebAuth:
         assert response.status_code == 302
         assert response.headers.get("location") == "/admin/people"
 
-    def test_login_success_rejects_external_next(self, client, user_credential):
+    def test_login_success_rejects_external_next(self, client, person, user_credential):
         resp = client.get("/admin/login")
         csrf_token = resp.cookies.get("csrf_token", "")
 
         response = client.post(
             "/admin/login",
             data={
-                "username": user_credential.username,
+                "email": person.email,
                 "password": "testpassword123",
                 "next": "https://evil.example",
                 "csrf_token": csrf_token,
