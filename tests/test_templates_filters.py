@@ -11,8 +11,8 @@ from app.templates import (
     _format_number,
     _nl2br,
     _sanitize_html,
-    templates,
     _timeago,
+    templates,
 )
 
 

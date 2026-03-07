@@ -28,13 +28,14 @@ def _login_post(client, db_session, email, password):
 
 def _make_person_with_role(db_session, role_name):
     """Create person + credential + role. Returns (person, credential)."""
-    from app.models.person import Person
     from app.models.auth import UserCredential
-    from app.models.rbac import Role, PersonRole
+    from app.models.person import Person
+    from app.models.rbac import PersonRole, Role
     from app.services.auth_flow import hash_password
 
     person = Person(
-        first_name="Test", last_name="User",
+        first_name="Test",
+        last_name="User",
         email=f"{role_name}-{uuid.uuid4().hex[:8]}@example.com",
         email_verified=True,
     )
@@ -64,7 +65,8 @@ def _make_person_with_role(db_session, role_name):
 
 def _make_refresh_session(db_session, person):
     """Create an auth session with known refresh token. Returns raw refresh token."""
-    from app.models.auth import Session as AuthSession, SessionStatus
+    from app.models.auth import Session as AuthSession
+    from app.models.auth import SessionStatus
     from app.services.auth_flow import _hash_token
 
     refresh_raw = "test-refresh-token-" + uuid.uuid4().hex

@@ -42,8 +42,16 @@ logger = logging.getLogger(__name__)
 DEFAULT_PASSWORD = "Demo1234"  # noqa: S105
 
 NIGERIAN_STATES = [
-    "Lagos", "Abuja", "Rivers", "Oyo", "Kano", "Kaduna",
-    "Ogun", "Enugu", "Delta", "Edo",
+    "Lagos",
+    "Abuja",
+    "Rivers",
+    "Oyo",
+    "Kano",
+    "Kaduna",
+    "Ogun",
+    "Enugu",
+    "Delta",
+    "Edo",
 ]
 
 SCHOOL_DATA = [
@@ -154,21 +162,36 @@ SCHOOL_ADMIN_DATA = [
 ]
 
 WARD_FIRST_NAMES = [
-    "Adaeze", "Chinedu", "Olumide", "Zainab", "Tunde",
-    "Amara", "Obiora", "Halima", "Yemi", "Nneka",
-    "Babatunde", "Ifunanya", "Jibril", "Chiamaka", "Seyi",
+    "Adaeze",
+    "Chinedu",
+    "Olumide",
+    "Zainab",
+    "Tunde",
+    "Amara",
+    "Obiora",
+    "Halima",
+    "Yemi",
+    "Nneka",
+    "Babatunde",
+    "Ifunanya",
+    "Jibril",
+    "Chiamaka",
+    "Seyi",
 ]
 
 
 def _slug(name: str) -> str:
     import re
+
     slug = name.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[-\s]+", "-", slug)
     return slug.strip("-")
 
 
-def _get_or_create_person(db: Session, *, first_name: str, last_name: str, email: str) -> Person:
+def _get_or_create_person(
+    db: Session, *, first_name: str, last_name: str, email: str
+) -> Person:
     person: Person | None = db.scalar(select(Person).where(Person.email == email))
     if person:
         return person
@@ -222,7 +245,9 @@ def _assign_role(db: Session, person: Person, role_name: str) -> None:
 
 
 def _create_school(db: Session, data: dict, owner: Person) -> School:
-    existing: School | None = db.scalar(select(School).where(School.slug == _slug(data["name"])))
+    existing: School | None = db.scalar(
+        select(School).where(School.slug == _slug(data["name"]))
+    )
     if existing:
         return existing
     school = School(
@@ -272,11 +297,31 @@ def _create_admission_form(
         current_submissions=0,
         opens_at=datetime.now(UTC) - timedelta(days=30),
         closes_at=datetime.now(UTC) + timedelta(days=60),
-        required_documents=["Birth Certificate", "Previous Report Card", "Passport Photo"],
+        required_documents=[
+            "Birth Certificate",
+            "Previous Report Card",
+            "Passport Photo",
+        ],
         form_fields=[
-            {"name": "previous_school", "label": "Previous School", "type": "text", "required": False},
-            {"name": "blood_group", "label": "Blood Group", "type": "select", "required": False, "options": ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]},
-            {"name": "medical_conditions", "label": "Medical Conditions", "type": "textarea", "required": False},
+            {
+                "name": "previous_school",
+                "label": "Previous School",
+                "type": "text",
+                "required": False,
+            },
+            {
+                "name": "blood_group",
+                "label": "Blood Group",
+                "type": "select",
+                "required": False,
+                "options": ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"],
+            },
+            {
+                "name": "medical_conditions",
+                "label": "Medical Conditions",
+                "type": "textarea",
+                "required": False,
+            },
         ],
         is_active=True,
     )
@@ -345,7 +390,9 @@ def _create_application(
         ward_date_of_birth=ward.date_of_birth,
         ward_gender=ward.gender,
         form_responses={
-            "previous_school": random.choice(["None", "ABC Primary", "XYZ Nursery", ""]),
+            "previous_school": random.choice(
+                ["None", "ABC Primary", "XYZ Nursery", ""]
+            ),
             "blood_group": random.choice(["A+", "B+", "O+", "AB-"]),
             "medical_conditions": "",
         },
@@ -359,11 +406,13 @@ def _create_application(
     if status in (ApplicationStatus.accepted, ApplicationStatus.rejected):
         app.reviewed_at = now - timedelta(days=random.randint(0, 5))
         if status == ApplicationStatus.rejected:
-            app.review_notes = random.choice([
-                "Incomplete documents",
-                "Age requirement not met",
-                "Capacity reached for this class",
-            ])
+            app.review_notes = random.choice(
+                [
+                    "Incomplete documents",
+                    "Age requirement not met",
+                    "Capacity reached for this class",
+                ]
+            )
 
     db.add(app)
     db.flush()
@@ -424,7 +473,9 @@ def main() -> None:
                 ward = _create_ward(db, parent, first_name, parent.last_name)
 
                 # Apply to 1-2 schools
-                target_forms = random.sample(forms, min(random.randint(1, 2), len(forms)))
+                target_forms = random.sample(
+                    forms, min(random.randint(1, 2), len(forms))
+                )
                 for form in target_forms:
                     status = random.choice(statuses)
                     _create_application(db, form, parent, ward, status)

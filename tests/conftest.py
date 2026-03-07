@@ -1,27 +1,26 @@
+import asyncio
 import os
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
 from types import ModuleType
 
-import pytest
-import asyncio
+import anyio.to_thread
+import fastapi.concurrency
+import fastapi.dependencies.utils as fastapi_deps_utils
+import fastapi.routing
 import httpx
-from jose import jwt
-from sqlalchemy import DateTime, create_engine
-from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, DeclarativeBase
-from sqlalchemy.pool import StaticPool
+import pytest
 
 # In this execution environment, AnyIO thread utilities hang. Starlette/FastAPI
 # runs sync endpoints via `run_in_threadpool()`, so patch it to execute inline.
 # This is acceptable for tests where handlers are fast and deterministic.
 import starlette.concurrency
-import fastapi.concurrency
 import starlette.routing
-import fastapi.routing
-import fastapi.dependencies.utils as fastapi_deps_utils
-import anyio.to_thread
+from jose import jwt
+from sqlalchemy import DateTime, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 async def _run_in_threadpool(func, *args, **kwargs):
@@ -77,14 +76,14 @@ class TimestampMixin:
 
 
 # Create a mock db module
-mock_db_module = ModuleType('app.db')
+mock_db_module = ModuleType("app.db")
 mock_db_module.Base = TestBase
 mock_db_module.TimestampMixin = TimestampMixin
 mock_db_module.SessionLocal = _TestSessionLocal
 mock_db_module.get_engine = lambda: _test_engine
 
 # Also mock app.config to prevent .env loading
-mock_config_module = ModuleType('app.config')
+mock_config_module = ModuleType("app.config")
 
 
 class MockSettings:
@@ -112,7 +111,9 @@ class MockSettings:
     s3_secret_key = ""
     s3_endpoint_url = ""
     upload_max_size_bytes = 10 * 1024 * 1024
-    upload_allowed_types = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    upload_allowed_types = (
+        "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv"
+    )
     branding_upload_dir = "static/branding"
     branding_max_size_bytes = 5 * 1024 * 1024
     branding_allowed_types = "image/jpeg,image/png"
@@ -128,8 +129,8 @@ mock_config_module.Settings = MockSettings
 mock_config_module.validate_settings = lambda s: []
 
 # Insert mocks before any app imports
-sys.modules['app.config'] = mock_config_module
-sys.modules['app.db'] = mock_db_module
+sys.modules["app.config"] = mock_config_module
+sys.modules["app.db"] = mock_db_module
 
 # Set environment variables
 os.environ["JWT_SECRET"] = "test-secret"
@@ -139,54 +140,36 @@ os.environ["TOTP_ISSUER"] = "StarterTemplate"
 os.environ["SEED_SETTINGS_ON_STARTUP"] = "false"
 
 # Now import the models - they'll use our mocked db module
-from app.models.person import Person
-from app.models.auth import UserCredential, Session as AuthSession, SessionStatus
-from app.models.rbac import Role, Permission, RolePermission, PersonRole
-from app.models.audit import AuditEvent, AuditActorType
-from app.models.domain_settings import DomainSetting, SettingDomain
-from app.models.scheduler import ScheduledTask, ScheduleType
-from app.models.file_upload import FileUpload, FileUploadStatus
-from app.models.notification import Notification, NotificationType
-from app.models.ward import Ward  # noqa: F401 — imported for table creation
+from app.models.audit import AuditActorType, AuditEvent
+from app.models.auth import Session as AuthSession
+from app.models.auth import SessionStatus, UserCredential
 from app.models.billing import (
-    Product,
-    Price,
-    PriceType,
     BillingScheme,
-    RecurringInterval,
-    Customer,
-    Subscription,
-    SubscriptionStatus,
-    SubscriptionItem,
-    Invoice,
-    InvoiceStatus,
-    InvoiceItem,
-    PaymentMethod,
-    PaymentMethodType,
-    PaymentIntent,
-    PaymentIntentStatus,
-    UsageRecord,
-    UsageAction,
     Coupon,
     CouponDuration,
-    Discount,
-    Entitlement,
-    EntitlementValueType,
-    WebhookEvent,
-    WebhookEventStatus,
+    Customer,
+    Price,
+    PriceType,
+    Product,
+    RecurringInterval,
+    Subscription,
+    SubscriptionItem,
+    SubscriptionStatus,
 )
+from app.models.domain_settings import DomainSetting, SettingDomain
+from app.models.person import Person
+from app.models.rbac import Permission, PersonRole, Role
+from app.models.scheduler import ScheduledTask, ScheduleType
 from app.models.school import (
-    School,
-    SchoolStatus,
-    SchoolType,
-    SchoolCategory,
-    SchoolGender,
     AdmissionForm,
     AdmissionFormStatus,
-    Application,
-    ApplicationStatus,
-    Rating,
+    School,
+    SchoolCategory,
+    SchoolGender,
+    SchoolStatus,
+    SchoolType,
 )
+from app.models.ward import Ward  # noqa: F401 — imported for table creation
 
 # Create all tables
 TestBase.metadata.create_all(_test_engine)
@@ -267,8 +250,8 @@ def auth_env(monkeypatch):
 @pytest.fixture()
 def client(db_session):
     """Create a test client with database dependency override."""
-    from app.main import app
     from app.api.deps import get_db as api_get_db
+    from app.main import app
     from app.services.auth_dependencies import _get_db as auth_deps_get_db
     from app.services.settings_seed import (
         seed_audit_settings,
@@ -278,7 +261,9 @@ def client(db_session):
     )
 
     class SyncASGIClient:
-        def __init__(self, loop: asyncio.AbstractEventLoop, async_client: httpx.AsyncClient):
+        def __init__(
+            self, loop: asyncio.AbstractEventLoop, async_client: httpx.AsyncClient
+        ):
             self._loop = loop
             self._client = async_client
 
@@ -310,7 +295,9 @@ def client(db_session):
         # Starlette's TestClient runs the app in a different thread; sharing a single
         # SQLAlchemy Session object across threads can hang. Use a per-request session
         # bound to the same StaticPool engine so data remains shared.
-        Session = sessionmaker(bind=db_session.get_bind(), autoflush=False, autocommit=False)
+        Session = sessionmaker(
+            bind=db_session.get_bind(), autoflush=False, autocommit=False
+        )
         session = Session()
         try:
             yield session
@@ -350,7 +337,9 @@ def client(db_session):
     app.state.disable_rate_limit = False
 
 
-def _create_access_token(person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None) -> str:
+def _create_access_token(
+    person_id: str, session_id: str, roles: list[str] = None, scopes: list[str] = None
+) -> str:
     """Create a JWT access token for testing."""
     secret = os.getenv("JWT_SECRET", "test-secret")
     algorithm = os.getenv("JWT_ALGORITHM", "HS256")
@@ -559,7 +548,9 @@ def scheduled_task(db_session):
 @pytest.fixture()
 def billing_product(db_session):
     """Create a test billing product."""
-    product = Product(name=f"Product {uuid.uuid4().hex[:8]}", description="Test product")
+    product = Product(
+        name=f"Product {uuid.uuid4().hex[:8]}", description="Test product"
+    )
     db_session.add(product)
     db_session.commit()
     db_session.refresh(product)

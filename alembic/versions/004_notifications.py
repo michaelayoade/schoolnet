@@ -4,9 +4,11 @@ Revision ID: 004_notifications
 Revises: 003_file_uploads
 Create Date: 2026-02-16
 """
-from alembic import op
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "004_notifications"
 down_revision = "003_file_uploads"
@@ -14,7 +16,9 @@ branch_labels = None
 depends_on = None
 
 
-def _has_index(inspector, table: str, name: str, columns: list[str] | None = None) -> bool:
+def _has_index(
+    inspector, table: str, name: str, columns: list[str] | None = None
+) -> bool:
     for idx in inspector.get_indexes(table):
         if idx.get("name") != name:
             continue
@@ -24,7 +28,9 @@ def _has_index(inspector, table: str, name: str, columns: list[str] | None = Non
     return False
 
 
-def _has_fk(inspector, table: str, constrained_columns: list[str], referred_table: str) -> bool:
+def _has_fk(
+    inspector, table: str, constrained_columns: list[str], referred_table: str
+) -> bool:
     return _fk_name(inspector, table, constrained_columns, referred_table) is not None
 
 
@@ -45,8 +51,13 @@ def upgrade() -> None:
 
     if not inspector.has_table("notifications"):
         notification_type = postgresql.ENUM(
-            "info", "success", "warning", "error", "system",
-            name="notificationtype", create_type=False,
+            "info",
+            "success",
+            "warning",
+            "error",
+            "system",
+            name="notificationtype",
+            create_type=False,
         )
         notification_type.create(conn, checkfirst=True)
 
@@ -59,8 +70,15 @@ def upgrade() -> None:
             sa.Column("message", sa.Text(), nullable=True),
             sa.Column(
                 "type",
-                postgresql.ENUM("info", "success", "warning", "error", "system",
-                                name="notificationtype", create_type=False),
+                postgresql.ENUM(
+                    "info",
+                    "success",
+                    "warning",
+                    "error",
+                    "system",
+                    name="notificationtype",
+                    create_type=False,
+                ),
                 server_default="info",
             ),
             sa.Column("entity_type", sa.String(80), nullable=True),
@@ -115,7 +133,9 @@ def upgrade() -> None:
         "ix_notifications_recipient_id",
         ["recipient_id"],
     ):
-        op.create_index("ix_notifications_recipient_id", "notifications", ["recipient_id"])
+        op.create_index(
+            "ix_notifications_recipient_id", "notifications", ["recipient_id"]
+        )
 
     if inspector.has_table("notifications") and not _has_index(
         inspector,
@@ -148,7 +168,9 @@ def downgrade() -> None:
 
     if inspector.has_table("notifications"):
         if _has_index(inspector, "notifications", "ix_notifications_recipient_created"):
-            op.drop_index("ix_notifications_recipient_created", table_name="notifications")
+            op.drop_index(
+                "ix_notifications_recipient_created", table_name="notifications"
+            )
         if _has_index(inspector, "notifications", "ix_notifications_recipient_read"):
             op.drop_index("ix_notifications_recipient_read", table_name="notifications")
         if _has_index(inspector, "notifications", "ix_notifications_recipient_id"):

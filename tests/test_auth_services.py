@@ -134,7 +134,8 @@ def test_mfa_secret_is_encrypted_on_create_and_update(db_session, person, monkey
 def test_mfa_model_encrypted_type_encrypts_plaintext_on_write(
     db_session, person, monkeypatch
 ):
-    from sqlalchemy import select as sa_select, literal_column
+    from sqlalchemy import literal_column
+    from sqlalchemy import select as sa_select
 
     key = Fernet.generate_key().decode("utf-8")
     monkeypatch.setenv("TOTP_ENCRYPTION_KEY", key)

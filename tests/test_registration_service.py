@@ -1,12 +1,9 @@
 """Tests for RegistrationService — parent and school admin registration."""
 
-import uuid
-
 import pytest
 
 from app.models.auth import UserCredential
-from app.models.person import Person
-from app.models.rbac import PersonRole, Role
+from app.models.rbac import Role
 from app.services.registration import RegistrationService
 from tests.conftest import _unique_email
 

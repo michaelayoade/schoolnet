@@ -99,8 +99,8 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_liveness_always_ok(self) -> None:
         """Liveness probe should always return ok."""
-        from fastapi import FastAPI
         import httpx
+        from fastapi import FastAPI
 
         app = FastAPI()
 

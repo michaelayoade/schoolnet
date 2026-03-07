@@ -115,7 +115,9 @@ def main() -> int:
             )
     for key in ("REDIS_URL", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"):
         if key in data:
-            updates[key] = _replace_password_in_url(data[key], updates["REDIS_PASSWORD"])
+            updates[key] = _replace_password_in_url(
+                data[key], updates["REDIS_PASSWORD"]
+            )
 
     rendered = _render_env(lines, updates)
 

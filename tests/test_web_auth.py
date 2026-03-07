@@ -49,7 +49,9 @@ class TestWebAuth:
         assert response.status_code == 200
         assert b"Invalid" in response.content or b"required" in response.content
 
-    def test_login_success_redirects_to_safe_next(self, client, person, user_credential):
+    def test_login_success_redirects_to_safe_next(
+        self, client, person, user_credential
+    ):
         resp = client.get("/admin/login")
         csrf_token = resp.cookies.get("csrf_token", "")
 
@@ -105,9 +107,7 @@ class TestWebAuth:
         assert response.status_code == 302
         assert "/admin/login" in response.headers.get("location", "")
 
-    def test_admin_dashboard_with_auth_cookie(
-        self, client, admin_token
-    ):
+    def test_admin_dashboard_with_auth_cookie(self, client, admin_token):
         response = client.get(
             "/admin",
             cookies={"access_token": admin_token},

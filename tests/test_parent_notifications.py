@@ -13,12 +13,14 @@ def _get_csrf(client):
 
 def _setup_parent(db_session):
     """Create parent person + role + session."""
+    from app.models.auth import Session as AuthSession
+    from app.models.auth import SessionStatus
     from app.models.person import Person
-    from app.models.auth import Session as AuthSession, SessionStatus
-    from app.models.rbac import Role, PersonRole
+    from app.models.rbac import PersonRole, Role
 
     person = Person(
-        first_name="Notif", last_name="Parent",
+        first_name="Notif",
+        last_name="Parent",
         email=f"notif-{uuid.uuid4().hex[:8]}@example.com",
     )
     db_session.add(person)
@@ -44,13 +46,13 @@ def _setup_parent(db_session):
     db_session.refresh(person)
     db_session.refresh(auth_sess)
 
-    token = _create_access_token(
-        str(person.id), str(auth_sess.id), roles=["parent"]
-    )
+    token = _create_access_token(str(person.id), str(auth_sess.id), roles=["parent"])
     return person, token
 
 
-def _create_notification(db_session, recipient_id, title="Test Notification", is_read=False):
+def _create_notification(
+    db_session, recipient_id, title="Test Notification", is_read=False
+):
     from app.models.notification import Notification, NotificationType
 
     notif = Notification(
