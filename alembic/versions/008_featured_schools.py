@@ -23,7 +23,12 @@ def upgrade() -> None:
     if "is_featured" not in columns:
         op.add_column(
             "schools",
-            sa.Column("is_featured", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+            sa.Column(
+                "is_featured",
+                sa.Boolean(),
+                server_default=sa.text("false"),
+                nullable=False,
+            ),
         )
 
 

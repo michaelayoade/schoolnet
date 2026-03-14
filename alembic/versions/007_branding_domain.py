@@ -5,8 +5,9 @@ Revises: 006_schema_hardening
 Create Date: 2026-02-25
 """
 
-from alembic import op
 from sqlalchemy import text
+
+from alembic import op
 
 revision = "007_branding_domain"
 down_revision = "006_schema_hardening"
@@ -19,9 +20,7 @@ def upgrade() -> None:
     # We must commit the current transaction, add the value, then start a new one.
     bind = op.get_bind()
     bind.execute(text("COMMIT"))
-    bind.execute(
-        text("ALTER TYPE settingdomain ADD VALUE IF NOT EXISTS 'branding'")
-    )
+    bind.execute(text("ALTER TYPE settingdomain ADD VALUE IF NOT EXISTS 'branding'"))
     bind.execute(text("BEGIN"))
     bind.execute(
         text(

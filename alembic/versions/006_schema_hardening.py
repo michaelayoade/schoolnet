@@ -5,8 +5,9 @@ Revises: 005_schoolnet
 Create Date: 2026-02-25
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "006_schema_hardening"
 down_revision = "005_schoolnet"
@@ -156,10 +157,7 @@ def _has_constraint(inspector, table: str, name: str) -> bool:
     for fk in inspector.get_foreign_keys(table):
         if fk.get("name") == name:
             return True
-    for ck in inspector.get_check_constraints(table):
-        if ck.get("name") == name:
-            return True
-    return False
+    return any(ck.get("name") == name for ck in inspector.get_check_constraints(table))
 
 
 def downgrade() -> None:
@@ -180,14 +178,34 @@ def downgrade() -> None:
 
     if inspector.has_table("notifications"):
         if _has_index(inspector, "notifications", "ix_notifications_recipient_created"):
-            op.drop_index("ix_notifications_recipient_created", table_name="notifications")
-        if _has_constraint(inspector, "notifications", "fk_notifications_sender_id_people"):
-            op.drop_constraint("fk_notifications_sender_id_people", "notifications", type_="foreignkey")
-        if _has_constraint(inspector, "notifications", "fk_notifications_recipient_id_people"):
-            op.drop_constraint("fk_notifications_recipient_id_people", "notifications", type_="foreignkey")
+            op.drop_index(
+                "ix_notifications_recipient_created", table_name="notifications"
+            )
+        if _has_constraint(
+            inspector, "notifications", "fk_notifications_sender_id_people"
+        ):
+            op.drop_constraint(
+                "fk_notifications_sender_id_people", "notifications", type_="foreignkey"
+            )
+        if _has_constraint(
+            inspector, "notifications", "fk_notifications_recipient_id_people"
+        ):
+            op.drop_constraint(
+                "fk_notifications_recipient_id_people",
+                "notifications",
+                type_="foreignkey",
+            )
 
     if inspector.has_table("file_uploads"):
-        if _has_constraint(inspector, "file_uploads", "ck_file_uploads_file_size_positive"):
-            op.drop_constraint("ck_file_uploads_file_size_positive", "file_uploads", type_="check")
-        if _has_constraint(inspector, "file_uploads", "fk_file_uploads_uploaded_by_people"):
-            op.drop_constraint("fk_file_uploads_uploaded_by_people", "file_uploads", type_="foreignkey")
+        if _has_constraint(
+            inspector, "file_uploads", "ck_file_uploads_file_size_positive"
+        ):
+            op.drop_constraint(
+                "ck_file_uploads_file_size_positive", "file_uploads", type_="check"
+            )
+        if _has_constraint(
+            inspector, "file_uploads", "fk_file_uploads_uploaded_by_people"
+        ):
+            op.drop_constraint(
+                "fk_file_uploads_uploaded_by_people", "file_uploads", type_="foreignkey"
+            )

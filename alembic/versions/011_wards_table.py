@@ -5,9 +5,10 @@ Revises: 010_auth_person_id_indexes
 Create Date: 2026-02-25
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "011_wards_table"
 down_revision = "010_auth_person_id_indexes"
@@ -15,7 +16,9 @@ branch_labels = None
 depends_on = None
 
 
-def _has_index(inspector, table: str, name: str, columns: list[str] | None = None) -> bool:
+def _has_index(
+    inspector, table: str, name: str, columns: list[str] | None = None
+) -> bool:
     for idx in inspector.get_indexes(table):
         if idx.get("name") != name:
             continue
