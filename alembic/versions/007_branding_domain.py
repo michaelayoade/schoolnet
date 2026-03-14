@@ -17,10 +17,12 @@ depends_on = None
 
 def upgrade() -> None:
     # ALTER TYPE ... ADD VALUE cannot run inside a transaction in PostgreSQL.
-    # We must commit the current transaction, add the value, then start a new one.
+    # We must commit the current transaction, add the value, commit again,
+    # then use it. New enum values require a committed transaction before use.
     bind = op.get_bind()
     bind.execute(text("COMMIT"))
     bind.execute(text("ALTER TYPE settingdomain ADD VALUE IF NOT EXISTS 'branding'"))
+    bind.execute(text("COMMIT"))
     bind.execute(text("BEGIN"))
     bind.execute(
         text(
