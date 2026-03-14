@@ -30,21 +30,23 @@ def _authenticate_ws(token: str) -> str | None:
         db.close()
 
 
-def _token_from_subprotocol(websocket: WebSocket) -> str | None:
-    """Extract auth token from WebSocket sub-protocols or query params."""
+def _token_from_subprotocol(websocket: WebSocket) -> str:
+    """Extract auth token from the first WebSocket sub-protocol header."""
     subprotocols: list[str] = websocket.scope.get("subprotocols", [])
     if subprotocols:
         return subprotocols[0]
-    return websocket.query_params.get("token") or None
+    return ""
 
 
 @router.websocket("/ws/notifications")
 async def ws_notifications(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time notification push.
 
-    Authenticate via query param or sub-protocol: /ws/notifications?token=<JWT>
+    Authenticate via sub-protocol or query param: /ws/notifications?token=<JWT>
     """
-    token = _token_from_subprotocol(websocket) or ""
+    token = _token_from_subprotocol(websocket) or websocket.query_params.get(
+        "token", ""
+    )
     person_id_str = _authenticate_ws(token)
     if not person_id_str:
         await websocket.close(code=4001, reason="Unauthorized")

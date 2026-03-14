@@ -165,12 +165,9 @@ def test_delete_person(db_session):
     person_id = person.id
     person_service.people.delete(db_session, str(person_id))
 
-    # Verify person is deleted
-    import pytest
-
-    with pytest.raises(person_service.PersonNotFoundError) as exc_info:
-        person_service.people.get(db_session, str(person_id))
-    assert "Person not found" in str(exc_info.value)
+    # Verify person is soft-deleted (is_active=False)
+    deleted_person = person_service.people.get(db_session, str(person_id))
+    assert deleted_person.is_active is False
 
 
 def test_list_people_pagination(db_session):

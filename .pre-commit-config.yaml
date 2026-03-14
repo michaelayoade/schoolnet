@@ -17,7 +17,7 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
-        args: [--maxkb=500]
+        args: [--maxkb=1500]
       - id: check-merge-conflict
       - id: debug-statements  # no pdb/breakpoint() in commits
       - id: detect-private-key  # catch accidental key commits

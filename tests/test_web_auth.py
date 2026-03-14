@@ -56,7 +56,7 @@ class TestWebAuth:
         response = client.post(
             "/admin/login",
             data={
-                "username": user_credential.username,
+                "email": user_credential.username,
                 "password": "testpassword123",
                 "next": "/admin/people",
                 "csrf_token": csrf_token,
@@ -75,7 +75,7 @@ class TestWebAuth:
         response = client.post(
             "/admin/login",
             data={
-                "username": user_credential.username,
+                "email": user_credential.username,
                 "password": "testpassword123",
                 "next": "https://evil.example",
                 "csrf_token": csrf_token,
