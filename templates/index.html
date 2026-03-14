@@ -2,10 +2,10 @@
 {% from "components/macros.html" import pagination, sortable_th, status_badge %}
 
 {% block content %}
-  {% set brand_name = brand.name | default("Starter Template") %}
+  {% set brand_name = brand.name | default("SchoolNet") %}
   {% set brand_tagline = brand.tagline | default("FastAPI starter", true) %}
   {% set brand_logo_url = brand.logo_url | default("", true) %}
-  {% set brand_mark = brand.mark | default("ST") %}
+  {% set brand_mark = brand.mark | default("SN") %}
   <main class="mx-auto max-w-5xl px-6 py-16 bg-noise bg-mesh min-h-screen">
     <div class="stagger-in rounded-3xl bg-white p-10 shadow-xl shadow-slate-200/40 dark:bg-slate-800 dark:shadow-slate-900/40 card-hover">
       <div class="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
@@ -24,13 +24,13 @@
         </div>
         <div
           class="stagger-in rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-6 dark:border-slate-700 dark:from-slate-700 dark:to-slate-800"
-          x-data="{ count: 214 }"
+          x-data="counter"
         >
           <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Active people</p>
           <p class="mt-2 text-3xl font-bold text-slate-900 dark:text-white font-display counter-animate" x-text="count"></p>
           <button
             class="mt-4 inline-flex items-center rounded-full bg-gradient-to-r from-primary-600 to-primary-500 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary-500/25 btn-hover hover:shadow-primary-500/40"
-            x-on:click="count = count + 1"
+            x-on:click="increment()"
           >
             Add person
           </button>

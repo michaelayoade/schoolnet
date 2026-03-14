@@ -19,6 +19,8 @@ from app.services.auth_flow import (
     revoke_sessions_for_person,
     verify_email_token,
 )
+from app.models.ad import AdSlot
+from app.services.ad import AdService
 from app.services.branding_context import load_branding_context
 from app.services.common import require_uuid
 from app.services.email import send_password_reset_email, send_verification_email
@@ -49,11 +51,25 @@ def _access_cookie_max_age_seconds() -> int:
 @router.get("/")
 def landing_page(request: Request, db: Session = Depends(get_db)) -> Response:
     svc = SchoolService(db)
+    ad_svc = AdService(db)
     featured = svc.get_featured(limit=6)
     branding = load_branding_context(db)
+    hero_ads = ad_svc.active_for_slot(AdSlot.homepage_hero, limit=1)
+    featured_ads = ad_svc.active_for_slot(AdSlot.homepage_featured, limit=3)
+    # Record impressions
+    for ad in hero_ads + featured_ads:
+        ad_svc.record_impression(ad.id)
+    if hero_ads or featured_ads:
+        db.commit()
     return templates.TemplateResponse(
         "public/index.html",
-        {"request": request, "featured_schools": featured, **branding},
+        {
+            "request": request,
+            "featured_schools": featured,
+            "hero_ads": hero_ads,
+            "featured_ads": featured_ads,
+            **branding,
+        },
     )
 
 
@@ -90,6 +106,13 @@ def school_search(
         offset=offset,
     )
     total_pages = (total + limit - 1) // limit if total else 1
+    ad_svc = AdService(db)
+    search_sidebar_ads = ad_svc.active_for_slot(AdSlot.search_sidebar, limit=2)
+    search_top_ads = ad_svc.active_for_slot(AdSlot.search_top, limit=1)
+    for ad in search_sidebar_ads + search_top_ads:
+        ad_svc.record_impression(ad.id)
+    if search_sidebar_ads or search_top_ads:
+        db.commit()
     return templates.TemplateResponse(
         "public/schools/search.html",
         {
@@ -106,6 +129,8 @@ def school_search(
             "gender": gender or "",
             "fee_min": fee_min or "",
             "fee_max": fee_max or "",
+            "search_sidebar_ads": search_sidebar_ads,
+            "search_top_ads": search_top_ads,
         },
     )
 
@@ -162,6 +187,12 @@ def school_profile(
         except AuthFlowServiceError:
             pass
 
+    ad_svc = AdService(db)
+    profile_ads = ad_svc.active_for_slot(AdSlot.profile_footer, limit=2)
+    for ad in profile_ads:
+        ad_svc.record_impression(ad.id)
+    if profile_ads:
+        db.commit()
     return templates.TemplateResponse(
         "public/schools/profile.html",
         {
@@ -171,6 +202,7 @@ def school_profile(
             "ratings": ratings,
             "admission_forms": forms,
             "can_rate": can_rate,
+            "profile_ads": profile_ads,
         },
     )
 

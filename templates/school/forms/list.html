@@ -26,14 +26,22 @@
                 {{ status_badge(form.status) }}
                 <a href="/school/forms/{{ form.id }}/edit" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Edit</a>
                 {% if form.status.value == 'draft' %}
-                <form method="POST" action="/school/forms/{{ form.id }}/activate" class="inline" x-data
-                      x-on:submit.prevent="$dispatch('confirm-action', { title: 'Activate Form', message: 'This will make the form publicly available for applications. Continue?', confirmLabel: 'Activate', form: $el })">
+                <form method="POST" action="/school/forms/{{ form.id }}/activate" class="inline"
+                      x-data="confirmAction"
+                      data-confirm-title="Activate Form"
+                      data-confirm-message="This will make the form publicly available for applications. Continue?"
+                      data-confirm-label="Activate"
+                      x-on:submit.prevent="dispatchConfirm()">
                     {{ request.state.csrf_form | safe }}
                     <button type="submit" class="text-sm text-green-600 dark:text-green-400 hover:underline">Activate</button>
                 </form>
                 {% elif form.status.value == 'active' %}
-                <form method="POST" action="/school/forms/{{ form.id }}/close" class="inline" x-data
-                      x-on:submit.prevent="$dispatch('confirm-action', { title: 'Close Form', message: 'This will permanently close the form. No new applications will be accepted. This cannot be undone.', confirmLabel: 'Close Form', form: $el })">
+                <form method="POST" action="/school/forms/{{ form.id }}/close" class="inline"
+                      x-data="confirmAction"
+                      data-confirm-title="Close Form"
+                      data-confirm-message="This will permanently close the form. No new applications will be accepted. This cannot be undone."
+                      data-confirm-label="Close Form"
+                      x-on:submit.prevent="dispatchConfirm()">
                     {{ request.state.csrf_form | safe }}
                     <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:underline">Close</button>
                 </form>

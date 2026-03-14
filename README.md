@@ -1,6 +1,6 @@
-# Starter Template
+# SchoolNet
 
-A production-ready FastAPI starter template with enterprise-grade features including authentication, RBAC, audit logging, background jobs, and full observability.
+A school management platform built with FastAPI, featuring authentication, RBAC, audit logging, background jobs, and full observability.
 
 ## Features
 
@@ -88,7 +88,7 @@ A production-ready FastAPI starter template with enterprise-grade features inclu
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd starter_template
+   cd schoolnet
    ```
 
 2. **Set up environment variables**
@@ -181,7 +181,7 @@ Services:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://postgres:postgres@localhost:5435/starter_template` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://postgres:postgres@localhost:5435/schoolnet` |
 | `REDIS_URL` | Redis connection string | `redis://:redis@localhost:6380/0` |
 | `CELERY_BROKER_URL` | Celery broker URL | `redis://:redis@localhost:6380/0` |
 | `CELERY_RESULT_BACKEND` | Celery result backend | `redis://:redis@localhost:6380/1` |
@@ -189,13 +189,13 @@ Services:
 | `JWT_ALGORITHM` | JWT algorithm | `HS256` |
 | `JWT_ACCESS_TTL_MINUTES` | Access token TTL | `15` |
 | `JWT_REFRESH_TTL_DAYS` | Refresh token TTL | `30` |
-| `TOTP_ISSUER` | TOTP issuer name | `starter_template` |
+| `TOTP_ISSUER` | TOTP issuer name | `schoolnet` |
 | `TOTP_ENCRYPTION_KEY` | TOTP secret encryption key | Required |
 | `REFRESH_COOKIE_SECURE` | Set auth cookies with `Secure` flag (`true`/`1`/`yes`) | `false` |
 | `TRUSTED_PROXIES` | Comma-separated IPs/CIDRs trusted to set `X-Forwarded-For` | `` (empty = none) |
 | `METRICS_TOKEN` | Bearer token required to access `/metrics` endpoint | Required |
 | `OTEL_ENABLED` | Enable OpenTelemetry | `false` |
-| `OTEL_SERVICE_NAME` | Service name for tracing | `starter_template` |
+| `OTEL_SERVICE_NAME` | Service name for tracing | `schoolnet` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | - |
 
 ### Secret Rotation (Local `.env`)
@@ -226,7 +226,7 @@ After rotation, apply matching credential changes in PostgreSQL/Redis and restar
 Secrets can be resolved from OpenBao by using the `openbao://` prefix:
 
 ```bash
-JWT_SECRET=openbao://secret/data/starter_template#jwt_secret
+JWT_SECRET=openbao://secret/data/schoolnet#jwt_secret
 ```
 
 Configure OpenBao connection:

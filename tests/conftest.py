@@ -99,7 +99,7 @@ class MockSettings:
     avatar_max_size_bytes = 2 * 1024 * 1024
     avatar_allowed_types = "image/jpeg,image/png,image/gif,image/webp"
     avatar_url_prefix = "/static/avatars"
-    brand_name = "Starter Template"
+    brand_name = "SchoolNet"
     brand_tagline = "FastAPI starter"
     brand_logo_url = None
     cors_origins = ""

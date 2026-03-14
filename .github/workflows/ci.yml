@@ -172,7 +172,7 @@ jobs:
         with:
           context: .
           load: true
-          tags: starter-template:ci
+          tags: schoolnet:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -184,7 +184,7 @@ jobs:
           docker run -d --name ci-db --network ci-net \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_DB=starter_ci \
+            -e POSTGRES_DB=schoolnet_ci \
             --health-cmd "pg_isready -U postgres" \
             --health-interval 5s \
             --health-retries 10 \
@@ -209,13 +209,13 @@ jobs:
       - name: Start application  # pragma: allowlist secret
         run: |
           docker run -d --name ci-app --network ci-net \
-            -e DATABASE_URL=postgresql+psycopg://postgres:postgres@ci-db:5432/starter_ci \
+            -e DATABASE_URL=postgresql+psycopg://postgres:postgres@ci-db:5432/schoolnet_ci \
             -e SECRET_KEY=ci-test-secret-key-not-for-production \
             -e JWT_SECRET=ci-test-jwt-secret-key-minimum-32-bytes-long \
             -e TOTP_ENCRYPTION_KEY=QLUJktsTSfZEbST4R-37XmQ0tCkiVCBXZN2Zt053w8g= \
             -e REDIS_URL=redis://:redis@ci-redis:6379/0 \
             -e CELERY_BROKER_URL=redis://:redis@ci-redis:6379/0 \
-            starter-template:ci
+            schoolnet:ci
 
       - name: Wait for health check
         run: |

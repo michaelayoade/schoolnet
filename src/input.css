@@ -1,0 +1,359 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Alpine.js cloak */
+[x-cloak] { display: none !important; }
+
+/* HTMX indicators */
+.htmx-request .htmx-indicator { opacity: 1; }
+.htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+.htmx-request.htmx-indicator { opacity: 1; }
+
+/* Smooth transitions */
+.fade-in { animation: fadeIn 0.2s ease-in-out; }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered card animations */
+.stagger-in {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: staggerFadeIn 0.5s ease-out forwards;
+}
+.stagger-in:nth-child(1) { animation-delay: 0ms; }
+.stagger-in:nth-child(2) { animation-delay: 75ms; }
+.stagger-in:nth-child(3) { animation-delay: 150ms; }
+.stagger-in:nth-child(4) { animation-delay: 225ms; }
+.stagger-in:nth-child(5) { animation-delay: 300ms; }
+.stagger-in:nth-child(6) { animation-delay: 375ms; }
+@keyframes staggerFadeIn {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Background noise texture */
+.bg-noise {
+    position: relative;
+}
+.bg-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 0;
+}
+.dark .bg-noise::before {
+    opacity: 0.04;
+}
+
+/* Subtle gradient mesh for main areas */
+.bg-mesh {
+    background-image:
+        radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.06) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.05) 0px, transparent 50%);
+}
+.dark .bg-mesh {
+    background-image:
+        radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+}
+
+/* Enhanced button hover states */
+.btn-hover {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-hover:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(6, 182, 212, 0.25);
+}
+.btn-hover:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+/* Card hover lift effect */
+.card-hover {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
+}
+.dark .card-hover:hover {
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+}
+
+/* Animated number counter */
+.counter-animate {
+    display: inline-block;
+    animation: counterPop 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes counterPop {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Icon hover spin */
+.icon-hover-spin {
+    transition: transform 0.3s ease;
+}
+.group:hover .icon-hover-spin {
+    transform: rotate(12deg) scale(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fade-in,
+    .stagger-in,
+    .counter-animate {
+        animation: none !important;
+    }
+    .btn-hover,
+    .card-hover,
+    .icon-hover-spin,
+    .htmx-indicator {
+        transition: none !important;
+    }
+}
+
+/* Skeleton loading animation */
+.skeleton {
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 0.5rem;
+}
+.dark .skeleton {
+    background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+    background-size: 200% 100%;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Form validation styling */
+input:user-invalid,
+select:user-invalid,
+textarea:user-invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 1px #ef4444;
+}
+.dark input:user-invalid,
+.dark select:user-invalid,
+.dark textarea:user-invalid {
+    border-color: #f87171;
+    box-shadow: 0 0 0 1px #f87171;
+}
+input:user-valid:not(:placeholder-shown),
+select:user-valid,
+textarea:user-valid:not(:placeholder-shown) {
+    border-color: #22c55e;
+}
+.dark input:user-valid:not(:placeholder-shown),
+.dark select:user-valid,
+.dark textarea:user-valid:not(:placeholder-shown) {
+    border-color: #4ade80;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Display font for headings */
+h1, h2, h3, .font-display { font-family: 'Outfit', system-ui, sans-serif; }
+
+/* ── Application Journey Stepper ─────────────────────────────────── */
+.stepper-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #e2e8f0;
+    transform: translateY(-50%);
+    z-index: 0;
+}
+.dark .stepper-line { background: #334155; }
+.stepper-line-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #06b6d4, #22c55e);
+    border-radius: 2px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stepper-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease;
+    border: 3px solid #e2e8f0;
+    background: white;
+    color: #94a3b8;
+}
+.dark .stepper-dot { border-color: #334155; background: #1e293b; color: #64748b; }
+.stepper-dot.active {
+    border-color: #06b6d4;
+    background: #06b6d4;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.2);
+}
+.stepper-dot.completed {
+    border-color: #22c55e;
+    background: #22c55e;
+    color: white;
+}
+.stepper-dot.rejected {
+    border-color: #ef4444;
+    background: #ef4444;
+    color: white;
+}
+
+/* ── Scroll-triggered counter animation ──────────────────────────── */
+.count-up {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Confetti burst ──────────────────────────────────────────────── */
+@keyframes confetti-fall {
+    0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    top: -10px;
+    z-index: 9999;
+    animation: confetti-fall 3s ease-in forwards;
+}
+
+/* ── Skeleton card placeholder ───────────────────────────────────── */
+.skeleton-card {
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+.skeleton-card .skeleton-img {
+    height: 7rem;
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+.dark .skeleton-card .skeleton-img {
+    background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+    background-size: 200% 100%;
+}
+.skeleton-text {
+    height: 0.75rem;
+    border-radius: 0.25rem;
+}
+.skeleton-text-lg { height: 1rem; }
+.skeleton-text-sm { height: 0.5rem; }
+
+/* ── Filter chips ────────────────────────────────────────────────── */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: #ecfeff;
+    color: #0e7490;
+    border: 1px solid #a5f3fc;
+    transition: all 0.15s ease;
+}
+.dark .filter-chip {
+    background: rgba(6, 182, 212, 0.15);
+    color: #67e8f9;
+    border-color: rgba(6, 182, 212, 0.3);
+}
+.filter-chip:hover {
+    background: #cffafe;
+}
+.dark .filter-chip:hover {
+    background: rgba(6, 182, 212, 0.25);
+}
+.filter-chip button {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.filter-chip button:hover { opacity: 1; }
+
+/* ── Chart container responsive ──────────────────────────────────── */
+.chart-container {
+    width: 100%;
+    min-height: 280px;
+    position: relative;
+}
+
+/* ── HTMX page transitions ──────────────────────────────────────── */
+.htmx-swapping { opacity: 0; transition: opacity 0.15s ease-out; }
+.htmx-settling { opacity: 1; transition: opacity 0.15s ease-in; }
+
+/* ── Nigeria map hover states ────────────────────────────────────── */
+.nigeria-map path {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.nigeria-map path:hover {
+    filter: brightness(0.85);
+    stroke-width: 2;
+}
+.nigeria-map path.has-schools {
+    fill: #06b6d4;
+    opacity: 0.7;
+}
+.nigeria-map path.has-schools:hover {
+    opacity: 1;
+    fill: #0891b2;
+}
+.nigeria-map path.no-schools {
+    fill: #e2e8f0;
+}
+.dark .nigeria-map path.no-schools {
+    fill: #334155;
+}
+
+/* ── Rating breakdown bars ───────────────────────────────────────── */
+.rating-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+.dark .rating-bar { background: #334155; }
+.rating-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #facc15, #f59e0b);
+    border-radius: 4px;
+    transition: width 0.6s ease-out;
+}
+
+/* ── Testimonial cards ───────────────────────────────────────────── */
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+.testimonial-float {
+    animation: float 6s ease-in-out infinite;
+}
+.testimonial-float:nth-child(2) { animation-delay: -2s; }
+.testimonial-float:nth-child(3) { animation-delay: -4s; }

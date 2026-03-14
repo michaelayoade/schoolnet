@@ -1,3 +1,5 @@
+import threading
+import time
 from datetime import UTC, datetime
 from typing import cast
 
@@ -12,6 +14,48 @@ from app.models.rbac import Permission, PersonRole, Role, RolePermission
 from app.services.auth import hash_api_key
 from app.services.auth_flow import decode_access_token, hash_session_token
 from app.services.common import coerce_uuid
+
+# Permission cache: (person_id, permission_key) → (has_perm, expires_at_monotonic)
+_permission_cache: dict[tuple[str, str], tuple[bool, float]] = {}
+_permission_cache_lock = threading.Lock()
+_PERMISSION_CACHE_TTL = 60  # seconds
+_PERMISSION_CACHE_MAX_SIZE = 5000
+
+
+def _get_cached_permission(person_id: str, permission_key: str) -> bool | None:
+    key = (person_id, permission_key)
+    with _permission_cache_lock:
+        entry = _permission_cache.get(key)
+        if entry is None:
+            return None
+        has_perm, expires = entry
+        if time.monotonic() > expires:
+            del _permission_cache[key]
+            return None
+        return has_perm
+
+
+def _set_cached_permission(person_id: str, permission_key: str, has_perm: bool) -> None:
+    key = (person_id, permission_key)
+    now = time.monotonic()
+    with _permission_cache_lock:
+        # Evict expired entries when cache is large to prevent unbounded growth
+        if len(_permission_cache) >= _PERMISSION_CACHE_MAX_SIZE:
+            stale = [k for k, (_, exp) in _permission_cache.items() if now > exp]
+            for k in stale:
+                del _permission_cache[k]
+            # If still over limit after eviction, clear oldest half
+            if len(_permission_cache) >= _PERMISSION_CACHE_MAX_SIZE:
+                sorted_keys = sorted(_permission_cache, key=lambda k: _permission_cache[k][1])
+                for k in sorted_keys[: len(sorted_keys) // 2]:
+                    del _permission_cache[k]
+        _permission_cache[key] = (has_perm, now + _PERMISSION_CACHE_TTL)
+
+
+def clear_permission_cache() -> None:
+    """Clear the entire permission cache. Useful after role/permission changes."""
+    with _permission_cache_lock:
+        _permission_cache.clear()
 
 
 def _make_aware(dt: datetime | None) -> datetime | None:
@@ -196,11 +240,21 @@ def require_permission(permission_key: str):
         auth=Depends(require_user_auth),
         db: Session = Depends(_get_db),
     ):
-        person_id = coerce_uuid(auth["person_id"])
+        person_id_str = auth["person_id"]
+        person_id = coerce_uuid(person_id_str)
         roles = set(auth.get("roles") or [])
         scopes = set(auth.get("scopes") or [])
         if "admin" in roles or permission_key in scopes:
             return auth
+
+        # Check cache first
+        cached = _get_cached_permission(str(person_id), permission_key)
+        if cached is True:
+            return auth
+        if cached is False:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        # Cache miss — query DB
         stmt = select(Permission).where(
             Permission.key == permission_key, Permission.is_active.is_(True)
         )
@@ -218,6 +272,7 @@ def require_permission(permission_key: str):
             )
         )
         has_permission = db.scalar(has_perm_stmt)
+        _set_cached_permission(str(person_id), permission_key, bool(has_permission))
         if not has_permission:
             raise HTTPException(status_code=403, detail="Forbidden")
         return auth

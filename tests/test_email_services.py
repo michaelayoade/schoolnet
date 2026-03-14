@@ -91,7 +91,7 @@ class TestSmtpConfig:
         assert config["use_tls"] is True
         assert config["use_ssl"] is False
         assert config["from_email"] == "noreply@example.com"
-        assert config["from_name"] == "Starter Template"
+        assert config["from_name"] == "SchoolNet"
 
     def test_get_smtp_config_custom(self, monkeypatch):
         """Test SMTP config with custom values."""
@@ -275,13 +275,13 @@ class TestSendEmail:
         assert result is False
 
     def test_send_email_generic_exception(self, monkeypatch):
-        """Test email sending handles generic exceptions."""
+        """Test email sending handles OS/network exceptions."""
         monkeypatch.setenv("SMTP_HOST", "localhost")
         monkeypatch.setenv("SMTP_USE_SSL", "false")
 
         with patch(
             "app.services.email.smtplib.SMTP",
-            side_effect=Exception("Unexpected error"),
+            side_effect=OSError("Unexpected error"),
         ):
             result = send_email(
                 None,
@@ -354,7 +354,7 @@ class TestSendPasswordResetEmail:
 
         with patch(
             "app.services.email.smtplib.SMTP",
-            side_effect=Exception("SMTP error"),
+            side_effect=OSError("SMTP error"),
         ):
             result = send_password_reset_email(
                 None,
@@ -419,7 +419,7 @@ class TestEmailLogging:
 
         with patch(
             "app.services.email.smtplib.SMTP",
-            side_effect=Exception("Test error"),
+            side_effect=OSError("Test error"),
         ):
             import logging
 

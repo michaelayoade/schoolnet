@@ -1,0 +1,126 @@
+{% extends "admin/base.html" %}
+{% block title %}Edit Ad - Admin{% endblock %}
+{% block admin_content %}
+<div class="mb-6">
+    <a href="/admin/ads" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to ads</a>
+</div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Edit Ad</h1>
+
+{% if request.query_params.get('success') %}
+<div class="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+    {{ request.query_params.get('success') | replace('+', ' ') }}
+</div>
+{% endif %}
+
+{% if error %}
+<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+    {{ error }}
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="grid grid-cols-3 gap-4 max-w-2xl mb-6">
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+        <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ "{:,}".format(ad.impressions) }}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Impressions</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+        <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ "{:,}".format(ad.clicks) }}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Clicks</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+        {% set ctr = (ad.clicks / ad.impressions * 100) if ad.impressions > 0 else 0 %}
+        <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ "%.1f" | format(ctr) }}%</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">CTR</p>
+    </div>
+</div>
+
+<form method="POST" action="/admin/ads/{{ ad.id }}/edit" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4 max-w-2xl">
+    {{ request.state.csrf_form | safe }}
+
+    <div>
+        <label for="title" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
+        <input type="text" name="title" id="title" required value="{{ ad.title }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+        <div>
+            <label for="slot" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slot</label>
+            <select name="slot" id="slot" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                {% for s in ad_slots %}
+                <option value="{{ s.value }}" {{ 'selected' if ad.slot == s else '' }}>{{ s.value | replace('_', ' ') | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="ad_type" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+            <select name="ad_type" id="ad_type" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                {% for t in ad_types %}
+                <option value="{{ t.value }}" {{ 'selected' if ad.ad_type == t else '' }}>{{ t.value | replace('_', ' ') | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="status" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+            <select name="status" id="status" required class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                {% for st in ad_statuses %}
+                <option value="{{ st.value }}" {{ 'selected' if ad.status == st else '' }}>{{ st.value | replace('_', ' ') | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div>
+        <label for="image_url" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Image URL</label>
+        <input type="url" name="image_url" id="image_url" value="{{ ad.image_url if ad.image_url else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        {% if ad.image_url %}
+        <img src="{{ ad.image_url }}" alt="{{ ad.alt_text if ad.alt_text else ad.title }}" class="mt-2 max-h-24 rounded border border-slate-200 dark:border-slate-600" loading="lazy">
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="target_url" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Target URL</label>
+        <input type="url" name="target_url" id="target_url" value="{{ ad.target_url if ad.target_url else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+    </div>
+
+    <div>
+        <label for="alt_text" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Alt Text</label>
+        <input type="text" name="alt_text" id="alt_text" value="{{ ad.alt_text if ad.alt_text else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+    </div>
+
+    <div>
+        <label for="html_content" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">HTML Content (optional)</label>
+        <textarea name="html_content" id="html_content" rows="3" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white font-mono">{{ ad.html_content if ad.html_content else '' }}</textarea>
+    </div>
+
+    <div>
+        <label for="school_id" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Linked School</label>
+        <select name="school_id" id="school_id" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+            <option value="">None</option>
+            {% for school in schools %}
+            <option value="{{ school.id }}" {{ 'selected' if ad.school_id and ad.school_id == school.id else '' }}>{{ school.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="starts_at" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Starts At</label>
+            <input type="datetime-local" name="starts_at" id="starts_at" value="{{ ad.starts_at.strftime('%Y-%m-%dT%H:%M') if ad.starts_at else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        </div>
+        <div>
+            <label for="ends_at" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ends At</label>
+            <input type="datetime-local" name="ends_at" id="ends_at" value="{{ ad.ends_at.strftime('%Y-%m-%dT%H:%M') if ad.ends_at else '' }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+        </div>
+    </div>
+
+    <div>
+        <label for="priority" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+        <input type="number" name="priority" id="priority" value="{{ ad.priority }}" min="0" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+    </div>
+
+    <div class="pt-2">
+        <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">Save Changes</button>
+    </div>
+</form>
+{% endblock %}

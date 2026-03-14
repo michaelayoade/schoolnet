@@ -1,0 +1,79 @@
+{# Reusable ad slot component.
+   Usage: {% from "components/_ad_slot.html" import ad_slot, ad_banner, ad_featured_schools %}
+
+   ad_slot(ads, slot_name)        — renders all ads for a slot (auto-detects type)
+   ad_banner(ad)                  — single banner ad with image + click tracking
+   ad_featured_schools(ads)       — sponsored school cards grid
+#}
+
+{% macro ad_banner(ad) %}
+{% if ad.image_url %}
+<div class="ad-placement" data-ad-id="{{ ad.id }}">
+    <a href="/ads/{{ ad.id }}/click" target="_blank" rel="noopener sponsored"
+       class="block rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
+        <img src="{{ ad.image_url }}"
+             alt="{{ ad.alt_text if ad.alt_text else ad.title }}"
+             class="w-full h-auto object-cover"
+             loading="lazy">
+    </a>
+    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right">Sponsored</p>
+</div>
+{% elif ad.html_content %}
+<div class="ad-placement" data-ad-id="{{ ad.id }}">
+    <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+        {{ ad.html_content | safe }}
+    </div>
+    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right">Sponsored</p>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro ad_sponsored_school(ad) %}
+{% if ad.school %}
+<a href="/schools/{{ ad.school.slug }}" class="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-primary-200 dark:border-primary-800 overflow-hidden hover:shadow-md transition card-hover">
+    {% if ad.image_url %}
+    <div class="h-32 bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20">
+        <img src="{{ ad.image_url }}" alt="{{ ad.school.name }}" class="w-full h-full object-cover" loading="lazy">
+    </div>
+    {% endif %}
+    <div class="p-4">
+        <div class="flex items-center gap-2 mb-1">
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">Sponsored</span>
+        </div>
+        <h3 class="font-semibold text-slate-900 dark:text-white text-sm">{{ ad.school.name }}</h3>
+        {% if ad.school.city or ad.school.state %}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ ad.school.city if ad.school.city else '' }}{% if ad.school.state %}, {{ ad.school.state }}{% endif %}</p>
+        {% endif %}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ ad.school.school_type.value | replace('_', ' ') | title }} &bull; {{ ad.school.category.value | replace('_', ' ') | title }}</p>
+    </div>
+</a>
+{% endif %}
+{% endmacro %}
+
+{% macro ad_featured_schools(ads) %}
+{% if ads %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for ad in ads %}
+    {{ ad_sponsored_school(ad) }}
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro ad_slot(ads, layout) %}
+{% if ads %}
+    {% if layout == 'grid' %}
+        {{ ad_featured_schools(ads) }}
+    {% elif layout == 'sidebar' %}
+        <div class="space-y-4">
+            {% for ad in ads %}
+                {{ ad_banner(ad) }}
+            {% endfor %}
+        </div>
+    {% else %}
+        {% for ad in ads %}
+            {{ ad_banner(ad) }}
+        {% endfor %}
+    {% endif %}
+{% endif %}
+{% endmacro %}

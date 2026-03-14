@@ -108,6 +108,62 @@
 {%- endmacro %}
 
 
+{# ── Application Journey Stepper ─────────────────────────────────── #}
+{% macro application_stepper(status) %}
+{% set status_str = status.value if status is not string and status.value is defined else (status if status else '') %}
+{% set status_key = status_str | lower %}
+{% set steps = [
+    {"key": "draft", "label": "Draft", "icon": "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"},
+    {"key": "submitted", "label": "Submitted", "icon": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"},
+    {"key": "under_review", "label": "Under Review", "icon": "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"},
+    {"key": "accepted", "label": "Accepted", "icon": "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"}
+] %}
+{% set order = {"draft": 0, "submitted": 1, "under_review": 2, "accepted": 3, "rejected": 3, "withdrawn": -1} %}
+{% set current_idx = order.get(status_key, -1) %}
+{% set is_rejected = status_key == 'rejected' %}
+{% set is_withdrawn = status_key == 'withdrawn' %}
+{% set fill_pct = ((current_idx) / (steps | length - 1) * 100) if current_idx > 0 else 0 %}
+<div class="relative py-2">
+    <div class="flex items-center justify-between relative">
+        <div class="stepper-line">
+            <div class="stepper-line-fill" style="width: {{ fill_pct }}%"></div>
+        </div>
+        {% for step in steps %}
+        {% set step_idx = loop.index0 %}
+        {% set is_current = step_idx == current_idx %}
+        {% set is_done = step_idx < current_idx %}
+        {% set is_rejected_step = is_rejected and step_idx == current_idx %}
+        <div class="flex flex-col items-center gap-2">
+            <div class="stepper-dot {{ 'completed' if is_done else ('rejected' if is_rejected_step else ('active' if is_current else '')) }}">
+                {% if is_done %}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                {% elif is_rejected_step %}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                {% else %}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ step.icon }}"/></svg>
+                {% endif %}
+            </div>
+            <span class="text-xs font-medium {{ 'text-green-600 dark:text-green-400' if is_done else ('text-red-600 dark:text-red-400' if is_rejected_step else ('text-primary-600 dark:text-primary-400' if is_current else 'text-slate-400 dark:text-slate-500')) }}">
+                {% if is_rejected_step %}Rejected{% else %}{{ step.label }}{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{%- endmacro %}
+
+{# ── Skeleton Card Placeholder ──────────────────────────────────── #}
+{% macro skeleton_card() %}
+<div class="skeleton-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="skeleton-img"></div>
+    <div class="p-4 space-y-3">
+        <div class="skeleton skeleton-text-lg w-3/4"></div>
+        <div class="skeleton skeleton-text w-1/2"></div>
+        <div class="skeleton skeleton-text-sm w-1/3"></div>
+    </div>
+</div>
+{%- endmacro %}
+
 {% macro flash_messages(success_message=None, error_message=None) %}
 {% if success_message %}
 <div class="mb-4 flex items-start gap-3 p-4 rounded-xl border border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm">

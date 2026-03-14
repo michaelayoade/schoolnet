@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
@@ -217,6 +217,16 @@ class SchoolService:
         schools = list(self.db.scalars(stmt).all())
         return schools, total
 
+    def list_active(self, *, limit: int = 200) -> list[School]:
+        """Return active schools, ordered by name."""
+        stmt = (
+            select(School)
+            .where(School.status == SchoolStatus.active, School.is_active.is_(True))
+            .order_by(School.name)
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
+
     def get_featured(self, limit: int = 6) -> list[School]:
         """Get featured schools, falling back to recently verified active schools."""
         stmt = select(School).where(
@@ -334,65 +344,15 @@ class SchoolService:
         )
         return list(self.db.scalars(stmt).all())
 
-    def get_dashboard_stats(self, school_id: UUID) -> SchoolDashboardStats:
-        # Forms
-        total_forms = (
-            self.db.scalar(
-                select(func.count())
-                .select_from(AdmissionForm)
-                .where(
-                    AdmissionForm.school_id == school_id,
-                    AdmissionForm.is_active.is_(True),
-                )
-            )
-            or 0
-        )
-        active_forms = (
-            self.db.scalar(
-                select(func.count())
-                .select_from(AdmissionForm)
-                .where(
-                    AdmissionForm.school_id == school_id,
-                    AdmissionForm.status == AdmissionFormStatus.active,
-                    AdmissionForm.is_active.is_(True),
-                )
-            )
-            or 0
-        )
-
-        # Applications (via admission forms for this school)
+    def check_capacity(self, school_id: UUID) -> None:
+        """Raise ValueError if school has reached student_capacity with accepted apps."""
+        school = self.db.get(School, school_id)
+        if not school or not school.student_capacity:
+            return
         form_ids_stmt = select(AdmissionForm.id).where(
             AdmissionForm.school_id == school_id
         )
-        total_apps = (
-            self.db.scalar(
-                select(func.count())
-                .select_from(Application)
-                .where(
-                    Application.admission_form_id.in_(form_ids_stmt),
-                    Application.is_active.is_(True),
-                )
-            )
-            or 0
-        )
-        pending_apps = (
-            self.db.scalar(
-                select(func.count())
-                .select_from(Application)
-                .where(
-                    Application.admission_form_id.in_(form_ids_stmt),
-                    Application.status.in_(
-                        [
-                            ApplicationStatus.submitted,
-                            ApplicationStatus.under_review,
-                        ]
-                    ),
-                    Application.is_active.is_(True),
-                )
-            )
-            or 0
-        )
-        accepted_apps = (
+        accepted_count = (
             self.db.scalar(
                 select(func.count())
                 .select_from(Application)
@@ -404,18 +364,59 @@ class SchoolService:
             )
             or 0
         )
-        rejected_apps = (
-            self.db.scalar(
-                select(func.count())
-                .select_from(Application)
-                .where(
-                    Application.admission_form_id.in_(form_ids_stmt),
-                    Application.status == ApplicationStatus.rejected,
-                    Application.is_active.is_(True),
-                )
+        if accepted_count >= school.student_capacity:
+            raise ValueError(
+                f"School has reached capacity ({school.student_capacity} students)"
             )
-            or 0
+
+    def get_dashboard_stats(self, school_id: UUID) -> SchoolDashboardStats:
+        # Forms — single query with conditional counts
+        form_stats = self.db.execute(
+            select(
+                func.count().label("total"),
+                func.count(case(
+                    (AdmissionForm.status == AdmissionFormStatus.active, 1),
+                )).label("active"),
+            )
+            .select_from(AdmissionForm)
+            .where(
+                AdmissionForm.school_id == school_id,
+                AdmissionForm.is_active.is_(True),
+            )
+        ).one()
+        total_forms = form_stats.total or 0
+        active_forms = form_stats.active or 0
+
+        # Applications — single query with conditional counts
+        form_ids_stmt = select(AdmissionForm.id).where(
+            AdmissionForm.school_id == school_id
         )
+        app_stats = self.db.execute(
+            select(
+                func.count().label("total"),
+                func.count(case(
+                    (Application.status.in_([
+                        ApplicationStatus.submitted,
+                        ApplicationStatus.under_review,
+                    ]), 1),
+                )).label("pending"),
+                func.count(case(
+                    (Application.status == ApplicationStatus.accepted, 1),
+                )).label("accepted"),
+                func.count(case(
+                    (Application.status == ApplicationStatus.rejected, 1),
+                )).label("rejected"),
+            )
+            .select_from(Application)
+            .where(
+                Application.admission_form_id.in_(form_ids_stmt),
+                Application.is_active.is_(True),
+            )
+        ).one()
+        total_apps = app_stats.total or 0
+        pending_apps = app_stats.pending or 0
+        accepted_apps = app_stats.accepted or 0
+        rejected_apps = app_stats.rejected or 0
 
         # Revenue — sum of paid invoices linked to this school's applications
         invoice_ids_stmt = (

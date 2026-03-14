@@ -1,4 +1,4 @@
-{% from "macros/ui_macros.html" import status_badge %}
+{% from "macros/ui_macros.html" import status_badge, application_stepper %}
 {% extends "parent/base.html" %}
 {% block title %}Dashboard - Parent Portal{% endblock %}
 {% block parent_content %}
@@ -24,35 +24,44 @@
     </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-    <a href="/schools" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
-        <div class="h-10 w-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        </div>
-        <div>
-            <p class="font-medium text-slate-900 dark:text-white">Find Schools</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Search and compare schools</p>
-        </div>
-    </a>
-    <a href="/parent/applications" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
-        <div class="h-10 w-10 rounded-xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center text-accent-600 dark:text-accent-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        </div>
-        <div>
-            <p class="font-medium text-slate-900 dark:text-white">My Applications</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">View and manage applications</p>
-        </div>
-    </a>
+<!-- Chart + Quick Actions Row -->
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+    <!-- Status Donut Chart -->
+    <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-1">Application Status</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Current distribution</p>
+        <div id="parent-status-chart" class="chart-container" style="height: 200px;"></div>
+    </div>
+    <!-- Quick Actions -->
+    <div class="lg:col-span-3 space-y-4">
+        <a href="/schools" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
+            <div class="h-10 w-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <div>
+                <p class="font-medium text-slate-900 dark:text-white">Find Schools</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Search and compare schools</p>
+            </div>
+        </a>
+        <a href="/parent/applications" class="flex items-center gap-4 p-5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
+            <div class="h-10 w-10 rounded-xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center text-accent-600 dark:text-accent-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <div>
+                <p class="font-medium text-slate-900 dark:text-white">My Applications</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">View and manage applications</p>
+            </div>
+        </a>
+    </div>
 </div>
 
-<!-- Recent Applications -->
+<!-- Recent Applications with Journey Stepper -->
 {% if recent_applications %}
 <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Recent Applications</h2>
 <div class="space-y-3">
     {% for app in recent_applications %}
     <a href="/parent/applications/{{ app.id }}" class="block bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between mb-3">
             <div>
                 <p class="text-sm font-medium text-slate-900 dark:text-white">{{ app.application_number }}</p>
                 {% if app.ward_first_name %}
@@ -61,8 +70,40 @@
             </div>
             {{ status_badge(app.status) }}
         </div>
+        <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+            {{ application_stepper(app.status) }}
+        </div>
     </a>
     {% endfor %}
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script nonce="{{ csp_nonce }}" src="/static/js/vendor/echarts.min.js"></script>
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var isDark = document.documentElement.classList.contains('dark');
+    var textColor = isDark ? '#94a3b8' : '#64748b';
+    var chartEl = document.getElementById('parent-status-chart');
+    if (!chartEl) return;
+    var chart = echarts.init(chartEl);
+    chart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        series: [{
+            type: 'pie', radius: ['42%', '72%'], center: ['50%', '50%'],
+            label: { color: textColor, fontSize: 11 },
+            data: [
+                { value: {{ draft_count if draft_count else 0 }}, name: 'Draft', itemStyle: { color: '#94a3b8' } },
+                { value: {{ submitted_count if submitted_count else 0 }}, name: 'In Progress', itemStyle: { color: '#3b82f6' } },
+                { value: {{ accepted_count if accepted_count else 0 }}, name: 'Accepted', itemStyle: { color: '#22c55e' } },
+                { value: {{ rejected_count if rejected_count is defined and rejected_count else 0 }}, name: 'Rejected', itemStyle: { color: '#ef4444' } }
+            ],
+            emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' } }
+        }]
+    });
+    window.addEventListener('resize', function() { chart.resize(); });
+})();
+</script>
 {% endblock %}

@@ -1,4 +1,4 @@
-{% from "macros/ui_macros.html" import status_badge, breadcrumbs %}
+{% from "macros/ui_macros.html" import status_badge, breadcrumbs, application_stepper %}
 {% extends "parent/base.html" %}
 {% block title %}Application {{ application.application_number }} - Parent Portal{% endblock %}
 {% block parent_content %}
@@ -21,6 +21,12 @@
         </div>
         {{ status_badge(application.status) }}
     </div>
+</div>
+
+<!-- Application Progress Journey -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">Application Progress</h2>
+    {{ application_stepper(application.status) }}
 </div>
 
 <!-- Ward Details -->

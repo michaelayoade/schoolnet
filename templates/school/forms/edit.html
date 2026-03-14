@@ -41,20 +41,20 @@
     {# ── Custom Form Fields ─────────────────────────────── #}
     {% set existing_fields = form.form_fields if form.form_fields else [] %}
     <div class="pt-4 border-t border-slate-200 dark:border-slate-700"
-         x-data='{ fields: {{ existing_fields | tojson }}.map(f => ({...f, _optionsText: (f.options || []).join(", ")})) }'>
+         x-data="formBuilder" data-init='{{ existing_fields | tojson }}'>
         <h3 class="font-semibold text-slate-900 dark:text-white text-sm mb-3">Custom Form Fields</h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Add additional fields that parents will fill in when applying.</p>
 
         <template x-for="(field, index) in fields" :key="index">
             <div class="mb-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400" x-text="'Field #' + (index + 1)"></span>
-                    <button type="button" @click="fields.splice(index, 1)" class="text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400" x-text="fieldTitle(index)"></span>
+                    <button type="button" @click="removeField(index)" class="text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Label</label>
-                        <input type="text" x-model="field.label" @input="field.name = field.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')" placeholder="e.g. Previous School" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                        <input type="text" x-model="field.label" @input="onLabelInput(field)" placeholder="e.g. Previous School" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Type</label>
@@ -66,45 +66,45 @@
                         </select>
                     </div>
                 </div>
-                <div class="mb-3" x-show="field.type === 'select'">
+                <div class="mb-3" x-show="isSelectType(field)">
                     <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Options (comma-separated)</label>
-                    <textarea x-model="field._optionsText" @input="field.options = field._optionsText.split(',').map(o => o.trim()).filter(o => o)" rows="2" placeholder="e.g. A+, A-, B+, B-, O+, O-, AB+, AB-" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white"></textarea>
+                    <textarea x-model="field._optionsText" @input="onOptionsInput(field)" rows="2" placeholder="e.g. A+, A-, B+, B-, O+, O-, AB+, AB-" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white"></textarea>
                 </div>
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" x-model="field.required" :id="'req_' + index" class="rounded border-slate-300 dark:border-slate-600 text-primary-600">
-                    <label :for="'req_' + index" class="text-xs text-slate-600 dark:text-slate-400">Required field</label>
+                    <input type="checkbox" x-model="field.required" x-bind:id="fieldIdAttr(index)" class="rounded border-slate-300 dark:border-slate-600 text-primary-600">
+                    <label x-bind:for="fieldIdAttr(index)" class="text-xs text-slate-600 dark:text-slate-400">Required field</label>
                 </div>
             </div>
         </template>
 
-        <button type="button" @click="fields.push({name: '', label: '', type: 'text', required: false, options: [], _optionsText: ''})" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+        <button type="button" @click="addField()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add Field
         </button>
 
-        <input type="hidden" name="form_fields_json" :value="JSON.stringify(fields.map(f => ({name: f.name, label: f.label, type: f.type, required: f.required, ...(f.type === 'select' ? {options: f.options} : {})})))">
+        <input type="hidden" name="form_fields_json" x-bind:value="fieldsJson()">
     </div>
 
     {# ── Required Documents ─────────────────────────────── #}
     {% set existing_docs = form.required_documents if form.required_documents else [] %}
     <div class="pt-4 border-t border-slate-200 dark:border-slate-700"
-         x-data='{ docs: {{ existing_docs | tojson }} }'>
+         x-data="docList" data-init='{{ existing_docs | tojson }}'>
         <h3 class="font-semibold text-slate-900 dark:text-white text-sm mb-3">Required Documents</h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Specify documents parents must upload with their application.</p>
 
         <template x-for="(doc, index) in docs" :key="index">
             <div class="flex items-center gap-2 mb-3">
                 <input type="text" x-model="docs[index]" placeholder="e.g. Birth Certificate" class="flex-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
-                <button type="button" @click="docs.splice(index, 1)" class="text-xs text-red-600 dark:text-red-400 hover:underline px-2 py-2">Remove</button>
+                <button type="button" @click="removeDoc(index)" class="text-xs text-red-600 dark:text-red-400 hover:underline px-2 py-2">Remove</button>
             </div>
         </template>
 
-        <button type="button" @click="docs.push('')" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+        <button type="button" @click="addDoc()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add Document
         </button>
 
-        <input type="hidden" name="required_documents_json" :value="JSON.stringify(docs.filter(d => d.trim()))">
+        <input type="hidden" name="required_documents_json" x-bind:value="docsJson()">
     </div>
 
     <div class="pt-2">

@@ -1,4 +1,4 @@
-{% from "macros/ui_macros.html" import status_badge, breadcrumbs %}
+{% from "macros/ui_macros.html" import status_badge, breadcrumbs, application_stepper %}
 {% extends "school/base.html" %}
 {% block title %}Application {{ application.application_number }} - School Admin{% endblock %}
 {% block school_content %}
@@ -18,6 +18,12 @@
         </div>
         {{ status_badge(application.status) }}
     </div>
+</div>
+
+<!-- Application Progress -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
+    <h2 class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">Application Progress</h2>
+    {{ application_stepper(application.status) }}
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -104,8 +110,12 @@
                         <input type="hidden" name="doc_status" value="verified">
                         <button type="submit" class="px-2 py-1 text-xs font-medium rounded {{ 'bg-green-600 text-white' if status_val == 'verified' else 'text-green-600 dark:text-green-400 border border-green-300 dark:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/20' }} transition">Verify</button>
                     </form>
-                    <form method="POST" action="/school/applications/{{ application.id }}/verify-document" class="inline" x-data
-                          x-on:submit.prevent="$dispatch('confirm-action', { title: 'Reject Document', message: 'Are you sure you want to reject this document? The applicant may need to re-upload.', confirmLabel: 'Reject', form: $el })">
+                    <form method="POST" action="/school/applications/{{ application.id }}/verify-document" class="inline"
+                          x-data="confirmAction"
+                          data-confirm-title="Reject Document"
+                          data-confirm-message="Are you sure you want to reject this document? The applicant may need to re-upload."
+                          data-confirm-label="Reject"
+                          x-on:submit.prevent="dispatchConfirm()">
                         {{ request.state.csrf_form | safe }}
                         <input type="hidden" name="doc_name" value="{{ doc_name }}">
                         <input type="hidden" name="doc_status" value="rejected">

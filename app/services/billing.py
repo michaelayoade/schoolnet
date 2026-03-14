@@ -76,6 +76,10 @@ class SubscriptionNotFoundError(ValueError):
     pass
 
 
+class CouponValidationError(ValueError):
+    pass
+
+
 class SubscriptionItemNotFoundError(ValueError):
     pass
 
@@ -375,6 +379,24 @@ class Customers(ListResponseMixin):
 
 # ── Subscriptions ────────────────────────────────────────
 
+VALID_SUBSCRIPTION_TRANSITIONS: dict[SubscriptionStatus, set[SubscriptionStatus]] = {
+    SubscriptionStatus.incomplete: {SubscriptionStatus.active, SubscriptionStatus.canceled},
+    SubscriptionStatus.trialing: {SubscriptionStatus.active, SubscriptionStatus.canceled},
+    SubscriptionStatus.active: {
+        SubscriptionStatus.past_due,
+        SubscriptionStatus.canceled,
+        SubscriptionStatus.paused,
+    },
+    SubscriptionStatus.past_due: {
+        SubscriptionStatus.active,
+        SubscriptionStatus.canceled,
+        SubscriptionStatus.unpaid,
+    },
+    SubscriptionStatus.unpaid: {SubscriptionStatus.active, SubscriptionStatus.canceled},
+    SubscriptionStatus.paused: {SubscriptionStatus.active, SubscriptionStatus.canceled},
+    SubscriptionStatus.canceled: set(),
+}
+
 
 class Subscriptions(ListResponseMixin):
     @staticmethod
@@ -447,6 +469,23 @@ class Subscriptions(ListResponseMixin):
         db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Subscription.__name__, item.id)
+        return item
+
+    @staticmethod
+    def transition(db: Session, item_id: str, target_status: SubscriptionStatus) -> Subscription:
+        """Transition a subscription to a new status with validation."""
+        item = db.get(Subscription, coerce_uuid(item_id))
+        if not item:
+            raise SubscriptionNotFoundError("Subscription not found")
+        allowed = VALID_SUBSCRIPTION_TRANSITIONS.get(item.status, set())
+        if target_status not in allowed:
+            raise ValueError(
+                f"Cannot transition subscription from {item.status.value} to {target_status.value}"
+            )
+        old_status = item.status.value
+        item.status = target_status
+        db.flush()
+        logger.info("Transitioned subscription %s: %s → %s", item.id, old_status, target_status.value)
         return item
 
     @staticmethod
@@ -627,6 +666,27 @@ class Invoices(ListResponseMixin):
         db.flush()
         db.refresh(item)
         logger.info("Updated %s: %s", Invoice.__name__, item.id)
+        return item
+
+    @staticmethod
+    def recalculate_total(db: Session, invoice_id: str, tax_rate: float = 0.0) -> Invoice:
+        """Recalculate invoice totals from line items."""
+        item = db.get(Invoice, coerce_uuid(invoice_id))
+        if not item:
+            raise InvoiceNotFoundError("Invoice not found")
+        line_items_stmt = select(InvoiceItem).where(
+            InvoiceItem.invoice_id == item.id
+        )
+        line_items = list(db.scalars(line_items_stmt).all())
+        subtotal = sum(li.amount for li in line_items)
+        tax = int(subtotal * tax_rate)
+        total = subtotal + tax
+        item.subtotal = subtotal
+        item.tax = tax
+        item.total = total
+        item.amount_due = total - item.amount_paid
+        db.flush()
+        logger.info("Recalculated invoice %s: subtotal=%d tax=%d total=%d", item.id, subtotal, tax, total)
         return item
 
     @staticmethod
@@ -1033,6 +1093,24 @@ class Coupons(ListResponseMixin):
         db.flush()
         db.refresh(item)
         logger.info("Soft-deleted Coupon: %s", item.id)
+
+    @staticmethod
+    def validate_coupon(db: Session, coupon_id: str) -> Coupon:
+        """Validate a coupon is usable. Raises CouponValidationError if not."""
+        item = db.get(Coupon, coerce_uuid(coupon_id))
+        if not item:
+            raise CouponNotFoundError("Coupon not found")
+        if not item.valid:
+            raise CouponValidationError("Coupon is no longer valid")
+        if item.redeem_by is not None:
+            from datetime import UTC, datetime
+
+            if datetime.now(UTC) > item.redeem_by:
+                raise CouponValidationError("Coupon has expired")
+        if item.max_redemptions is not None:
+            if item.times_redeemed >= item.max_redemptions:
+                raise CouponValidationError("Coupon has reached maximum redemptions")
+        return item
 
 
 # ── Discounts ────────────────────────────────────────────

@@ -24,6 +24,8 @@ class RatingService:
     ) -> Rating:
         if score < 1 or score > 5:
             raise ValueError("Score must be between 1 and 5")
+        if comment and len(comment) > 500:
+            raise ValueError("Comment must be 500 characters or fewer")
 
         # Check for existing rating
         existing = self.db.scalar(
@@ -51,10 +53,36 @@ class RatingService:
         logger.info("Created rating: %s for school %s", rating.id, school_id)
         return rating
 
+    def update(
+        self,
+        rating_id: UUID,
+        parent_id: UUID,
+        score: int | None = None,
+        comment: str | None = None,
+    ) -> Rating:
+        """Update a rating — only the owner can update."""
+        rating = self.db.get(Rating, rating_id)
+        if not rating or not rating.is_active:
+            raise ValueError("Rating not found")
+        if rating.parent_id != parent_id:
+            raise ValueError("You can only update your own rating")
+        if score is not None:
+            if score < 1 or score > 5:
+                raise ValueError("Score must be between 1 and 5")
+            rating.score = score
+        if comment is not None:
+            if len(comment) > 500:
+                raise ValueError("Comment must be 500 characters or fewer")
+            rating.comment = comment
+        self.db.flush()
+        logger.info("Updated rating: %s", rating.id)
+        return rating
+
     def can_rate(self, school_id: UUID, parent_id: UUID) -> bool:
-        """Check if parent has submitted an application to this school."""
+        """Check if parent has an application and hasn't already rated."""
         from app.models.school import AdmissionForm
 
+        # Must have an application
         stmt = (
             select(Application.id)
             .join(AdmissionForm, Application.admission_form_id == AdmissionForm.id)
@@ -65,7 +93,19 @@ class RatingService:
             )
             .limit(1)
         )
-        return self.db.scalar(stmt) is not None
+        has_application = self.db.scalar(stmt) is not None
+        if not has_application:
+            return False
+
+        # Must not already have an active rating
+        existing = self.db.scalar(
+            select(Rating.id).where(
+                Rating.school_id == school_id,
+                Rating.parent_id == parent_id,
+                Rating.is_active.is_(True),
+            )
+        )
+        return existing is None
 
     def get_for_school(self, school_id: UUID, limit: int = 20) -> list[Rating]:
         stmt = (

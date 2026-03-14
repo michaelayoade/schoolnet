@@ -13,6 +13,22 @@ from app.models.domain_settings import DomainSetting, SettingDomain, SettingValu
 _SETTING_KEY = "ui_branding"
 _HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
+_CSS_DANGEROUS = re.compile(
+    r"expression\s*\(|"
+    r"url\s*\(\s*(?:javascript|data)\s*:|"
+    r"@import\b|"
+    r"behavior\s*:|"
+    r"-moz-binding\s*:|"
+    r"</style|"
+    r"<script",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_css(css: str) -> str:
+    """Strip known CSS injection vectors from user-supplied CSS."""
+    return _CSS_DANGEROUS.sub("/* sanitized */", css)
+
 
 def _normalize_hex(value: str | None, fallback: str) -> str:
     if not value:
@@ -26,8 +42,12 @@ def _normalize_hex(value: str | None, fallback: str) -> str:
 def _brand_mark(name: str) -> str:
     parts = [p for p in name.split() if p]
     if not parts:
-        return "ST"
+        return "SN"
     if len(parts) == 1:
+        # Extract initials from PascalCase (e.g. "SchoolNet" -> "SN")
+        uppers = [c for c in parts[0] if c.isupper()]
+        if len(uppers) >= 2:
+            return (uppers[0] + uppers[1]).upper()
         return parts[0][:2].upper()
     return (parts[0][0] + parts[1][0]).upper()
 
@@ -44,7 +64,7 @@ def _shift_lightness(hex_color: str, factor: float) -> str:
 
 
 def _default_branding() -> dict[str, Any]:
-    name = getattr(settings, "brand_name", "Starter Template")
+    name = getattr(settings, "brand_name", "SchoolNet")
     return {
         "display_name": name,
         "tagline": getattr(settings, "brand_tagline", "FastAPI starter"),
@@ -81,6 +101,8 @@ def get_branding(db: Session) -> dict[str, Any]:
     merged = {**defaults, **data}
     merged["primary_color"] = _normalize_hex(merged.get("primary_color"), "#06B6D4")
     merged["accent_color"] = _normalize_hex(merged.get("accent_color"), "#F97316")
+    if merged.get("custom_css"):
+        merged["custom_css"] = _sanitize_css(merged["custom_css"])
     return merged
 
 
@@ -89,6 +111,8 @@ def save_branding(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
     current.update(payload)
     current["primary_color"] = _normalize_hex(current.get("primary_color"), "#06B6D4")
     current["accent_color"] = _normalize_hex(current.get("accent_color"), "#F97316")
+    if current.get("custom_css"):
+        current["custom_css"] = _sanitize_css(current["custom_css"])
 
     setting = db.scalar(
         select(DomainSetting)
@@ -147,7 +171,7 @@ def generate_css(branding: dict[str, Any]) -> str:
     accent_dark = _shift_lightness(accent, 0.78)
     display_font = (branding.get("font_family_display") or "Outfit").strip()
     body_font = (branding.get("font_family_body") or "Plus Jakarta Sans").strip()
-    custom_css = (branding.get("custom_css") or "").strip()
+    custom_css = _sanitize_css((branding.get("custom_css") or "").strip())
 
     lines = [
         "/* Auto-generated starter theme */",

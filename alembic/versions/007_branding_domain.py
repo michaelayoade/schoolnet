@@ -6,6 +6,7 @@ Create Date: 2026-02-25
 """
 
 from alembic import op
+from sqlalchemy import text
 
 revision = "007_branding_domain"
 down_revision = "006_schema_hardening"
@@ -14,14 +15,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE settingdomain ADD VALUE IF NOT EXISTS 'branding'")
-    op.execute(
-        """
-        UPDATE domain_settings
-        SET domain = 'branding'
-        WHERE domain = 'scheduler'
-          AND key = 'ui_branding'
-        """
+    # ALTER TYPE ... ADD VALUE cannot run inside a transaction in PostgreSQL.
+    # We must commit the current transaction, add the value, then start a new one.
+    bind = op.get_bind()
+    bind.execute(text("COMMIT"))
+    bind.execute(
+        text("ALTER TYPE settingdomain ADD VALUE IF NOT EXISTS 'branding'")
+    )
+    bind.execute(text("BEGIN"))
+    bind.execute(
+        text(
+            "UPDATE domain_settings"
+            " SET domain = 'branding'"
+            " WHERE domain = 'scheduler'"
+            "   AND key = 'ui_branding'"
+        )
     )
 
 

@@ -16,11 +16,6 @@ from app.services.school import SchoolService
 logger = logging.getLogger(__name__)
 
 
-def _validate_password_strength(password: str) -> None:
-    if len(password) < 8:
-        raise ValueError("Password must be at least 8 characters")
-
-
 class RegistrationService:
     """Handles user registration and role assignment."""
 
@@ -80,8 +75,6 @@ class RegistrationService:
         if self.email_exists(email):
             raise ValueError("An account with this email already exists")
         self._validate_password(password)
-
-        _validate_password_strength(password)
         person = self._create_person(first_name, last_name, email, phone)
         self._create_credential(person.id, password)
         self._assign_role(person.id, "parent")
@@ -106,8 +99,6 @@ class RegistrationService:
         if self.email_exists(email):
             raise ValueError("An account with this email already exists")
         self._validate_password(password)
-
-        _validate_password_strength(password)
         person = self._create_person(first_name, last_name, email, phone)
         self._create_credential(person.id, password)
         self._assign_role(person.id, "school_admin")

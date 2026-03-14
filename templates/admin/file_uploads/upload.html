@@ -11,14 +11,14 @@
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state.csrf_token is defined else '' }}" />
 
         <!-- File Drop Zone -->
-        <div x-data="{ dragging: false, fileName: '' }" class="mb-6">
+        <div x-data="fileDrop" class="mb-6">
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">File <span class="text-red-500">*</span></label>
             <div class="relative"
-                 x-on:dragover.prevent="dragging = true"
-                 x-on:dragleave.prevent="dragging = false"
-                 x-on:drop.prevent="dragging = false; fileName = $event.dataTransfer.files[0]?.name || ''; $refs.fileInput.files = $event.dataTransfer.files">
+                 x-on:dragover.prevent="onDragOver()"
+                 x-on:dragleave.prevent="onDragLeave()"
+                 x-on:drop.prevent="onDrop($event)">
                 <input type="file" name="file" required x-ref="fileInput"
-                       x-on:change="fileName = $event.target.files[0]?.name || ''"
+                       x-on:change="onFileChange($event)"
                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                 <div class="border-2 border-dashed rounded-xl p-8 text-center transition-colors"
                      :class="dragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-300 dark:border-slate-600 hover:border-primary-400'">

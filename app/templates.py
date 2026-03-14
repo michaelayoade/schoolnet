@@ -126,4 +126,4 @@ templates.env.filters["format_currency"] = _format_currency
 templates.env.filters["format_naira"] = _format_naira
 templates.env.filters["format_number"] = _format_number
 templates.env.filters["timeago"] = _timeago
-templates.env.globals["current_year"] = datetime.now(UTC).year
+templates.env.globals["current_year"] = datetime.now(timezone.utc).year

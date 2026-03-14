@@ -43,7 +43,7 @@ def _get_smtp_config() -> dict:
         "use_tls": _env_bool("SMTP_USE_TLS", True),
         "use_ssl": _env_bool("SMTP_USE_SSL", False),
         "from_email": _env_value("SMTP_FROM_EMAIL") or "noreply@example.com",
-        "from_name": _env_value("SMTP_FROM_NAME") or "Starter Template",
+        "from_name": _env_value("SMTP_FROM_NAME") or "SchoolNet",
     }
 
 
@@ -82,7 +82,7 @@ def send_email(
 
         logger.info("Email sent to %s", to_email)
         return True
-    except (smtplib.SMTPException, OSError, ValueError, Exception) as exc:
+    except (smtplib.SMTPException, OSError) as exc:
         logger.error("Failed to send email to %s: %s", to_email, exc)
         return False
 

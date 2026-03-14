@@ -71,6 +71,9 @@ Thumbs.db
 # Poetry
 poetry.lock
 
+# Node
+node_modules/
+
 # Docker
 .docker/
 

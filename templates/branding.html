@@ -19,7 +19,7 @@
   </div>
   {% endif %}
 
-  <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]" x-data='{ primary: {{ branding.primary_color | tojson }}, accent: {{ branding.accent_color | tojson }}, displayFont: {{ branding.font_family_display | tojson }}, bodyFont: {{ branding.font_family_body | tojson }} }'>
+  <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]" x-data="brandingEditor" data-init='{{ {"primary": branding.primary_color, "accent": branding.accent_color, "displayFont": branding.font_family_display, "bodyFont": branding.font_family_body} | tojson }}'>
     <form method="POST" action="/settings/branding" enctype="multipart/form-data" class="space-y-6">
       {{ request.state.csrf_form | safe }}
       <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
@@ -88,13 +88,13 @@
         <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Live Preview</h2>
         <div class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700"
-               :style="{ background: `linear-gradient(120deg, ${primary}, ${accent})` }">
+               x-bind:style="gradientStyle()">
             <span class="text-sm font-semibold text-white" x-text="displayFont"></span>
             <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs text-white">Preview</span>
           </div>
           <div class="p-4">
-            <h3 class="font-display text-lg text-slate-900 dark:text-white" :style="{ fontFamily: displayFont }">Heading Sample</h3>
-            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300" :style="{ fontFamily: bodyFont }">Body sample text for readability and spacing.</p>
+            <h3 class="font-display text-lg text-slate-900 dark:text-white" x-bind:style="displayFontStyle()">Heading Sample</h3>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300" x-bind:style="bodyFontStyle()">Body sample text for readability and spacing.</p>
             <button class="btn-brand mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold">Primary Action</button>
           </div>
         </div>

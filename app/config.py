@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class Settings:
     database_url: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg://postgres:postgres@localhost:5434/starter_template",
+        "postgresql+psycopg://postgres:postgres@localhost:5434/schoolnet",
     )
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     secret_key: str = os.getenv("SECRET_KEY", "")
@@ -33,8 +33,8 @@ class Settings:
     avatar_url_prefix: str = os.getenv("AVATAR_URL_PREFIX", "/static/avatars")
 
     # Branding
-    brand_name: str = os.getenv("BRAND_NAME", "Starter Template")
-    brand_tagline: str = os.getenv("BRAND_TAGLINE", "FastAPI starter")
+    brand_name: str = os.getenv("BRAND_NAME", "SchoolNet")
+    brand_tagline: str = os.getenv("BRAND_TAGLINE", "School management platform")
     brand_logo_url: str | None = os.getenv("BRAND_LOGO_URL") or None
     branding_upload_dir: str = os.getenv("BRANDING_UPLOAD_DIR", "static/branding")
     branding_max_size_bytes: int = int(

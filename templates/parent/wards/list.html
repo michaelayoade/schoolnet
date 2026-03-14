@@ -51,8 +51,11 @@
                 Edit
             </a>
             <form method="POST" action="/parent/wards/delete/{{ ward.id }}" class="ml-auto"
-                  x-data
-                  x-on:submit.prevent="$dispatch('confirm-action', { title: 'Remove Ward', message: 'Are you sure you want to remove this ward? This action cannot be undone.', confirmLabel: 'Remove', form: $el })">
+                  x-data="confirmAction"
+                  data-confirm-title="Remove Ward"
+                  data-confirm-message="Are you sure you want to remove this ward? This action cannot be undone."
+                  data-confirm-label="Remove"
+                  x-on:submit.prevent="dispatchConfirm()">
                 {{ request.state.csrf_form | safe }}
                 <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400 hover:underline">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

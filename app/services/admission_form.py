@@ -13,6 +13,31 @@ from app.schemas.school import AdmissionFormCreate, AdmissionFormUpdate
 
 logger = logging.getLogger(__name__)
 
+_VALID_FIELD_TYPES = {"text", "number", "select", "date", "file", "checkbox"}
+
+
+def validate_form_fields(fields: list | None) -> None:
+    """Validate form_fields schema: each field must have name (str) and type."""
+    if not fields:
+        return
+    if not isinstance(fields, list):
+        raise ValueError("form_fields must be a list")
+    for i, field in enumerate(fields):
+        if not isinstance(field, dict):
+            raise ValueError(f"form_fields[{i}] must be a dict")
+        name = field.get("name")
+        if not name or not isinstance(name, str):
+            raise ValueError(f"form_fields[{i}].name is required and must be a string")
+        ftype = field.get("type")
+        if not ftype or ftype not in _VALID_FIELD_TYPES:
+            raise ValueError(
+                f"form_fields[{i}].type must be one of: {', '.join(sorted(_VALID_FIELD_TYPES))}"
+            )
+        if "required" in field and not isinstance(field["required"], bool):
+            raise ValueError(f"form_fields[{i}].required must be a boolean")
+        if ftype == "select" and not field.get("options"):
+            raise ValueError(f"form_fields[{i}] of type 'select' must have options")
+
 
 class AdmissionFormService:
     def __init__(self, db: Session) -> None:
@@ -22,6 +47,7 @@ class AdmissionFormService:
         school = self.db.get(School, payload.school_id)
         if not school:
             raise ValueError("School not found")
+        validate_form_fields(payload.form_fields)
 
         # Create billing Product
         product = Product(
@@ -115,6 +141,8 @@ class AdmissionFormService:
         self, form: AdmissionForm, payload: AdmissionFormUpdate
     ) -> AdmissionForm:
         data = payload.model_dump(exclude_unset=True)
+        if "form_fields" in data:
+            validate_form_fields(data["form_fields"])
 
         # Update price if changed
         price_amount = data.pop("price_amount", None)

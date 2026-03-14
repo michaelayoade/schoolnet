@@ -106,7 +106,11 @@ class ApplicationService:
         if not person:
             raise ValueError("Parent not found")
 
-        form = self.db.get(AdmissionForm, admission_form_id)
+        form = self.db.scalar(
+            select(AdmissionForm)
+            .where(AdmissionForm.id == admission_form_id)
+            .with_for_update()
+        )
         if not form:
             raise ValueError("Admission form not found")
         if form.status != AdmissionFormStatus.active:
@@ -284,8 +288,12 @@ class ApplicationService:
         )
         self.db.add(application)
 
-        # Increment form submissions
-        form = self.db.get(AdmissionForm, form_uuid)
+        # Increment form submissions with row lock
+        form = self.db.scalar(
+            select(AdmissionForm)
+            .where(AdmissionForm.id == form_uuid)
+            .with_for_update()
+        )
         if form:
             form.current_submissions += 1
 
@@ -335,7 +343,7 @@ class ApplicationService:
                     reference=reference,
                     school_name=school_name,
                 )
-        except Exception as e:
+        except (ImportError, RuntimeError, ValueError) as e:
             logger.warning("Failed to queue payment receipt email: %s", e)
 
         return application
@@ -345,6 +353,11 @@ class ApplicationService:
     def get_by_id(self, app_id: UUID) -> Application | None:
         application: Application | None = self.db.get(Application, app_id)
         return application
+
+    def get_for_update(self, app_id: UUID) -> Application | None:
+        """Fetch application with a FOR UPDATE row lock to prevent race conditions."""
+        stmt = select(Application).where(Application.id == app_id).with_for_update()
+        return self.db.scalar(stmt)
 
     @staticmethod
     def _form_text_value(form_data: Mapping[str, Any], key: str) -> str:
@@ -454,6 +467,7 @@ class ApplicationService:
         ward_passport_url: str | None = None,
     ) -> Application:
         """Fill and submit an application (draft → submitted)."""
+        application = self.get_for_update(application.id) or application
         self._validate_transition(application.status, ApplicationStatus.submitted)
 
         application.ward_first_name = ward_first_name
@@ -499,6 +513,7 @@ class ApplicationService:
         review_notes: str | None = None,
     ) -> Application:
         """Review an application (submitted/under_review → accepted/rejected)."""
+        application = self.get_for_update(application.id) or application
         # First transition to under_review if not already
         if application.status == ApplicationStatus.submitted:
             self._validate_transition(
@@ -512,6 +527,14 @@ class ApplicationService:
             else ApplicationStatus.rejected
         )
         self._validate_transition(application.status, target)
+
+        if target == ApplicationStatus.accepted:
+            self.validate_documents_for_acceptance(application)
+            # Check school capacity
+            from app.services.school import SchoolService
+            form = application.admission_form
+            if form and form.school_id:
+                SchoolService(self.db).check_capacity(form.school_id)
 
         application.status = target
         application.reviewed_at = datetime.now(UTC)
@@ -559,18 +582,36 @@ class ApplicationService:
                     decision=decision,
                     school_name=school_name,
                 )
-        except Exception as e:
+        except (ImportError, RuntimeError, ValueError) as e:
             logger.warning("Failed to queue review status email: %s", e)
 
         return application
 
     def withdraw(self, application: Application) -> Application:
         """Withdraw an application (submitted → withdrawn)."""
+        application = self.get_for_update(application.id) or application
         self._validate_transition(application.status, ApplicationStatus.withdrawn)
         application.status = ApplicationStatus.withdrawn
         self.db.flush()
         logger.info("Application withdrawn: %s", application.id)
         return application
+
+    def validate_documents_for_acceptance(self, application: Application) -> None:
+        """Ensure all required documents are verified before accepting."""
+        form = application.admission_form
+        if not form or not form.required_documents:
+            return
+        metadata = application.metadata_ or {}
+        doc_statuses = metadata.get("document_statuses", {})
+        missing = []
+        for doc_name in form.required_documents:
+            status_entry = doc_statuses.get(doc_name, {})
+            if status_entry.get("status") != "verified":
+                missing.append(doc_name)
+        if missing:
+            raise ValueError(
+                f"Required documents not yet verified: {', '.join(missing)}"
+            )
 
     def _validate_transition(
         self, current: ApplicationStatus, target: ApplicationStatus

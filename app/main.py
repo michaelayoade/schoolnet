@@ -37,6 +37,7 @@ from app.services.settings_seed import (
     seed_audit_settings,
     seed_auth_settings,
     seed_billing_settings,
+    seed_scheduled_tasks,
     seed_scheduler_settings,
 )
 from app.telemetry import setup_otel
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI):  # type: ignore[arg-type]
             seed_audit_settings(db)
             seed_scheduler_settings(db)
             seed_billing_settings(db)
+            seed_scheduled_tasks(db)
             logger.info("lifespan_seed_done")
         finally:
             db.close()
@@ -82,7 +84,7 @@ async def lifespan(app: FastAPI):  # type: ignore[arg-type]
     logger.info("Application shutting down")
 
 
-app = FastAPI(title="Starter Template API", lifespan=lifespan)
+app = FastAPI(title="SchoolNet API", lifespan=lifespan)
 
 _AUDIT_SETTINGS_CACHE: dict[str, Any] | None = None
 _AUDIT_SETTINGS_CACHE_AT: float | None = None
@@ -253,6 +255,8 @@ from app.api.payments import router as payments_router  # noqa: E402
 from app.api.schools import router as schools_router  # noqa: E402
 from app.api.ws import router as ws_router  # noqa: E402
 from app.web.admin_schools import router as web_admin_schools_router  # noqa: E402
+from app.web.ads import public_router as web_ads_public_router  # noqa: E402
+from app.web.ads import router as web_ads_router  # noqa: E402
 from app.web.audit import router as web_audit_router  # noqa: E402
 from app.web.auth import router as web_auth_router  # noqa: E402
 from app.web.billing.coupons import router as web_billing_coupons_router  # noqa: E402
@@ -358,6 +362,8 @@ app.include_router(web_school_verification_router)
 app.include_router(web_school_notifications_router)
 app.include_router(web_school_payments_router)
 app.include_router(web_admin_schools_router)
+app.include_router(web_ads_router)
+app.include_router(web_ads_public_router)
 
 app.include_router(web_home_router)
 

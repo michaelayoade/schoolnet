@@ -5,7 +5,7 @@
     <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">Find Schools</h1>
 
     <!-- Search & Filters -->
-    <form method="GET" action="/schools" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-8">
+    <form method="GET" action="/schools" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-2">
                 <label for="search-q" class="sr-only">Search by name</label>
@@ -66,11 +66,59 @@
         </div>
     </form>
 
-    <!-- Results -->
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{{ total }} school{{ 's' if total != 1 else '' }} found</p>
+    <!-- Active Filter Chips -->
+    {% set active_filters = [] %}
+    {% if q %}{% set _ = active_filters.append({"label": "Search: " ~ q, "param": "q"}) %}{% endif %}
+    {% if state %}{% set _ = active_filters.append({"label": "State: " ~ state, "param": "state"}) %}{% endif %}
+    {% if school_type %}{% set _ = active_filters.append({"label": "Type: " ~ (school_type | replace('_', ' ') | title), "param": "school_type"}) %}{% endif %}
+    {% if city %}{% set _ = active_filters.append({"label": "City: " ~ city, "param": "city"}) %}{% endif %}
+    {% if category %}{% set _ = active_filters.append({"label": "Category: " ~ (category | title), "param": "category"}) %}{% endif %}
+    {% if gender %}{% set _ = active_filters.append({"label": "Gender: " ~ (gender | replace('_', ' ') | title), "param": "gender"}) %}{% endif %}
+    {% if fee_min %}{% set _ = active_filters.append({"label": "Min: \u20a6" ~ fee_min, "param": "fee_min"}) %}{% endif %}
+    {% if fee_max %}{% set _ = active_filters.append({"label": "Max: \u20a6" ~ fee_max, "param": "fee_max"}) %}{% endif %}
 
+    {% if active_filters %}
+    <div class="flex flex-wrap items-center gap-2 mb-4" x-data="filterChips">
+        {% for f in active_filters %}
+        <span class="filter-chip">
+            {{ f.label }}
+            <button type="button" x-on:click="dismiss('{{ f.param }}')" aria-label="Remove filter">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </span>
+        {% endfor %}
+        {% if active_filters | length > 1 %}
+        <a href="/schools" class="text-xs text-primary-600 dark:text-primary-400 hover:underline ml-1">Clear all</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% from "components/_ad_slot.html" import ad_slot %}
+    <!-- Top Ad Slot -->
+    {% if search_top_ads %}
+    <div class="mb-6">
+        {{ ad_slot(search_top_ads, 'banner') }}
+    </div>
+    {% endif %}
+
+    <!-- Results Header with Sort -->
+    <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-slate-500 dark:text-slate-400">{{ total }} school{{ 's' if total != 1 else '' }} found</p>
+        <div class="flex items-center gap-2">
+            <label for="sort-select" class="text-xs text-slate-500 dark:text-slate-400">Sort:</label>
+            <select id="sort-select" class="text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1.5 text-slate-900 dark:text-white cursor-pointer">
+                <option value="" {{ 'selected' if not sort_by else '' }}>Relevance</option>
+                <option value="name" {{ 'selected' if sort_by == 'name' else '' }}>Name A-Z</option>
+                <option value="fee_asc" {{ 'selected' if sort_by == 'fee_asc' else '' }}>Fee: Low to High</option>
+                <option value="fee_desc" {{ 'selected' if sort_by == 'fee_desc' else '' }}>Fee: High to Low</option>
+                <option value="newest" {{ 'selected' if sort_by == 'newest' else '' }}>Newest</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Results -->
     {% if schools %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for school in schools %}
         <a href="/schools/{{ school.slug }}" class="block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden card-hover">
             <div class="h-28 bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/30 dark:to-accent-900/30 flex items-center justify-center">
@@ -103,15 +151,51 @@
     <!-- Pagination -->
     {% from "macros/ui_macros.html" import enhanced_pagination %}
     {{ enhanced_pagination(page, total_pages, "/schools", {"q": q if q else "", "state": state if state else "", "city": city if city else "", "school_type": school_type if school_type else "", "category": category if category else "", "gender": gender if gender else "", "fee_min": fee_min if fee_min else "", "fee_max": fee_max if fee_max else ""}) }}
+    <!-- Sidebar Ads below results -->
+    {% if search_sidebar_ads %}
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {{ ad_slot(search_sidebar_ads, 'sidebar') }}
+    </div>
+    {% endif %}
+
     {% else %}
-    <div class="text-center py-12">
-        <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-1">No schools found</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Try adjusting your search filters or browse all schools.</p>
-        <a href="/schools" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium">Clear Filters</a>
+    <!-- Enhanced Empty State -->
+    <div class="text-center py-16">
+        <div class="mx-auto w-24 h-24 mb-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+            <svg class="w-12 h-12 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2">No schools match your criteria</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-md mx-auto">Try broadening your search by removing some filters, or browse all available schools.</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="/schools" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium shadow-md">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Clear All Filters
+            </a>
+        </div>
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            var url = new URL(window.location.href);
+            if (this.value) {
+                url.searchParams.set('sort', this.value);
+            } else {
+                url.searchParams.delete('sort');
+            }
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        });
+    }
+})();
+</script>
 {% endblock %}

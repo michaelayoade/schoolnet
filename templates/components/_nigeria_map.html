@@ -1,0 +1,68 @@
+{# Nigeria Coverage Map Component
+   Shows the 6 geopolitical zones with school counts.
+   Usage: {% include "components/_nigeria_map.html" %}
+   Expected context: zone_data (dict) or uses defaults
+#}
+{% set zones = zone_data if zone_data is defined and zone_data else {
+    "North-West": {"count": 18, "states": "Kaduna, Kano, Katsina, Kebbi, Sokoto, Zamfara, Jigawa"},
+    "North-East": {"count": 8, "states": "Adamawa, Bauchi, Borno, Gombe, Taraba, Yobe"},
+    "North-Central": {"count": 15, "states": "Benue, Kogi, Kwara, Nasarawa, Niger, Plateau, FCT"},
+    "South-West": {"count": 38, "states": "Lagos, Ogun, Oyo, Osun, Ondo, Ekiti"},
+    "South-East": {"count": 12, "states": "Abia, Anambra, Ebonyi, Enugu, Imo"},
+    "South-South": {"count": 14, "states": "Akwa Ibom, Bayelsa, Cross River, Delta, Edo, Rivers"}
+} %}
+{% set total_map_schools = 0 %}
+{% for z, d in zones.items() %}{% set total_map_schools = total_map_schools + d.count %}{% endfor %}
+
+<div class="relative max-w-4xl mx-auto">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {% set zone_colors = {
+            "North-West": "from-amber-400 to-amber-500",
+            "North-East": "from-orange-400 to-orange-500",
+            "North-Central": "from-cyan-400 to-cyan-500",
+            "South-West": "from-emerald-400 to-emerald-500",
+            "South-East": "from-violet-400 to-violet-500",
+            "South-South": "from-blue-400 to-blue-500"
+        } %}
+        {% set zone_bg = {
+            "North-West": "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
+            "North-East": "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
+            "North-Central": "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800/40",
+            "South-West": "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40",
+            "South-East": "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/40",
+            "South-South": "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40"
+        } %}
+        {% set zone_text = {
+            "North-West": "text-amber-700 dark:text-amber-400",
+            "North-East": "text-orange-700 dark:text-orange-400",
+            "North-Central": "text-cyan-700 dark:text-cyan-400",
+            "South-West": "text-emerald-700 dark:text-emerald-400",
+            "South-East": "text-violet-700 dark:text-violet-400",
+            "South-South": "text-blue-700 dark:text-blue-400"
+        } %}
+        {% for zone_name, zone_info in zones.items() %}
+        <div class="relative rounded-xl border p-4 {{ zone_bg.get(zone_name, 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700') }} transition-all duration-200 hover:scale-[1.03] hover:shadow-lg cursor-default group">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br {{ zone_colors.get(zone_name, 'from-slate-400 to-slate-500') }} flex items-center justify-center shadow-sm">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <span class="text-2xl font-bold {{ zone_text.get(zone_name, 'text-slate-700 dark:text-slate-300') }} font-display">{{ zone_info.count }}</span>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-900 dark:text-white">{{ zone_name }}</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{{ zone_info.states }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Nigeria Outline SVG -->
+    <div class="hidden md:flex justify-center mt-8">
+        <svg viewBox="0 0 400 380" class="w-64 h-auto opacity-20 dark:opacity-10" fill="none" stroke="currentColor" stroke-width="1.5">
+            <!-- Simplified Nigeria outline -->
+            <path d="M120,30 L180,20 L230,25 L280,15 L320,30 L340,60 L350,100 L360,140 L355,180 L340,220 L320,250 L290,280 L260,310 L230,330 L200,350 L170,340 L140,320 L110,290 L90,260 L80,230 L75,200 L80,170 L90,140 L100,110 L110,80 Z" stroke="#06b6d4" fill="#06b6d4" fill-opacity="0.05"/>
+            <!-- Niger River -->
+            <path d="M150,100 Q200,180 250,220 Q280,250 260,310" stroke="#06b6d4" stroke-opacity="0.3" stroke-dasharray="4,4" fill="none"/>
+            <!-- Benue River -->
+            <path d="M250,220 Q300,210 340,200" stroke="#06b6d4" stroke-opacity="0.3" stroke-dasharray="4,4" fill="none"/>
+        </svg>
+    </div>
+</div>

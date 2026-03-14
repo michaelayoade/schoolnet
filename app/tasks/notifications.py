@@ -120,6 +120,27 @@ def send_payment_receipt_email_task(
 
 
 @celery_app.task(bind=True, max_retries=3)
+def archive_old_notifications_task(self) -> dict:
+    """Archive notifications older than 90 days."""
+    db: Session | None = None
+    try:
+        db = SessionLocal()
+        from app.services.notification import NotificationService
+
+        svc = NotificationService(db)
+        count = svc.archive_old(days=90)
+        db.commit()
+        logger.info("archive_old_notifications_task completed: %d archived", count)
+        return {"success": True, "archived_count": count}
+    except (OSError, ConnectionError) as exc:
+        logger.warning("archive_old_notifications_task failed (retrying): %s", exc)
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+    finally:
+        if db:
+            db.close()
+
+
+@celery_app.task(bind=True, max_retries=3)
 def send_new_application_email_task(
     self,
     recipient_email: str,

@@ -11,6 +11,25 @@ from app.services.response import ListResponseMixin
 
 logger = logging.getLogger(__name__)
 
+_SENSITIVE_KEYS = frozenset({
+    "password", "token", "secret", "api_key", "access_token",
+    "refresh_token", "authorization", "credit_card", "ssn",
+    "card_number", "cvv", "pin",
+})
+
+
+def _redact_params(params: dict) -> dict:
+    """Redact sensitive values from query/form parameters for audit logs."""
+    if not params:
+        return params
+    redacted = {}
+    for key, value in params.items():
+        if key.lower() in _SENSITIVE_KEYS:
+            redacted[key] = "***REDACTED***"
+        else:
+            redacted[key] = value
+    return redacted
+
 
 class AuditEventNotFoundError(ValueError):
     pass
@@ -135,7 +154,7 @@ class AuditEvents(ListResponseMixin):
             request_id=request_id,
             metadata_={
                 "path": request.url.path,
-                "query": query_params,
+                "query": _redact_params(query_params),
             },
         )
         event = AuditEvent(**payload.model_dump())

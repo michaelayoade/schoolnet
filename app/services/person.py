@@ -94,8 +94,9 @@ class People(ListResponseMixin):
         person = db.get(Person, coerce_uuid(person_id))
         if not person:
             raise PersonNotFoundError("Person not found")
-        db.delete(person)
+        person.is_active = False
         db.flush()
+        logger.info("Soft-deleted person: %s", person.id)
 
 
 people = People()

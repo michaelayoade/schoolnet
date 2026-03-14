@@ -1,0 +1,28 @@
+{
+  "name": "schoolnet",
+  "version": "1.0.0",
+  "description": "A school management platform built with FastAPI, featuring authentication, RBAC, audit logging, background jobs, and full observability.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "css:build": "tailwindcss -i src/input.css -o static/css/style.css --minify",
+    "css:watch": "tailwindcss -i src/input.css -o static/css/style.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michaelayoade/schoolnet.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/michaelayoade/schoolnet/issues"
+  },
+  "homepage": "https://github.com/michaelayoade/schoolnet#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}

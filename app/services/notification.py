@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -133,6 +133,24 @@ class NotificationService:
         self.db.flush()
         count = result.rowcount  # type: ignore[union-attr]
         logger.info("Marked %d notifications as read for %s", count, recipient_id)
+        return count
+
+    def archive_old(self, days: int = 90) -> int:
+        """Archive notifications older than `days` days. Returns count updated."""
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        stmt = (
+            update(Notification)
+            .where(
+                Notification.is_active.is_(True),
+                Notification.created_at < cutoff,
+            )
+            .values(is_active=False)
+        )
+        result = self.db.execute(stmt)
+        self.db.flush()
+        count = result.rowcount  # type: ignore[union-attr]
+        if count:
+            logger.info("Archived %d notifications older than %d days", count, days)
         return count
 
     # ── Trigger helpers ──────────────────────────────────────

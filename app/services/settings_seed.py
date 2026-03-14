@@ -1,8 +1,11 @@
+import logging
 import os
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.domain_settings import SettingValueType
+from app.models.scheduler import ScheduledTask, ScheduleType
 from app.services.domain_settings import (
     audit_settings,
     auth_settings,
@@ -10,6 +13,8 @@ from app.services.domain_settings import (
     scheduler_settings,
 )
 from app.services.secrets import is_openbao_ref
+
+logger = logging.getLogger(__name__)
 
 
 def _csv_list(raw: str | None, upper: bool = True) -> list[str] | None:
@@ -74,7 +79,7 @@ def seed_auth_settings(db: Session) -> None:
         db,
         key="totp_issuer",
         value_type=SettingValueType.string,
-        value_text=os.getenv("TOTP_ISSUER", "starter_template"),
+        value_text=os.getenv("TOTP_ISSUER", "schoolnet"),
     )
     auth_settings.ensure_by_key(
         db,
@@ -237,3 +242,39 @@ def seed_billing_settings(db: Session) -> None:
         value_type=SettingValueType.integer,
         value_text=os.getenv("BILLING_WEBHOOK_TOLERANCE_SECONDS", "300"),
     )
+
+
+def seed_scheduled_tasks(db: Session) -> None:
+    """Ensure default scheduled tasks exist."""
+    task_name = "app.tasks.ads.expire_stale_ads_task"
+    existing = db.scalar(
+        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+    )
+    if not existing:
+        task = ScheduledTask(
+            name="Expire stale ads",
+            task_name=task_name,
+            schedule_type=ScheduleType.interval,
+            interval_seconds=3600,  # hourly
+            enabled=True,
+        )
+        db.add(task)
+        db.flush()
+        logger.info("Seeded scheduled task: %s", task_name)
+    # Archive old notifications daily
+    archive_task_name = "app.tasks.notifications.archive_old_notifications_task"
+    existing_archive = db.scalar(
+        select(ScheduledTask).where(ScheduledTask.task_name == archive_task_name)
+    )
+    if not existing_archive:
+        archive_task = ScheduledTask(
+            name="Archive old notifications",
+            task_name=archive_task_name,
+            schedule_type=ScheduleType.interval,
+            interval_seconds=86400,  # daily
+            enabled=True,
+        )
+        db.add(archive_task)
+        db.flush()
+        logger.info("Seeded scheduled task: %s", archive_task_name)
+    db.commit()

@@ -9,6 +9,16 @@
             <circle cx="900" cy="500" r="250" stroke="white" stroke-width="1" opacity="0.2"/>
             <circle cx="600" cy="300" r="200" stroke="white" stroke-width="1" opacity="0.15"/>
             <path d="M0 300 Q300 100 600 300 Q900 500 1200 300" stroke="white" stroke-width="2" fill="none" opacity="0.15"/>
+            <!-- Grid pattern -->
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="0.5" opacity="0.1"/>
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#grid)"/>
+            <!-- Floating shapes -->
+            <rect x="100" y="400" width="30" height="30" rx="6" stroke="white" stroke-width="1" opacity="0.15" transform="rotate(15 115 415)"/>
+            <rect x="1050" y="120" width="25" height="25" rx="5" stroke="white" stroke-width="1" opacity="0.12" transform="rotate(-20 1062 132)"/>
+            <circle cx="850" cy="150" r="15" stroke="white" stroke-width="1" opacity="0.15" fill="none"/>
+            <circle cx="300" cy="480" r="12" stroke="white" stroke-width="1" opacity="0.12" fill="none"/>
         </svg>
     </div>
     <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -47,23 +57,61 @@
     </div>
 </section>
 
-<!-- Stats -->
-<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-    <div class="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
+<!-- Animated Stats -->
+<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14" x-data="scrollCounter" x-intersect.once="startCounting()">
+    <div class="grid grid-cols-3 gap-8 max-w-3xl mx-auto">
         <div class="text-center">
-            <p class="text-2xl md:text-3xl font-bold text-primary-600 dark:text-primary-400 font-display">100+</p>
+            <p class="text-3xl md:text-4xl font-bold text-primary-600 dark:text-primary-400 font-display">
+                <span class="count-up" x-text="val1">0</span><span>+</span>
+            </p>
             <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">Verified Schools</p>
         </div>
         <div class="text-center">
-            <p class="text-2xl md:text-3xl font-bold text-primary-600 dark:text-primary-400 font-display">1K+</p>
+            <p class="text-3xl md:text-4xl font-bold text-primary-600 dark:text-primary-400 font-display">
+                <span class="count-up" x-text="val2 >= 1000 ? Math.floor(val2/1000) + 'K' : val2">0</span><span>+</span>
+            </p>
             <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">Happy Parents</p>
         </div>
         <div class="text-center">
-            <p class="text-2xl md:text-3xl font-bold text-primary-600 dark:text-primary-400 font-display">36</p>
+            <p class="text-3xl md:text-4xl font-bold text-primary-600 dark:text-primary-400 font-display">
+                <span class="count-up" x-text="val3">0</span>
+            </p>
             <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">States Covered</p>
         </div>
     </div>
 </section>
+
+<!-- Nigeria Coverage Map -->
+<section class="py-16 bg-white dark:bg-slate-800/50 border-y border-slate-100 dark:border-slate-800">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white font-display">Schools Across Nigeria</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2 text-sm">Connecting families to quality education nationwide</p>
+        </div>
+        {% include "components/_nigeria_map.html" %}
+    </div>
+</section>
+
+<!-- Hero Ad Slot -->
+{% from "components/_ad_slot.html" import ad_slot, ad_featured_schools %}
+{% if hero_ads %}
+<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-8">
+    {{ ad_slot(hero_ads, 'banner') }}
+</section>
+{% endif %}
+
+<!-- Sponsored Schools -->
+{% if featured_ads %}
+<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex items-end justify-between mb-6">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white font-display">Sponsored Schools</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Schools you might be interested in</p>
+        </div>
+    </div>
+    {{ ad_featured_schools(featured_ads) }}
+</section>
+{% endif %}
 
 <!-- Featured Schools -->
 {% if featured_schools %}
@@ -153,6 +201,95 @@
                 </div>
                 <h3 class="font-semibold text-slate-900 dark:text-white text-lg">Track & Get Results</h3>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">Track your application status in real-time and receive admission decisions online.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section class="py-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+        <h2 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white font-display">What People Say</h2>
+        <p class="text-slate-500 dark:text-slate-400 mt-2 text-sm">Trusted by parents and schools across Nigeria</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="testimonial-float bg-gradient-to-br from-primary-50 to-white dark:from-primary-900/20 dark:to-slate-800 rounded-2xl border border-primary-100 dark:border-primary-900/40 p-6">
+            <div class="flex gap-0.5 mb-4">
+                {% for i in range(5) %}<svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>{% endfor %}
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">"SchoolNet made finding the right school so easy. We compared options across Lagos and found the perfect fit in just two days."</p>
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-primary-200 dark:bg-primary-800 flex items-center justify-center text-primary-700 dark:text-primary-300 text-sm font-bold">AO</div>
+                <div>
+                    <p class="text-sm font-medium text-slate-900 dark:text-white">Adaeze O.</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Parent from Lagos</p>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-float bg-gradient-to-br from-accent-50 to-white dark:from-accent-900/20 dark:to-slate-800 rounded-2xl border border-accent-100 dark:border-accent-900/40 p-6">
+            <div class="flex gap-0.5 mb-4">
+                {% for i in range(5) %}<svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>{% endfor %}
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">"Since listing on SchoolNet, our admission applications increased by 40%. The digital forms save us hours of paperwork every week."</p>
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-accent-200 dark:bg-accent-800 flex items-center justify-center text-accent-700 dark:text-accent-300 text-sm font-bold">PA</div>
+                <div>
+                    <p class="text-sm font-medium text-slate-900 dark:text-white">Principal Adebayo</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">School Administrator</p>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-float bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-slate-800 rounded-2xl border border-green-100 dark:border-green-900/40 p-6">
+            <div class="flex gap-0.5 mb-4">
+                {% for i in range(5) %}<svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>{% endfor %}
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">"I love being able to track my children's applications in real-time. No more calling schools for updates!"</p>
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-green-700 dark:text-green-300 text-sm font-bold">FM</div>
+                <div>
+                    <p class="text-sm font-medium text-slate-900 dark:text-white">Fatima M.</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Parent from Abuja</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Before/After Comparison -->
+<section class="py-16 bg-slate-50 dark:bg-slate-800/30 border-y border-slate-100 dark:border-slate-800">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white font-display">A Better Way to Apply</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2 text-sm">See how SchoolNet transforms the admissions experience</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- The Old Way -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-red-200 dark:border-red-900/40 p-6 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-400 to-red-500"></div>
+                <h3 class="text-lg font-semibold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    The Old Way
+                </h3>
+                <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>Paper forms collected in person</li>
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>Long queues at school gates</li>
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>Phone calls for status updates</li>
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>Manual record keeping</li>
+                </ul>
+            </div>
+            <!-- The SchoolNet Way -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-green-200 dark:border-green-900/40 p-6 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-green-400 to-emerald-500"></div>
+                <h3 class="text-lg font-semibold text-green-600 dark:text-green-400 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    The SchoolNet Way
+                </h3>
+                <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Digital applications from anywhere</li>
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Apply to multiple schools online</li>
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Real-time application tracking</li>
+                    <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Secure & organized records</li>
+                </ul>
             </div>
         </div>
     </div>
