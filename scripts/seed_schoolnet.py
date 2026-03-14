@@ -3,7 +3,7 @@
 from dotenv import load_dotenv
 
 from app.db import SessionLocal
-from app.models.rbac import Permission, PersonRole, Role, RolePermission
+from app.models.rbac import Permission, Role, RolePermission
 
 SCHOOLNET_PERMISSIONS = [
     ("schools:read", "View school profiles"),
