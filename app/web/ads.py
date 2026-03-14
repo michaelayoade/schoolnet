@@ -50,11 +50,15 @@ def list_ads(
     limit = 20
     offset = (page - 1) * limit
 
-    status_filter = AdStatus(status) if status and status in AdStatus.__members__ else None
+    status_filter = (
+        AdStatus(status) if status and status in AdStatus.__members__ else None
+    )
     slot_filter = AdSlot(slot) if slot and slot in AdSlot.__members__ else None
 
     total = svc.count(status=status_filter, slot=slot_filter)
-    ads = svc.list_all(status=status_filter, slot=slot_filter, limit=limit, offset=offset)
+    ads = svc.list_all(
+        status=status_filter, slot=slot_filter, limit=limit, offset=offset
+    )
     total_pages = (total + limit - 1) // limit if total else 1
 
     return templates.TemplateResponse(
@@ -130,9 +134,7 @@ async def create_ad(
         svc = AdService(db)
         svc.create(data)
         db.commit()
-        return RedirectResponse(
-            url="/admin/ads?success=Ad+created", status_code=303
-        )
+        return RedirectResponse(url="/admin/ads?success=Ad+created", status_code=303)
     except (ValueError, TypeError, KeyError) as e:
         db.rollback()
         logger.warning("Ad create error: %s", e)
@@ -259,9 +261,7 @@ def activate_ad(
         return RedirectResponse(url="/admin/ads?error=Ad+not+found", status_code=303)
     svc.activate(ad)
     db.commit()
-    return RedirectResponse(
-        url="/admin/ads?success=Ad+activated", status_code=303
-    )
+    return RedirectResponse(url="/admin/ads?success=Ad+activated", status_code=303)
 
 
 @router.post("/{ad_id}/pause")
@@ -277,9 +277,7 @@ def pause_ad(
         return RedirectResponse(url="/admin/ads?error=Ad+not+found", status_code=303)
     svc.pause(ad)
     db.commit()
-    return RedirectResponse(
-        url="/admin/ads?success=Ad+paused", status_code=303
-    )
+    return RedirectResponse(url="/admin/ads?success=Ad+paused", status_code=303)
 
 
 @router.post("/{ad_id}/delete")
@@ -295,9 +293,7 @@ def delete_ad(
         return RedirectResponse(url="/admin/ads?error=Ad+not+found", status_code=303)
     svc.delete(ad)
     db.commit()
-    return RedirectResponse(
-        url="/admin/ads?success=Ad+deleted", status_code=303
-    )
+    return RedirectResponse(url="/admin/ads?success=Ad+deleted", status_code=303)
 
 
 # ── Click tracking (public, no auth) ─────────────────────

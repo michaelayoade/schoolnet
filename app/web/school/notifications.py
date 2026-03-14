@@ -13,9 +13,7 @@ from app.templates import templates
 from app.web.schoolnet_deps import require_school_admin_auth
 
 logger = logging.getLogger(__name__)
-router = APIRouter(
-    prefix="/school/notifications", tags=["school-notifications"]
-)
+router = APIRouter(prefix="/school/notifications", tags=["school-notifications"])
 
 
 @router.get("")

@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
+import pytest
+
 
 def _real_validate_settings(s: object) -> list[str]:
     """Re-implement validate_settings logic for testing.
@@ -97,8 +99,8 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_liveness_always_ok(self) -> None:
         """Liveness probe should always return ok."""
-        from fastapi import FastAPI
         import httpx
+        from fastapi import FastAPI
 
         app = FastAPI()
 

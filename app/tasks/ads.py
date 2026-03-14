@@ -25,7 +25,7 @@ def expire_stale_ads_task(self) -> dict:
         return {"success": True, "expired_count": count}
     except (OSError, ConnectionError) as exc:
         logger.warning("expire_stale_ads_task failed (retrying): %s", exc)
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
     finally:
         if db:
             db.close()

@@ -1,5 +1,7 @@
 import uuid
 
+import pytest
+
 from app.models.scheduler import ScheduledTask, ScheduleType
 
 

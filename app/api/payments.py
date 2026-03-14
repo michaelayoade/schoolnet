@@ -23,9 +23,7 @@ async def paystack_webhook(request: Request, db: Session = Depends(get_db)) -> d
 
     if not paystack_gateway.is_configured():
         logger.warning("Rejected Paystack webhook: gateway is not configured")
-        raise HTTPException(
-            status_code=503, detail="Payment webhook is not configured"
-        )
+        raise HTTPException(status_code=503, detail="Payment webhook is not configured")
 
     if not paystack_gateway.validate_webhook_signature(body, signature):
         raise HTTPException(status_code=400, detail="Invalid signature")

@@ -170,7 +170,9 @@ class SchoolService:
         """List all active admission forms for a school."""
         stmt = (
             select(AdmissionForm)
-            .where(AdmissionForm.school_id == school_id, AdmissionForm.is_active.is_(True))
+            .where(
+                AdmissionForm.school_id == school_id, AdmissionForm.is_active.is_(True)
+            )
             .order_by(AdmissionForm.title)
         )
         return list(self.db.scalars(stmt).all())
@@ -213,7 +215,11 @@ class SchoolService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.scalar(count_stmt) or 0
 
-        stmt = stmt.order_by(School.is_featured.desc(), School.name).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(School.is_featured.desc(), School.name)
+            .limit(limit)
+            .offset(offset)
+        )
         schools = list(self.db.scalars(stmt).all())
         return schools, total
 
@@ -229,11 +235,16 @@ class SchoolService:
 
     def get_featured(self, limit: int = 6) -> list[School]:
         """Get featured schools, falling back to recently verified active schools."""
-        stmt = select(School).where(
-            School.status == SchoolStatus.active,
-            School.is_active.is_(True),
-            School.is_featured.is_(True),
-        ).order_by(School.name).limit(limit)
+        stmt = (
+            select(School)
+            .where(
+                School.status == SchoolStatus.active,
+                School.is_active.is_(True),
+                School.is_featured.is_(True),
+            )
+            .order_by(School.name)
+            .limit(limit)
+        )
         featured = list(self.db.scalars(stmt).all())
         if len(featured) < limit:
             # Fill with non-featured active schools
@@ -374,9 +385,11 @@ class SchoolService:
         form_stats = self.db.execute(
             select(
                 func.count().label("total"),
-                func.count(case(
-                    (AdmissionForm.status == AdmissionFormStatus.active, 1),
-                )).label("active"),
+                func.count(
+                    case(
+                        (AdmissionForm.status == AdmissionFormStatus.active, 1),
+                    )
+                ).label("active"),
             )
             .select_from(AdmissionForm)
             .where(
@@ -394,18 +407,29 @@ class SchoolService:
         app_stats = self.db.execute(
             select(
                 func.count().label("total"),
-                func.count(case(
-                    (Application.status.in_([
-                        ApplicationStatus.submitted,
-                        ApplicationStatus.under_review,
-                    ]), 1),
-                )).label("pending"),
-                func.count(case(
-                    (Application.status == ApplicationStatus.accepted, 1),
-                )).label("accepted"),
-                func.count(case(
-                    (Application.status == ApplicationStatus.rejected, 1),
-                )).label("rejected"),
+                func.count(
+                    case(
+                        (
+                            Application.status.in_(
+                                [
+                                    ApplicationStatus.submitted,
+                                    ApplicationStatus.under_review,
+                                ]
+                            ),
+                            1,
+                        ),
+                    )
+                ).label("pending"),
+                func.count(
+                    case(
+                        (Application.status == ApplicationStatus.accepted, 1),
+                    )
+                ).label("accepted"),
+                func.count(
+                    case(
+                        (Application.status == ApplicationStatus.rejected, 1),
+                    )
+                ).label("rejected"),
             )
             .select_from(Application)
             .where(
@@ -419,12 +443,9 @@ class SchoolService:
         rejected_apps = app_stats.rejected or 0
 
         # Revenue — sum of paid invoices linked to this school's applications
-        invoice_ids_stmt = (
-            select(Application.invoice_id)
-            .where(
-                Application.admission_form_id.in_(form_ids_stmt),
-                Application.invoice_id.isnot(None),
-            )
+        invoice_ids_stmt = select(Application.invoice_id).where(
+            Application.admission_form_id.in_(form_ids_stmt),
+            Application.invoice_id.isnot(None),
         )
         total_revenue: int = (
             self.db.scalar(

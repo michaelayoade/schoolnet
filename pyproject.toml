@@ -68,7 +68,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "S105"]  # asserts and hardcoded passwords OK in tests
+"tests/**" = ["S101", "S106", "S105", "S108", "E402"]  # asserts, passwords, tmpdir, late imports OK in tests
 "scripts/**" = ["T20"]                  # print() OK in scripts
 "alembic/**" = ["E501", "F401"]         # auto-generated migration code
 

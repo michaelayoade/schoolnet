@@ -1,5 +1,6 @@
-from app.models.domain_settings import DomainSetting, SettingDomain
 import pytest
+
+from app.models.domain_settings import DomainSetting, SettingDomain
 
 
 @pytest.fixture()

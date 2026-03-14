@@ -1,4 +1,5 @@
 """Tests for web MFA (TOTP) verification routes."""
+
 import re
 import uuid
 

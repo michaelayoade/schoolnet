@@ -10,7 +10,11 @@ from app.schemas.scheduler import (
 )
 from app.services import scheduler as scheduler_service
 
-router = APIRouter(prefix="/scheduler", tags=["scheduler"], dependencies=[Depends(require_role("admin"))])
+router = APIRouter(
+    prefix="/scheduler",
+    tags=["scheduler"],
+    dependencies=[Depends(require_role("admin"))],
+)
 
 
 @router.get("/tasks", response_model=ListResponse[ScheduledTaskRead])

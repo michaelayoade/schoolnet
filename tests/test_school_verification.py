@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from tests.conftest import _create_access_token
 
@@ -14,15 +14,21 @@ def _get_csrf(client):
 
 def _setup_school_admin(db_session):
     """Create school admin + school + auth session."""
+    from app.models.auth import Session as AuthSession
+    from app.models.auth import SessionStatus
     from app.models.person import Person
-    from app.models.auth import Session as AuthSession, SessionStatus
-    from app.models.rbac import Role, PersonRole
+    from app.models.rbac import PersonRole, Role
     from app.models.school import (
-        School, SchoolType, SchoolCategory, SchoolGender, SchoolStatus,
+        School,
+        SchoolCategory,
+        SchoolGender,
+        SchoolStatus,
+        SchoolType,
     )
 
     person = Person(
-        first_name="School", last_name="Admin",
+        first_name="School",
+        last_name="Admin",
         email=f"veradmin-{uuid.uuid4().hex[:8]}@example.com",
     )
     db_session.add(person)
@@ -110,9 +116,16 @@ class TestSchoolVerification:
 
         csrf = _get_csrf(client)
         import io
+
         resp = client.post(
             "/school/verification/upload",
-            files={"document": ("cac_cert.pdf", io.BytesIO(b"%PDF-fake"), "application/pdf")},
+            files={
+                "document": (
+                    "cac_cert.pdf",
+                    io.BytesIO(b"%PDF-fake"),
+                    "application/pdf",
+                )
+            },
             data={"csrf_token": csrf},
             headers={"X-CSRF-Token": csrf},
             cookies={"access_token": token, "csrf_token": csrf},

@@ -139,7 +139,9 @@ def export_applications_csv(
     """Export applications as CSV with current filters applied."""
     school_id = _get_school_id(db, auth)
     if not school_id:
-        return RedirectResponse(url="/school/applications?error=No+school+found", status_code=303)
+        return RedirectResponse(
+            url="/school/applications?error=No+school+found", status_code=303
+        )
 
     status_filter: ApplicationStatus | None = None
     if status:
@@ -163,40 +165,44 @@ def export_applications_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Application #",
-        "Ward First Name",
-        "Ward Last Name",
-        "Ward DOB",
-        "Ward Gender",
-        "Parent Name",
-        "Parent Email",
-        "Parent Phone",
-        "Form",
-        "Status",
-        "Submitted At",
-        "Reviewed At",
-        "Review Notes",
-    ])
+    writer.writerow(
+        [
+            "Application #",
+            "Ward First Name",
+            "Ward Last Name",
+            "Ward DOB",
+            "Ward Gender",
+            "Parent Name",
+            "Parent Email",
+            "Parent Phone",
+            "Form",
+            "Status",
+            "Submitted At",
+            "Reviewed At",
+            "Review Notes",
+        ]
+    )
 
     for app in result["items"]:
         form = app.admission_form
         parent = app.parent
-        writer.writerow([
-            app.application_number,
-            app.ward_first_name or "",
-            app.ward_last_name or "",
-            str(app.ward_date_of_birth) if app.ward_date_of_birth else "",
-            app.ward_gender or "",
-            f"{parent.first_name} {parent.last_name}" if parent else "",
-            parent.email if parent else "",
-            parent.phone if parent else "",
-            form.title if form else "",
-            app.status.value if app.status else "",
-            app.submitted_at.strftime("%Y-%m-%d %H:%M") if app.submitted_at else "",
-            app.reviewed_at.strftime("%Y-%m-%d %H:%M") if app.reviewed_at else "",
-            app.review_notes or "",
-        ])
+        writer.writerow(
+            [
+                app.application_number,
+                app.ward_first_name or "",
+                app.ward_last_name or "",
+                str(app.ward_date_of_birth) if app.ward_date_of_birth else "",
+                app.ward_gender or "",
+                f"{parent.first_name} {parent.last_name}" if parent else "",
+                parent.email if parent else "",
+                parent.phone if parent else "",
+                form.title if form else "",
+                app.status.value if app.status else "",
+                app.submitted_at.strftime("%Y-%m-%d %H:%M") if app.submitted_at else "",
+                app.reviewed_at.strftime("%Y-%m-%d %H:%M") if app.reviewed_at else "",
+                app.review_notes or "",
+            ]
+        )
 
     output.seek(0)
     return StreamingResponse(
@@ -215,7 +221,9 @@ def application_detail(
 ) -> Response:
     school_id = _get_school_id(db, auth)
     if not school_id:
-        return RedirectResponse(url="/school/applications?error=No+school+found", status_code=303)
+        return RedirectResponse(
+            url="/school/applications?error=No+school+found", status_code=303
+        )
 
     application = _get_app_for_school(db, app_id, school_id)
     if not application:
@@ -247,7 +255,9 @@ def verify_document(
     """Mark an individual document as verified or rejected."""
     school_id = _get_school_id(db, auth)
     if not school_id:
-        return RedirectResponse(url="/school/applications?error=No+school+found", status_code=303)
+        return RedirectResponse(
+            url="/school/applications?error=No+school+found", status_code=303
+        )
 
     application = _get_app_for_school(db, app_id, school_id)
     if not application:
@@ -282,7 +292,9 @@ def review_application(
 ) -> Response:
     school_id = _get_school_id(db, auth)
     if not school_id:
-        return RedirectResponse(url="/school/applications?error=No+school+found", status_code=303)
+        return RedirectResponse(
+            url="/school/applications?error=No+school+found", status_code=303
+        )
 
     application = _get_app_for_school(db, app_id, school_id)
     if not application:

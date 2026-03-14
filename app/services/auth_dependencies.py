@@ -46,7 +46,9 @@ def _set_cached_permission(person_id: str, permission_key: str, has_perm: bool) 
                 del _permission_cache[k]
             # If still over limit after eviction, clear oldest half
             if len(_permission_cache) >= _PERMISSION_CACHE_MAX_SIZE:
-                sorted_keys = sorted(_permission_cache, key=lambda k: _permission_cache[k][1])
+                sorted_keys = sorted(
+                    _permission_cache, key=lambda k: _permission_cache[k][1]
+                )
                 for k in sorted_keys[: len(sorted_keys) // 2]:
                     del _permission_cache[k]
         _permission_cache[key] = (has_perm, now + _PERMISSION_CACHE_TTL)

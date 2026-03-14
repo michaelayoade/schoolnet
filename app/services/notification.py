@@ -35,7 +35,9 @@ def _push_ws(recipient_id: UUID, notification: Notification) -> None:
             "id": str(notification.id),
             "title": notification.title,
             "message": notification.message or "",
-            "notification_type": notification.type.value if notification.type else "info",
+            "notification_type": notification.type.value
+            if notification.type
+            else "info",
             "action_url": notification.action_url or "",
         }
         loop.create_task(ws_manager.send_to_person(recipient_id, data))

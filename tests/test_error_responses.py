@@ -1,9 +1,10 @@
 """Tests for structured error responses with request_id."""
+
 from __future__ import annotations
 
+import httpx
 import pytest
 import pytest_asyncio
-import httpx
 from fastapi import FastAPI, HTTPException
 
 from app.errors import register_error_handlers
@@ -28,7 +29,11 @@ def app_with_errors() -> FastAPI:
     def http_error_dict():
         raise HTTPException(
             status_code=400,
-            detail={"code": "invalid_input", "message": "Bad field", "details": {"field": "name"}},
+            detail={
+                "code": "invalid_input",
+                "message": "Bad field",
+                "details": {"field": "name"},
+            },
         )
 
     @app.get("/crash")
@@ -49,7 +54,9 @@ async def client(app_with_errors: FastAPI) -> httpx.AsyncClient:
 
 class TestErrorResponses:
     @pytest.mark.asyncio
-    async def test_http_error_includes_request_id(self, client: httpx.AsyncClient) -> None:
+    async def test_http_error_includes_request_id(
+        self, client: httpx.AsyncClient
+    ) -> None:
         resp = await client.get("/http-error")
         assert resp.status_code == 403
         body = resp.json()
@@ -68,7 +75,9 @@ class TestErrorResponses:
         assert "request_id" in body
 
     @pytest.mark.asyncio
-    async def test_unhandled_exception_includes_request_id(self, client: httpx.AsyncClient) -> None:
+    async def test_unhandled_exception_includes_request_id(
+        self, client: httpx.AsyncClient
+    ) -> None:
         resp = await client.get("/crash")
         assert resp.status_code == 500
         body = resp.json()
@@ -79,14 +88,18 @@ class TestErrorResponses:
         assert body["details"] is None
 
     @pytest.mark.asyncio
-    async def test_request_id_propagated_from_header(self, client: httpx.AsyncClient) -> None:
+    async def test_request_id_propagated_from_header(
+        self, client: httpx.AsyncClient
+    ) -> None:
         custom_id = "test-request-id-12345"
         resp = await client.get("/http-error", headers={"X-Request-Id": custom_id})
         body = resp.json()
         assert body["request_id"] == custom_id
 
     @pytest.mark.asyncio
-    async def test_success_response_has_request_id_header(self, client: httpx.AsyncClient) -> None:
+    async def test_success_response_has_request_id_header(
+        self, client: httpx.AsyncClient
+    ) -> None:
         resp = await client.get("/ok")
         assert resp.status_code == 200
         assert "x-request-id" in resp.headers

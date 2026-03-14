@@ -24,6 +24,7 @@ router = APIRouter(prefix="/parent/applications", tags=["parent-applications"])
 async def _load_form_data(request: Request) -> FormData:
     return await request.form()
 
+
 @router.get("")
 def list_applications(
     request: Request,
@@ -190,7 +191,9 @@ def fill_application_submit(
             form_data, person_uuid
         )
         form_responses = svc.collect_form_responses(form_data)
-        document_urls = svc.collect_document_upload_urls(form_data, application, person_uuid)
+        document_urls = svc.collect_document_upload_urls(
+            form_data, application, person_uuid
+        )
         svc.submit(
             application,
             ward_first_name=str(ward_first_name),

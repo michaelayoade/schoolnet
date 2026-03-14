@@ -3,7 +3,7 @@
 import io
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from tests.conftest import _create_access_token
 
@@ -15,17 +15,26 @@ def _get_csrf(client):
 
 def _setup_application(db_session, required_documents=None):
     """Create parent + school + form + application for upload testing."""
+    from app.models.auth import Session as AuthSession
+    from app.models.auth import SessionStatus
+    from app.models.billing import Price, PriceType, Product
     from app.models.person import Person
-    from app.models.auth import Session as AuthSession, SessionStatus
-    from app.models.rbac import Role, PersonRole
+    from app.models.rbac import PersonRole, Role
     from app.models.school import (
-        School, SchoolType, SchoolCategory, SchoolGender, SchoolStatus,
-        AdmissionForm, AdmissionFormStatus, Application, ApplicationStatus,
+        AdmissionForm,
+        AdmissionFormStatus,
+        Application,
+        ApplicationStatus,
+        School,
+        SchoolCategory,
+        SchoolGender,
+        SchoolStatus,
+        SchoolType,
     )
-    from app.models.billing import Product, Price, PriceType
 
     parent = Person(
-        first_name="Upload", last_name="Test",
+        first_name="Upload",
+        last_name="Test",
         email=f"upload-{uuid.uuid4().hex[:8]}@example.com",
     )
     db_session.add(parent)
@@ -49,12 +58,11 @@ def _setup_application(db_session, required_documents=None):
     db_session.add(auth_sess)
     db_session.flush()
 
-    token = _create_access_token(
-        str(parent.id), str(auth_sess.id), roles=["parent"]
-    )
+    token = _create_access_token(str(parent.id), str(auth_sess.id), roles=["parent"])
 
     owner = Person(
-        first_name="Owner", last_name="Upload",
+        first_name="Owner",
+        last_name="Upload",
         email=f"owner-{uuid.uuid4().hex[:8]}@example.com",
     )
     db_session.add(owner)
@@ -77,15 +85,21 @@ def _setup_application(db_session, required_documents=None):
     db_session.flush()
 
     price = Price(
-        product_id=product.id, currency="NGN", unit_amount=500000,
-        type=PriceType.one_time, is_active=True,
+        product_id=product.id,
+        currency="NGN",
+        unit_amount=500000,
+        type=PriceType.one_time,
+        is_active=True,
     )
     db_session.add(price)
     db_session.flush()
 
     form = AdmissionForm(
-        school_id=school.id, product_id=product.id, price_id=price.id,
-        title="Upload Test Form", academic_year="2025/2026",
+        school_id=school.id,
+        product_id=product.id,
+        price_id=price.id,
+        title="Upload Test Form",
+        academic_year="2025/2026",
         status=AdmissionFormStatus.active,
         required_documents=required_documents,
     )
@@ -121,7 +135,9 @@ class TestDocumentUpload:
     @patch("app.services.application.FileUploadService")
     def test_submit_with_document_upload(self, mock_upload_cls, client, db_session):
         required_docs = ["Birth Certificate"]
-        app_obj, token, parent = _setup_application(db_session, required_documents=required_docs)
+        app_obj, token, parent = _setup_application(
+            db_session, required_documents=required_docs
+        )
 
         mock_record = MagicMock()
         mock_record.url = "/uploads/test-file.pdf"
@@ -140,7 +156,13 @@ class TestDocumentUpload:
                 "ward_gender": "male",
                 "csrf_token": csrf,
             },
-            files={"doc_Birth Certificate": ("birth_cert.pdf", io.BytesIO(file_content), "application/pdf")},
+            files={
+                "doc_Birth Certificate": (
+                    "birth_cert.pdf",
+                    io.BytesIO(file_content),
+                    "application/pdf",
+                )
+            },
             headers={"X-CSRF-Token": csrf},
             cookies={"access_token": token, "csrf_token": csrf},
             follow_redirects=False,

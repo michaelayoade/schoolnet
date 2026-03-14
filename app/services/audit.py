@@ -11,11 +11,22 @@ from app.services.response import ListResponseMixin
 
 logger = logging.getLogger(__name__)
 
-_SENSITIVE_KEYS = frozenset({
-    "password", "token", "secret", "api_key", "access_token",
-    "refresh_token", "authorization", "credit_card", "ssn",
-    "card_number", "cvv", "pin",
-})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "password",
+        "token",
+        "secret",
+        "api_key",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "credit_card",
+        "ssn",
+        "card_number",
+        "cvv",
+        "pin",
+    }
+)
 
 
 def _redact_params(params: dict) -> dict:

@@ -192,7 +192,9 @@ class ApplicationService:
                 payment_intent.status = PaymentIntentStatus.requires_action
             except (ValueError, RuntimeError) as e:
                 logger.error("Paystack init failed: %s", e)
-                raise ValueError("Payment initialization failed. Please try again later.")
+                raise ValueError(
+                    "Payment initialization failed. Please try again later."
+                )
         else:
             # Dev mode: skip Paystack, mark as succeeded
             payment_intent.status = PaymentIntentStatus.succeeded
@@ -290,9 +292,7 @@ class ApplicationService:
 
         # Increment form submissions with row lock
         form = self.db.scalar(
-            select(AdmissionForm)
-            .where(AdmissionForm.id == form_uuid)
-            .with_for_update()
+            select(AdmissionForm).where(AdmissionForm.id == form_uuid).with_for_update()
         )
         if form:
             form.current_submissions += 1
@@ -532,6 +532,7 @@ class ApplicationService:
             self.validate_documents_for_acceptance(application)
             # Check school capacity
             from app.services.school import SchoolService
+
             form = application.admission_form
             if form and form.school_id:
                 SchoolService(self.db).check_capacity(form.school_id)
@@ -572,9 +573,7 @@ class ApplicationService:
                     else "Parent"
                 )
                 form = application.admission_form
-                school_name = (
-                    form.school.name if form and form.school else "the school"
-                )
+                school_name = form.school.name if form and form.school else "the school"
                 send_application_status_email_task.delay(
                     recipient_email=parent.email,
                     parent_name=parent_name,

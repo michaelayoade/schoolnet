@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import httpx
 import pytest
 import pytest_asyncio
-import httpx
 from fastapi import FastAPI
 
 from app.middleware.security_headers import SecurityHeadersMiddleware

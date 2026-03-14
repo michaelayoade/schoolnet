@@ -105,9 +105,7 @@ class TestWebAuth:
         assert response.status_code == 302
         assert "/admin/login" in response.headers.get("location", "")
 
-    def test_admin_dashboard_with_auth_cookie(
-        self, client, admin_token
-    ):
+    def test_admin_dashboard_with_auth_cookie(self, client, admin_token):
         response = client.get(
             "/admin",
             cookies={"access_token": admin_token},

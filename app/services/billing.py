@@ -380,8 +380,14 @@ class Customers(ListResponseMixin):
 # ── Subscriptions ────────────────────────────────────────
 
 VALID_SUBSCRIPTION_TRANSITIONS: dict[SubscriptionStatus, set[SubscriptionStatus]] = {
-    SubscriptionStatus.incomplete: {SubscriptionStatus.active, SubscriptionStatus.canceled},
-    SubscriptionStatus.trialing: {SubscriptionStatus.active, SubscriptionStatus.canceled},
+    SubscriptionStatus.incomplete: {
+        SubscriptionStatus.active,
+        SubscriptionStatus.canceled,
+    },
+    SubscriptionStatus.trialing: {
+        SubscriptionStatus.active,
+        SubscriptionStatus.canceled,
+    },
     SubscriptionStatus.active: {
         SubscriptionStatus.past_due,
         SubscriptionStatus.canceled,
@@ -447,8 +453,7 @@ class Subscriptions(ListResponseMixin):
             stmt = stmt.where(Subscription.customer_id == coerce_uuid(customer_id))
         if status:
             stmt = stmt.where(
-                Subscription.status
-                == _parse_enum(status, SubscriptionStatus, "status")
+                Subscription.status == _parse_enum(status, SubscriptionStatus, "status")
             )
         if is_active is not None:
             stmt = stmt.where(Subscription.is_active == is_active)
@@ -472,7 +477,9 @@ class Subscriptions(ListResponseMixin):
         return item
 
     @staticmethod
-    def transition(db: Session, item_id: str, target_status: SubscriptionStatus) -> Subscription:
+    def transition(
+        db: Session, item_id: str, target_status: SubscriptionStatus
+    ) -> Subscription:
         """Transition a subscription to a new status with validation."""
         item = db.get(Subscription, coerce_uuid(item_id))
         if not item:
@@ -485,7 +492,12 @@ class Subscriptions(ListResponseMixin):
         old_status = item.status.value
         item.status = target_status
         db.flush()
-        logger.info("Transitioned subscription %s: %s → %s", item.id, old_status, target_status.value)
+        logger.info(
+            "Transitioned subscription %s: %s → %s",
+            item.id,
+            old_status,
+            target_status.value,
+        )
         return item
 
     @staticmethod
@@ -642,9 +654,7 @@ class Invoices(ListResponseMixin):
         if customer_id:
             stmt = stmt.where(Invoice.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            stmt = stmt.where(
-                Invoice.subscription_id == coerce_uuid(subscription_id)
-            )
+            stmt = stmt.where(Invoice.subscription_id == coerce_uuid(subscription_id))
         if status:
             stmt = stmt.where(
                 Invoice.status == _parse_enum(status, InvoiceStatus, "status")
@@ -669,14 +679,14 @@ class Invoices(ListResponseMixin):
         return item
 
     @staticmethod
-    def recalculate_total(db: Session, invoice_id: str, tax_rate: float = 0.0) -> Invoice:
+    def recalculate_total(
+        db: Session, invoice_id: str, tax_rate: float = 0.0
+    ) -> Invoice:
         """Recalculate invoice totals from line items."""
         item = db.get(Invoice, coerce_uuid(invoice_id))
         if not item:
             raise InvoiceNotFoundError("Invoice not found")
-        line_items_stmt = select(InvoiceItem).where(
-            InvoiceItem.invoice_id == item.id
-        )
+        line_items_stmt = select(InvoiceItem).where(InvoiceItem.invoice_id == item.id)
         line_items = list(db.scalars(line_items_stmt).all())
         subtotal = sum(li.amount for li in line_items)
         tax = int(subtotal * tax_rate)
@@ -686,7 +696,13 @@ class Invoices(ListResponseMixin):
         item.total = total
         item.amount_due = total - item.amount_paid
         db.flush()
-        logger.info("Recalculated invoice %s: subtotal=%d tax=%d total=%d", item.id, subtotal, tax, total)
+        logger.info(
+            "Recalculated invoice %s: subtotal=%d tax=%d total=%d",
+            item.id,
+            subtotal,
+            tax,
+            total,
+        )
         return item
 
     @staticmethod
@@ -1172,9 +1188,7 @@ class Discounts(ListResponseMixin):
         if customer_id:
             stmt = stmt.where(Discount.customer_id == coerce_uuid(customer_id))
         if subscription_id:
-            stmt = stmt.where(
-                Discount.subscription_id == coerce_uuid(subscription_id)
-            )
+            stmt = stmt.where(Discount.subscription_id == coerce_uuid(subscription_id))
         if coupon_id:
             stmt = stmt.where(Discount.coupon_id == coerce_uuid(coupon_id))
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
@@ -1326,8 +1340,7 @@ class WebhookEvents(ListResponseMixin):
             stmt = stmt.where(WebhookEvent.event_type == event_type)
         if status:
             stmt = stmt.where(
-                WebhookEvent.status
-                == _parse_enum(status, WebhookEventStatus, "status")
+                WebhookEvent.status == _parse_enum(status, WebhookEventStatus, "status")
             )
         count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
         total = db.scalar(count_stmt) or 0

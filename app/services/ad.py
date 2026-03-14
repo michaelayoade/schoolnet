@@ -32,7 +32,11 @@ def _is_click_allowed(ad_id: UUID, ip: str) -> bool:
     with _click_lock:
         # Periodic cleanup to prevent unbounded memory growth
         if len(_click_timestamps) > _CLICK_CLEANUP_THRESHOLD:
-            stale = [k for k, ts in _click_timestamps.items() if (now - ts) >= _CLICK_COOLDOWN_SECONDS]
+            stale = [
+                k
+                for k, ts in _click_timestamps.items()
+                if (now - ts) >= _CLICK_COOLDOWN_SECONDS
+            ]
             for k in stale:
                 del _click_timestamps[k]
         last = _click_timestamps.get(key)
@@ -143,9 +147,13 @@ class AdService:
         if ip and not _is_click_allowed(ad_id, ip):
             logger.debug("Click rate-limited: ad=%s ip=%s", ad_id, ip)
             return False
-        stmt = update(Ad).where(Ad.id == ad_id).values(
-            clicks=Ad.clicks + 1,
-            spent_cents=Ad.spent_cents + 1,
+        stmt = (
+            update(Ad)
+            .where(Ad.id == ad_id)
+            .values(
+                clicks=Ad.clicks + 1,
+                spent_cents=Ad.spent_cents + 1,
+            )
         )
         self.db.execute(stmt)
         return True
