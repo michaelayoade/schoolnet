@@ -210,12 +210,6 @@ def edit_role_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle role edit with permission reassignment."""
     _ = csrf_token
-    data = {
-        "name": name,
-        "description": description,
-        "is_active": is_active,
-        "permission_ids": permission_ids,
-    }
 
     try:
         payload = RoleUpdate(

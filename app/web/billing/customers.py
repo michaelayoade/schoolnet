@@ -232,15 +232,6 @@ def edit_customer_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle customer edit form submission."""
     _ = csrf_token
-    data = {
-        "name": name,
-        "email": email,
-        "currency": currency,
-        "balance": balance,
-        "tax_id": tax_id,
-        "external_id": external_id,
-        "is_active": is_active,
-    }
 
     try:
         payload = CustomerUpdate(

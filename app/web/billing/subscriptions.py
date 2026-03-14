@@ -192,12 +192,6 @@ def edit_subscription_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle subscription edit form submission."""
     _ = csrf_token
-    data = {
-        "status": status,
-        "cancel_at_period_end": cancel_at_period_end,
-        "external_id": external_id,
-        "is_active": is_active,
-    }
 
     try:
         payload = SubscriptionUpdate(

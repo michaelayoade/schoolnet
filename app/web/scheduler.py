@@ -183,12 +183,6 @@ def edit_task_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle scheduled task edit form submission."""
     _ = csrf_token
-    data = {
-        "name": name,
-        "task_name": task_name,
-        "interval_seconds": interval_seconds,
-        "enabled": enabled,
-    }
 
     try:
         interval = int(interval_seconds) if interval_seconds else None

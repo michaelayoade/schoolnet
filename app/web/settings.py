@@ -111,11 +111,6 @@ def edit_setting_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle setting edit form submission."""
     _ = csrf_token
-    data = {
-        "value_text": value_text,
-        "value_json": value_json,
-        "is_active": is_active,
-    }
 
     setting = db.get(DomainSetting, setting_id)
     if not setting:

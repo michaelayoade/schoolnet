@@ -263,17 +263,6 @@ def edit_price_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle price edit form submission."""
     _ = csrf_token
-    data = {
-        "currency": currency,
-        "unit_amount": unit_amount,
-        "type": type,
-        "billing_scheme": billing_scheme,
-        "recurring_interval": recurring_interval,
-        "recurring_interval_count": recurring_interval_count,
-        "trial_period_days": trial_period_days,
-        "lookup_key": lookup_key,
-        "is_active": is_active,
-    }
 
     try:
         payload = PriceUpdate(

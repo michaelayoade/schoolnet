@@ -226,17 +226,6 @@ def edit_coupon_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle coupon edit form submission."""
     _ = csrf_token
-    data = {
-        "name": name,
-        "percent_off": percent_off,
-        "amount_off": amount_off,
-        "currency": currency,
-        "duration": duration,
-        "duration_in_months": duration_in_months,
-        "max_redemptions": max_redemptions,
-        "valid": valid,
-        "redeem_by": redeem_by,
-    }
 
     try:
         redeem_by_val: datetime | None = None

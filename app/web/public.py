@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
 from app.api.deps import get_db
+from app.models.ad import AdSlot
+from app.services.ad import AdService
 from app.services.auth_flow import (
     AuthFlow,
     AuthFlowServiceError,
@@ -19,8 +21,6 @@ from app.services.auth_flow import (
     revoke_sessions_for_person,
     verify_email_token,
 )
-from app.models.ad import AdSlot
-from app.services.ad import AdService
 from app.services.branding_context import load_branding_context
 from app.services.common import require_uuid
 from app.services.email import send_password_reset_email, send_verification_email

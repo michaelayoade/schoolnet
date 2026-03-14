@@ -174,11 +174,6 @@ def edit_permission_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle permission edit form submission."""
     _ = csrf_token
-    data = {
-        "key": key,
-        "description": description,
-        "is_active": is_active,
-    }
 
     try:
         payload = PermissionUpdate(

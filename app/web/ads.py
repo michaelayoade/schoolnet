@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from app.api.deps import get_db
-from app.models.ad import Ad, AdSlot, AdStatus, AdType
+from app.models.ad import AdSlot, AdStatus, AdType
 from app.schemas.ad import AdCreate, AdUpdate
 from app.services.ad import AdService
 from app.services.common import require_uuid
@@ -128,10 +128,10 @@ async def create_ad(
             priority=priority,
         )
         svc = AdService(db)
-        ad = svc.create(data)
+        svc.create(data)
         db.commit()
         return RedirectResponse(
-            url=f"/admin/ads?success=Ad+created", status_code=303
+            url="/admin/ads?success=Ad+created", status_code=303
         )
     except (ValueError, TypeError, KeyError) as e:
         db.rollback()
@@ -260,7 +260,7 @@ def activate_ad(
     svc.activate(ad)
     db.commit()
     return RedirectResponse(
-        url=f"/admin/ads?success=Ad+activated", status_code=303
+        url="/admin/ads?success=Ad+activated", status_code=303
     )
 
 
@@ -278,7 +278,7 @@ def pause_ad(
     svc.pause(ad)
     db.commit()
     return RedirectResponse(
-        url=f"/admin/ads?success=Ad+paused", status_code=303
+        url="/admin/ads?success=Ad+paused", status_code=303
     )
 
 

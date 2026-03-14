@@ -33,7 +33,7 @@ def _nl2br(value: str | None) -> Markup:
     if not value:
         return Markup("")
     escaped = html.escape(str(value))
-    return Markup(escaped.replace("\n", "<br>\n"))
+    return Markup(escaped.replace("\n", "<br>\n"))  # noqa: S704
 
 
 def _format_date(value: date | datetime | None, fmt: str = "%d %b %Y") -> str:

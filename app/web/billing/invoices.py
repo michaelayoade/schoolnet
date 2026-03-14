@@ -186,18 +186,6 @@ def edit_invoice_submit(
 ) -> RedirectResponse | HTMLResponse:
     """Handle invoice edit form submission."""
     _ = csrf_token
-    data = {
-        "number": number,
-        "status": status,
-        "currency": currency,
-        "subtotal": subtotal,
-        "tax": tax,
-        "total": total,
-        "amount_due": amount_due,
-        "amount_paid": amount_paid,
-        "external_id": external_id,
-        "is_active": is_active,
-    }
 
     try:
         payload = InvoiceUpdate(
