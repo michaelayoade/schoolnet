@@ -1,7 +1,7 @@
 import enum
 import uuid
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     JSON,
@@ -10,6 +10,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -19,6 +20,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from app.models.admissions import SchoolShortlist
 
 from app.db import Base
 
@@ -99,6 +103,8 @@ class School(Base):
     state: Mapped[str | None] = mapped_column(String(120))
     lga: Mapped[str | None] = mapped_column(String(120))
     country_code: Mapped[str] = mapped_column(String(2), default="NG")
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
 
     phone: Mapped[str | None] = mapped_column(String(40))
     email: Mapped[str | None] = mapped_column(String(255))
@@ -130,6 +136,15 @@ class School(Base):
     commission_rate: Mapped[int | None] = mapped_column(Integer)
     settlement_bank_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Admissions enrichment
+    religious_affiliation: Mapped[str | None] = mapped_column(String(100))
+    curriculum_type: Mapped[str | None] = mapped_column(String(100))
+    special_needs_support: Mapped[bool] = mapped_column(Boolean, default=False)
+    special_needs_details: Mapped[str | None] = mapped_column(Text)
+    admissions_contact_name: Mapped[str | None] = mapped_column(String(255))
+    admissions_contact_phone: Mapped[str | None] = mapped_column(String(40))
+    admissions_contact_email: Mapped[str | None] = mapped_column(String(255))
+
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
@@ -146,6 +161,9 @@ class School(Base):
     owner = relationship("Person", foreign_keys=[owner_id])
     admission_forms = relationship("AdmissionForm", back_populates="school")
     ratings = relationship("Rating", back_populates="school")
+    shortlists: Mapped[list["SchoolShortlist"]] = relationship(
+        "SchoolShortlist", back_populates="school"
+    )
 
 
 # ── Admission Form ───────────────────────────────────────
@@ -182,6 +200,16 @@ class AdmissionForm(Base):
 
     required_documents: Mapped[list[Any] | None] = mapped_column(JSON)
     form_fields: Mapped[list[Any] | None] = mapped_column(JSON)
+
+    # Entrance exam / interview fields
+    has_entrance_exam: Mapped[bool] = mapped_column(Boolean, default=False)
+    exam_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    exam_time: Mapped[str | None] = mapped_column(String(50))
+    exam_venue: Mapped[str | None] = mapped_column(String(255))
+    exam_requirements: Mapped[list[Any] | None] = mapped_column(JSON)
+    interview_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    interview_time: Mapped[str | None] = mapped_column(String(50))
+    interview_venue: Mapped[str | None] = mapped_column(String(255))
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
@@ -224,6 +252,9 @@ class Application(Base):
     parent_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("people.id"), nullable=False, index=True
     )
+    ward_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wards.id"), index=True
+    )
     invoice_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("invoices.id"), index=True
     )
@@ -264,6 +295,7 @@ class Application(Base):
 
     admission_form = relationship("AdmissionForm", back_populates="applications")
     parent = relationship("Person", foreign_keys=[parent_id])
+    ward = relationship("Ward", foreign_keys=[ward_id])
     invoice = relationship("Invoice")
     reviewer = relationship("Person", foreign_keys=[reviewed_by])
 

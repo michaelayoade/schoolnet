@@ -1,0 +1,29 @@
+{% for ev in events %}
+{% set type_colors = {
+    'application_deadline': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'exam': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    'interview': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    'orientation': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'follow_up': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    'custom': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+} %}
+<div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 last:border-0 {{ 'bg-red-50 dark:bg-red-900/10' if ev.has_conflict else '' }}">
+    <div class="flex items-start gap-4">
+        <div class="text-center min-w-[3rem]">
+            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase">{{ ev.event_date.strftime('%b') }}</p>
+            <p class="text-lg font-bold text-slate-900 dark:text-white">{{ ev.event_date.day }}</p>
+        </div>
+        <div>
+            <h3 class="text-sm font-medium text-slate-900 dark:text-white">{{ ev.title }}</h3>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ type_colors.get(ev.event_type.value if ev.event_type.value is defined else ev.event_type, type_colors['custom']) }}">
+                {{ (ev.event_type.value if ev.event_type.value is defined else ev.event_type) | replace('_', ' ') | title }}
+            </span>
+            {% if ev.event_time %}
+            <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">{{ ev.event_time }}</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<p class="p-4 text-sm text-slate-500 dark:text-slate-400 text-center">No events found.</p>
+{% endfor %}

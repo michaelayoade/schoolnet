@@ -188,6 +188,9 @@ class SchoolService:
         gender: str | None = None,
         fee_min: int | None = None,
         fee_max: int | None = None,
+        religious_affiliation: str | None = None,
+        curriculum_type: str | None = None,
+        special_needs: bool | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[list[School], int]:
@@ -211,6 +214,18 @@ class SchoolService:
             stmt = stmt.where(School.fee_range_min >= fee_min)
         if fee_max is not None:
             stmt = stmt.where(School.fee_range_max <= fee_max)
+        if religious_affiliation:
+            stmt = stmt.where(
+                School.religious_affiliation.ilike(
+                    f"%{escape_like(religious_affiliation)}%"
+                )
+            )
+        if curriculum_type:
+            stmt = stmt.where(
+                School.curriculum_type.ilike(f"%{escape_like(curriculum_type)}%")
+            )
+        if special_needs is True:
+            stmt = stmt.where(School.special_needs_support.is_(True))
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.scalar(count_stmt) or 0

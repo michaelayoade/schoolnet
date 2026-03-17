@@ -1,0 +1,110 @@
+{% extends "parent/base.html" %}
+{% block title %}{{ 'Edit Event' if event else 'Add Event' }} - Parent Portal{% endblock %}
+{% block parent_content %}
+<div class="mb-6">
+    <a href="/parent/calendar" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to calendar</a>
+</div>
+
+<div class="max-w-lg">
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display mb-6">{{ 'Edit Event' if event else 'Add Event' }}</h1>
+
+    <form method="POST"
+          action="{{ '/parent/calendar/' ~ event.id ~ '/edit' if event else '/parent/calendar/add' }}"
+          class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+        {{ request.state.csrf_form | safe }}
+
+        <div>
+            <label for="title" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
+            <input type="text" id="title" name="title" required
+                   value="{{ event.title if event and event.title else '' }}"
+                   placeholder="e.g. Exam: Green Valley School"
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="event_date" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                <input type="date" id="event_date" name="event_date" required
+                       value="{{ event.event_date.isoformat() if event and event.event_date else '' }}"
+                       class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <label for="event_time" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Time (optional)</label>
+                <input type="text" id="event_time" name="event_time"
+                       value="{{ event.event_time if event and event.event_time else '' }}"
+                       placeholder="e.g. 9:00 AM - 12:00 PM"
+                       class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+        </div>
+
+        <div>
+            <label for="event_type" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Type</label>
+            <select id="event_type" name="event_type"
+                    class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                {% set current_type = (event.event_type.value if event and event.event_type.value is defined else (event.event_type if event else 'custom')) %}
+                {% for val, label in [('application_deadline', 'Application Deadline'), ('exam', 'Entrance Exam'), ('interview', 'Interview'), ('orientation', 'Orientation'), ('follow_up', 'Follow-up'), ('custom', 'Custom')] %}
+                <option value="{{ val }}" {{ 'selected' if current_type == val else '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="venue" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Venue (optional)</label>
+            <input type="text" id="venue" name="venue"
+                   value="{{ event.venue if event and event.venue else '' }}"
+                   placeholder="e.g. School Main Hall"
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        </div>
+
+        <div>
+            <label for="description" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description (optional)</label>
+            <textarea id="description" name="description" rows="3"
+                      class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ event.description if event and event.description else '' }}</textarea>
+        </div>
+
+        {% if not event %}
+        <!-- Only show ward/shortlist selectors when creating -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="ward_id" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ward (optional)</label>
+                <select id="ward_id" name="ward_id"
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">None</option>
+                    {% for ward in wards %}
+                    <option value="{{ ward.id }}">{{ ward.first_name }} {{ ward.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="shortlist_id" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shortlisted School (optional)</label>
+                <select id="shortlist_id" name="shortlist_id"
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white">
+                    <option value="">None</option>
+                    {% for item in shortlists %}
+                    <option value="{{ item.shortlist.id }}">{{ item.school.name if item.school else 'Unknown' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
+        <div>
+            <label for="reminder_days_before" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Remind days before</label>
+            <input type="number" id="reminder_days_before" name="reminder_days_before" min="0" max="30"
+                   value="{{ event.reminder_days_before if event else 3 }}"
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">
+            <button type="submit"
+                    class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">
+                {{ 'Update Event' if event else 'Add Event' }}
+            </button>
+            <a href="/parent/calendar"
+               class="rounded-lg border border-slate-300 dark:border-slate-600 px-6 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

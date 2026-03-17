@@ -1,7 +1,7 @@
 import time
 from typing import Any, cast
 
-from celery.beat import Scheduler
+from celery.beat import ScheduleEntry, Scheduler
 
 from app.services.scheduler_config import build_beat_schedule
 
@@ -27,7 +27,26 @@ class DbScheduler(Scheduler):
         now = time.monotonic()
         if now - self._last_refresh_at < max(refresh_seconds, 1):
             return
-        schedule = build_beat_schedule()
-        if schedule != self.schedule:
-            self.schedule = schedule
+        raw_schedule = build_beat_schedule()
+        # Convert raw dicts to ScheduleEntry objects that Celery expects.
+        new_schedule: dict[str, Any] = {}
+        for name, entry_dict in raw_schedule.items():
+            if name in self.schedule and isinstance(self.schedule[name], ScheduleEntry):
+                # Update existing entry in-place to preserve runtime state
+                existing = self.schedule[name]
+                existing.task = entry_dict["task"]
+                existing.schedule = entry_dict["schedule"]
+                existing.args = tuple(entry_dict.get("args", ()))
+                existing.kwargs = entry_dict.get("kwargs", {})
+                new_schedule[name] = existing
+            else:
+                new_schedule[name] = self.Entry(
+                    name=name,
+                    task=entry_dict["task"],
+                    schedule=entry_dict["schedule"],
+                    args=tuple(entry_dict.get("args", ())),
+                    kwargs=entry_dict.get("kwargs", {}),
+                    app=self.app,
+                )
+        self.schedule = new_schedule
         self._last_refresh_at = now

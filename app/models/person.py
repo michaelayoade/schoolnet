@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, Float, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,6 +62,8 @@ class Person(Base):
     region: Mapped[str | None] = mapped_column(String(80))
     postal_code: Mapped[str | None] = mapped_column(String(20))
     country_code: Mapped[str | None] = mapped_column(String(2))
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
 
     status: Mapped[PersonStatus] = mapped_column(
         Enum(PersonStatus), default=PersonStatus.active

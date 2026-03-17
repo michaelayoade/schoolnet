@@ -25,6 +25,15 @@ class SchoolBase(BaseModel):
     fee_range_max: int | None = None
     year_established: int | None = None
     student_capacity: int | None = None
+    religious_affiliation: str | None = None
+    curriculum_type: str | None = None
+    special_needs_support: bool = False
+    special_needs_details: str | None = None
+    admissions_contact_name: str | None = None
+    admissions_contact_phone: str | None = None
+    admissions_contact_email: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class SchoolCreate(SchoolBase):
@@ -54,6 +63,15 @@ class SchoolUpdate(BaseModel):
     bank_code: str | None = None
     account_number: str | None = None
     account_name: str | None = None
+    religious_affiliation: str | None = None
+    curriculum_type: str | None = None
+    special_needs_support: bool | None = None
+    special_needs_details: str | None = None
+    admissions_contact_name: str | None = None
+    admissions_contact_phone: str | None = None
+    admissions_contact_email: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class SchoolRead(SchoolBase):
@@ -72,6 +90,12 @@ class SchoolRead(SchoolBase):
     account_name: str | None = None
     commission_rate: int | None = None
     settlement_bank_verified: bool = False
+    religious_affiliation: str | None = None
+    curriculum_type: str | None = None
+    special_needs_support: bool = False
+    admissions_contact_name: str | None = None
+    admissions_contact_phone: str | None = None
+    admissions_contact_email: str | None = None
     is_active: bool = True
     created_at: datetime
     updated_at: datetime
@@ -105,6 +129,14 @@ class AdmissionFormBase(BaseModel):
     closes_at: datetime | None = None
     required_documents: list[str] | None = None
     form_fields: list[dict] | None = None
+    has_entrance_exam: bool = False
+    exam_date: datetime | None = None
+    exam_time: str | None = None
+    exam_venue: str | None = None
+    exam_requirements: list | None = None
+    interview_date: datetime | None = None
+    interview_time: str | None = None
+    interview_venue: str | None = None
 
 
 class AdmissionFormCreate(AdmissionFormBase):
@@ -122,6 +154,14 @@ class AdmissionFormUpdate(BaseModel):
     required_documents: list[str] | None = None
     form_fields: list[dict] | None = None
     price_amount: int | None = Field(default=None, gt=0)
+    has_entrance_exam: bool | None = None
+    exam_date: datetime | None = None
+    exam_time: str | None = None
+    exam_venue: str | None = None
+    exam_requirements: list | None = None
+    interview_date: datetime | None = None
+    interview_time: str | None = None
+    interview_venue: str | None = None
 
 
 class AdmissionFormRead(AdmissionFormBase):

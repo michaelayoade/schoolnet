@@ -26,6 +26,10 @@ class WardService:
         date_of_birth: date | None = None,
         gender: str | None = None,
         passport_url: str | None = None,
+        religion: str | None = None,
+        has_special_needs: bool = False,
+        special_needs_details: str | None = None,
+        current_school: str | None = None,
     ) -> Ward:
         """Create a new ward for a parent."""
         ward = Ward(
@@ -35,6 +39,10 @@ class WardService:
             date_of_birth=date_of_birth,
             gender=gender,
             passport_url=passport_url,
+            religion=religion,
+            has_special_needs=has_special_needs,
+            special_needs_details=special_needs_details,
+            current_school=current_school,
         )
         self.db.add(ward)
         self.db.flush()
@@ -63,6 +71,10 @@ class WardService:
         date_of_birth: date | None = None,
         gender: str | None = None,
         passport_url: str | None = None,
+        religion: str | None = None,
+        has_special_needs: bool | None = None,
+        special_needs_details: str | None = None,
+        current_school: str | None = None,
     ) -> Ward:
         """Update an existing ward's details."""
         if first_name is not None:
@@ -75,6 +87,14 @@ class WardService:
             ward.gender = gender
         if passport_url is not None:
             ward.passport_url = passport_url
+        if religion is not None:
+            ward.religion = religion
+        if has_special_needs is not None:
+            ward.has_special_needs = has_special_needs
+        if special_needs_details is not None:
+            ward.special_needs_details = special_needs_details
+        if current_school is not None:
+            ward.current_school = current_school
         self.db.flush()
         logger.info("Updated ward %s", ward.id)
         return ward

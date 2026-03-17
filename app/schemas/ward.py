@@ -13,6 +13,10 @@ class WardBase(BaseModel):
     date_of_birth: date | None = None
     gender: str | None = Field(default=None, max_length=20)
     passport_url: str | None = Field(default=None, max_length=512)
+    religion: str | None = Field(default=None, max_length=100)
+    has_special_needs: bool = False
+    special_needs_details: str | None = None
+    current_school: str | None = Field(default=None, max_length=255)
     is_active: bool = True
 
 
@@ -27,6 +31,10 @@ class WardUpdate(BaseModel):
     date_of_birth: date | None = None
     gender: str | None = Field(default=None, max_length=20)
     passport_url: str | None = Field(default=None, max_length=512)
+    religion: str | None = Field(default=None, max_length=100)
+    has_special_needs: bool | None = None
+    special_needs_details: str | None = None
+    current_school: str | None = Field(default=None, max_length=255)
     is_active: bool | None = None
 
 

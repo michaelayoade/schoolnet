@@ -285,10 +285,13 @@ from app.web.notifications import router as web_notifications_router  # noqa: E4
 from app.web.parent.applications import (  # noqa: E402
     router as web_parent_applications_router,
 )
+from app.web.parent.calendar import router as web_parent_calendar_router  # noqa: E402
 from app.web.parent.dashboard import router as web_parent_dashboard_router  # noqa: E402
 from app.web.parent.notifications import (  # noqa: E402
     router as web_parent_notifications_router,
 )
+from app.web.parent.shortlist import router as web_parent_shortlist_router  # noqa: E402
+from app.web.parent.tracking import router as web_parent_tracking_router  # noqa: E402
 from app.web.parent.wards import router as web_parent_wards_router  # noqa: E402
 from app.web.people import router as web_people_router  # noqa: E402
 from app.web.permissions import router as web_permissions_router  # noqa: E402
@@ -354,6 +357,9 @@ app.include_router(web_billing_webhook_events_router)
 app.include_router(web_parent_dashboard_router)
 app.include_router(web_parent_applications_router)
 app.include_router(web_parent_wards_router)
+app.include_router(web_parent_shortlist_router)
+app.include_router(web_parent_calendar_router)
+app.include_router(web_parent_tracking_router)
 app.include_router(web_parent_notifications_router)
 app.include_router(web_school_dashboard_router)
 app.include_router(web_school_forms_router)

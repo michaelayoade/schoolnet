@@ -1,4 +1,11 @@
 from app.models.ad import Ad, AdSlot, AdStatus, AdType  # noqa: F401
+from app.models.admissions import (  # noqa: F401
+    AdmissionsCalendarEvent,
+    CalendarEventType,
+    ExamRegistrationStatus,
+    SchoolShortlist,
+    ShortlistStatus,
+)
 from app.models.audit import AuditActorType, AuditEvent  # noqa: F401
 from app.models.auth import (  # noqa: F401
     ApiKey,

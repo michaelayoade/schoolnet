@@ -1,5 +1,6 @@
 """School admin — admission form management."""
 
+import contextlib
 import json
 import logging
 from datetime import UTC, datetime
@@ -134,6 +135,14 @@ def create_form_submit(
     closes_at: str = Form(""),
     form_fields_json: str = Form(""),
     required_documents_json: str = Form(""),
+    has_entrance_exam: str = Form(""),
+    exam_date: str = Form(""),
+    exam_time: str = Form(""),
+    exam_venue: str = Form(""),
+    exam_requirements_json: str = Form(""),
+    interview_date: str = Form(""),
+    interview_time: str = Form(""),
+    interview_venue: str = Form(""),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
@@ -148,6 +157,11 @@ def create_form_submit(
     form_fields = _parse_form_fields_json(form_fields_json)
     required_documents = _parse_required_documents_json(required_documents_json)
 
+    exam_reqs = None
+    if exam_requirements_json:
+        with contextlib.suppress(json.JSONDecodeError, TypeError):
+            exam_reqs = json.loads(exam_requirements_json)
+
     payload = AdmissionFormCreate(
         school_id=school.id,
         title=title,
@@ -159,6 +173,14 @@ def create_form_submit(
         closes_at=_parse_datetime(closes_at),
         form_fields=form_fields,
         required_documents=required_documents,
+        has_entrance_exam=has_entrance_exam == "true",
+        exam_date=_parse_datetime(exam_date),
+        exam_time=exam_time if exam_time else None,
+        exam_venue=exam_venue if exam_venue else None,
+        exam_requirements=exam_reqs,
+        interview_date=_parse_datetime(interview_date),
+        interview_time=interview_time if interview_time else None,
+        interview_venue=interview_venue if interview_venue else None,
     )
     svc = AdmissionFormService(db)
     svc.create(payload)
@@ -203,6 +225,14 @@ def edit_form_submit(
     closes_at: str = Form(""),
     form_fields_json: str = Form(""),
     required_documents_json: str = Form(""),
+    has_entrance_exam: str = Form(""),
+    exam_date: str = Form(""),
+    exam_time: str = Form(""),
+    exam_venue: str = Form(""),
+    exam_requirements_json: str = Form(""),
+    interview_date: str = Form(""),
+    interview_time: str = Form(""),
+    interview_venue: str = Form(""),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_school_admin_auth),
 ) -> Response:
@@ -221,6 +251,11 @@ def edit_form_submit(
     form_fields = _parse_form_fields_json(form_fields_json)
     required_documents = _parse_required_documents_json(required_documents_json)
 
+    exam_reqs = None
+    if exam_requirements_json:
+        with contextlib.suppress(json.JSONDecodeError, TypeError):
+            exam_reqs = json.loads(exam_requirements_json)
+
     payload = AdmissionFormUpdate(
         title=title,
         description=description if description else None,
@@ -230,6 +265,14 @@ def edit_form_submit(
         closes_at=_parse_datetime(closes_at),
         form_fields=form_fields,
         required_documents=required_documents,
+        has_entrance_exam=has_entrance_exam == "true",
+        exam_date=_parse_datetime(exam_date),
+        exam_time=exam_time if exam_time else None,
+        exam_venue=exam_venue if exam_venue else None,
+        exam_requirements=exam_reqs,
+        interview_date=_parse_datetime(interview_date),
+        interview_time=interview_time if interview_time else None,
+        interview_venue=interview_venue if interview_venue else None,
     )
     svc.update(form, payload)
     db.commit()

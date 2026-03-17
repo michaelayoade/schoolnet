@@ -368,13 +368,17 @@ class ApplicationService:
 
     def resolve_ward_profile(
         self, form_data: Mapping[str, Any], parent_id: UUID
-    ) -> tuple[str, str, date, str]:
-        """Resolve ward data from selected ward_id or raw form fields."""
+    ) -> tuple[str, str, date, str, UUID | None]:
+        """Resolve ward data from selected ward_id or raw form fields.
+
+        Returns (first_name, last_name, dob, gender, ward_id).
+        """
         ward_first_name = self._form_text_value(form_data, "ward_first_name")
         ward_last_name = self._form_text_value(form_data, "ward_last_name")
         ward_date_of_birth = self._form_text_value(form_data, "ward_date_of_birth")
         ward_gender = self._form_text_value(form_data, "ward_gender")
 
+        resolved_ward_id: UUID | None = None
         ward_id_raw = form_data.get("ward_id")
         ward_id = str(ward_id_raw) if ward_id_raw is not None else ""
         ward_uuid = coerce_uuid(ward_id)
@@ -387,13 +391,14 @@ class ApplicationService:
                     ward.date_of_birth.isoformat() if ward.date_of_birth else ""
                 )
                 ward_gender = ward.gender or ""
+                resolved_ward_id = ward.id
 
         try:
             dob = date.fromisoformat(ward_date_of_birth)
         except (TypeError, ValueError) as exc:
             raise ValueError("Invalid date of birth") from exc
 
-        return ward_first_name, ward_last_name, dob, ward_gender
+        return ward_first_name, ward_last_name, dob, ward_gender, resolved_ward_id
 
     def collect_form_responses(self, form_data: Mapping[str, Any]) -> dict[str, str]:
         responses: dict[str, str] = {}
@@ -465,6 +470,7 @@ class ApplicationService:
         form_responses: dict | None = None,
         document_urls: dict[str, str] | None = None,
         ward_passport_url: str | None = None,
+        ward_id: UUID | None = None,
     ) -> Application:
         """Fill and submit an application (draft → submitted)."""
         application = self.get_for_update(application.id) or application
@@ -477,11 +483,39 @@ class ApplicationService:
         application.form_responses = form_responses
         application.document_urls = document_urls
         application.ward_passport_url = ward_passport_url
+        if ward_id is not None:
+            application.ward_id = ward_id
         application.status = ApplicationStatus.submitted
         application.submitted_at = datetime.now(UTC)
 
         self.db.flush()
         logger.info("Application submitted: %s", application.id)
+
+        # Auto-link to shortlist if a matching one exists
+        if application.ward_id and application.admission_form:
+            try:
+                from app.models.admissions import SchoolShortlist, ShortlistStatus
+
+                shortlist = self.db.scalar(
+                    select(SchoolShortlist).where(
+                        SchoolShortlist.parent_id == application.parent_id,
+                        SchoolShortlist.ward_id == application.ward_id,
+                        SchoolShortlist.school_id
+                        == application.admission_form.school_id,
+                        SchoolShortlist.is_active.is_(True),
+                    )
+                )
+                if shortlist and not shortlist.application_id:
+                    shortlist.application_id = application.id
+                    shortlist.status = ShortlistStatus.applied
+                    self.db.flush()
+                    logger.info(
+                        "Auto-linked application %s to shortlist %s",
+                        application.id,
+                        shortlist.id,
+                    )
+            except (ImportError, RuntimeError) as e:
+                logger.debug("Could not auto-link shortlist: %s", e)
 
         # Notify school admin of new submission
         try:

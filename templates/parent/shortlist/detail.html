@@ -1,0 +1,263 @@
+{% from "macros/ui_macros.html" import status_badge %}
+{% extends "parent/base.html" %}
+{% block title %}{{ school.name if school else 'Shortlist Detail' }} - Parent Portal{% endblock %}
+{% block parent_content %}
+<div class="mb-6">
+    <a href="/parent/shortlist" class="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Back to shortlist
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- School Header Card -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            {% set status_val = shortlist.status.value if shortlist.status.value is defined else shortlist.status %}
+            {% set bar_colors = {'accepted': 'bg-green-500', 'rejected': 'bg-red-500', 'enrolled': 'bg-emerald-500', 'applied': 'bg-orange-500', 'applying': 'bg-yellow-500'} %}
+            <div class="h-1 {{ bar_colors.get(status_val, 'bg-primary-500') }}"></div>
+            <div class="p-6">
+                <div class="flex items-start gap-4 mb-4">
+                    {% if school and school.logo_url %}
+                    <img src="{{ school.logo_url }}" alt="" class="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700" loading="lazy">
+                    {% else %}
+                    <div class="h-14 w-14 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/40 dark:to-primary-800/30 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold text-lg flex-shrink-0">
+                        {{ school.name[0] | upper if school else '?' }}
+                    </div>
+                    {% endif %}
+                    <div class="flex-1 min-w-0">
+                        <h1 class="text-xl font-bold text-slate-900 dark:text-white font-display truncate">{{ school.name if school else 'Unknown' }}</h1>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">For: <span class="font-medium text-slate-700 dark:text-slate-300">{{ ward.first_name if ward else '' }} {{ ward.last_name if ward else '' }}</span></p>
+                    </div>
+                    {% if shortlist.rank %}
+                    <span class="flex items-center justify-center h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-slate-300 flex-shrink-0">#{{ shortlist.rank }}</span>
+                    {% endif %}
+                </div>
+                {% if school %}
+                <div class="flex flex-wrap gap-1.5">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400">{{ school.school_type | replace('_', ' ') | title }}</span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">{{ school.category | replace('_', ' ') | title }}</span>
+                    {% if school.religious_affiliation %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">{{ school.religious_affiliation | title }}</span>
+                    {% endif %}
+                    {% if school.curriculum_type %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400">{{ school.curriculum_type | title }}</span>
+                    {% endif %}
+                    {% if school.special_needs_support %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Special Needs</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Evaluation Form -->
+        <form method="POST" action="/parent/shortlist/{{ shortlist.id }}"
+              class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            {{ request.state.csrf_form | safe }}
+
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display">Evaluation</h2>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Status, Rank, Exam Registration -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label for="status" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Status</label>
+                        <select id="status" name="status"
+                                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            {% set current_status = shortlist.status.value if shortlist.status.value is defined else shortlist.status %}
+                            {% for s in ['researching', 'shortlisted', 'applying', 'applied', 'accepted', 'rejected', 'enrolled', 'dropped'] %}
+                            <option value="{{ s }}" {{ 'selected' if current_status == s else '' }}>{{ s | replace('_', ' ') | title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="rank" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Preference</label>
+                        <input type="number" id="rank" name="rank" min="1" max="99"
+                               value="{{ shortlist.rank if shortlist.rank else '' }}"
+                               placeholder="#1"
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    <div>
+                        <label for="exam_registration_status" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Exam Reg.</label>
+                        <select id="exam_registration_status" name="exam_registration_status"
+                                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            {% set current_exam_reg = shortlist.exam_registration_status.value if shortlist.exam_registration_status.value is defined else shortlist.exam_registration_status %}
+                            {% for val, label in [('not_required', 'Not Required'), ('pending', 'Pending'), ('registered', 'Registered')] %}
+                            <option value="{{ val }}" {{ 'selected' if current_exam_reg == val else '' }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Criteria Scores — visual dot rating -->
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Criteria Scores</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                         x-data='{ scores: {
+                            religious_fit: {{ shortlist.religious_fit if shortlist.religious_fit else 0 }},
+                            curriculum_fit: {{ shortlist.curriculum_fit if shortlist.curriculum_fit else 0 }},
+                            proximity_score: {{ shortlist.proximity_score if shortlist.proximity_score else 0 }},
+                            special_needs_fit: {{ shortlist.special_needs_fit if shortlist.special_needs_fit else 0 }},
+                            overall_fit: {{ shortlist.overall_fit if shortlist.overall_fit else 0 }}
+                         } }'>
+                        {% for field, label in [('religious_fit', 'Religious Fit'), ('curriculum_fit', 'Curriculum Fit'), ('proximity_score', 'Proximity'), ('special_needs_fit', 'Special Needs'), ('overall_fit', 'Overall Fit')] %}
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/30 {{ 'sm:col-span-2 border-2 border-primary-100 dark:border-primary-900/30 bg-primary-50/50 dark:bg-primary-900/10' if field == 'overall_fit' else '' }}">
+                            <span class="text-sm {{ 'font-semibold text-slate-900 dark:text-white' if field == 'overall_fit' else 'text-slate-600 dark:text-slate-400' }}">{{ label }}</span>
+                            <div class="flex items-center gap-1">
+                                {% for v in range(1, 6) %}
+                                <button type="button"
+                                        x-on:click="scores.{{ field }} = (scores.{{ field }} === {{ v }} ? 0 : {{ v }})"
+                                        class="w-6 h-6 rounded-full border-2 transition-all cursor-pointer flex items-center justify-center"
+                                        :class="scores.{{ field }} >= {{ v }}
+                                            ? 'bg-primary-500 border-primary-500 text-white'
+                                            : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 hover:border-primary-400'">
+                                    <span class="text-xs font-bold" x-show="scores.{{ field }} >= {{ v }}">{{ v }}</span>
+                                </button>
+                                {% endfor %}
+                                <input type="hidden" name="{{ field }}" :value="scores.{{ field }} || ''">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                {% set notes = shortlist.notes if shortlist.notes else {} %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="notes_pros" class="flex items-center gap-1.5 text-sm font-medium text-green-700 dark:text-green-400 mb-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Pros
+                        </label>
+                        <textarea id="notes_pros" name="notes_pros" rows="3" placeholder="One per line..."
+                                  class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ notes.get('pros', []) | join('\n') if notes else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label for="notes_concerns" class="flex items-center gap-1.5 text-sm font-medium text-red-700 dark:text-red-400 mb-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/></svg>
+                            Concerns
+                        </label>
+                        <textarea id="notes_concerns" name="notes_concerns" rows="3" placeholder="One per line..."
+                                  class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ notes.get('concerns', []) | join('\n') if notes else '' }}</textarea>
+                    </div>
+                </div>
+                <div>
+                    <label for="notes_general" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">General Notes</label>
+                    <textarea id="notes_general" name="notes_general" rows="2"
+                              class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ notes.get('general', '') if notes else '' }}</textarea>
+                </div>
+
+                <!-- Exam Prep Checklist -->
+                {% set checklist = shortlist.exam_prep_checklist if shortlist.exam_prep_checklist else [] %}
+                {% if checklist %}
+                <div class="pt-5 border-t border-slate-200 dark:border-slate-700"
+                     x-data='{ items: {{ checklist | tojson }} }'>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Exam Prep Checklist</h3>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                              :class="items.filter(i => i.done).length === items.length ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'"
+                              x-text="items.filter(i => i.done).length + '/' + items.length + ' ready'"></span>
+                    </div>
+                    <!-- Progress bar -->
+                    <div class="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-3">
+                        <div class="h-full rounded-full transition-all duration-300"
+                             :class="items.filter(i => i.done).length === items.length ? 'bg-green-500' : 'bg-primary-500'"
+                             :style="'width: ' + (items.filter(i => i.done).length / items.length * 100) + '%'"></div>
+                    </div>
+                    <div class="space-y-1">
+                        <template x-for="(entry, idx) in items" :key="idx">
+                            <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition cursor-pointer"
+                                   :class="entry.done ? 'bg-green-50 dark:bg-green-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'">
+                                <input type="checkbox" x-model="entry.done"
+                                       class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-green-600 focus:ring-green-500">
+                                <span class="text-sm transition"
+                                      :class="entry.done ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'"
+                                      x-text="entry.item"></span>
+                                <svg x-show="entry.done" class="w-4 h-4 text-green-500 ml-auto flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            </label>
+                        </template>
+                    </div>
+                    <input type="hidden" name="exam_prep_checklist_json" :value="JSON.stringify(items)">
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Save button -->
+            <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-3">
+                <button type="submit"
+                        class="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition shadow-sm">
+                    Save Changes
+                </button>
+                <a href="/parent/shortlist"
+                   class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+        <!-- Quick Actions -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-slate-200 dark:border-slate-700">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Actions</h2>
+            </div>
+            <div class="p-4 space-y-2">
+                {% if school %}
+                <a href="/schools/{{ school.slug }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    View school profile
+                </a>
+                {% endif %}
+                <a href="/parent/calendar" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    View calendar
+                </a>
+                <a href="/parent/tracking" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Tracking table
+                </a>
+            </div>
+        </div>
+
+        <!-- Available Forms -->
+        {% if admission_forms %}
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-slate-200 dark:border-slate-700">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Apply Now</h2>
+            </div>
+            <div class="p-4 space-y-2">
+                {% for form in admission_forms %}
+                <a href="/parent/applications/purchase/{{ form.id }}"
+                   class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-primary-50 dark:hover:bg-primary-900/10 hover:border-primary-200 dark:hover:border-primary-800 transition group">
+                    <div>
+                        <p class="text-sm font-medium text-slate-900 dark:text-white group-hover:text-primary-700 dark:group-hover:text-primary-400 transition">{{ form.title }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ form.academic_year }}</p>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Danger Zone -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-red-200 dark:border-red-900/30 overflow-hidden">
+            <div class="p-4">
+                <form method="POST" action="/parent/shortlist/{{ shortlist.id }}/remove">
+                    {{ request.state.csrf_form | safe }}
+                    <button type="submit"
+                            onclick="return confirm('Remove this school from your shortlist?')"
+                            class="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Remove from shortlist
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

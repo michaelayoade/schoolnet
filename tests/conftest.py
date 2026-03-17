@@ -208,6 +208,7 @@ def person(db_session):
         first_name="Test",
         last_name="User",
         email=_unique_email(),
+        email_verified=True,
     )
     db_session.add(person)
     db_session.commit()
@@ -407,6 +408,7 @@ def admin_person(db_session, admin_role):
         first_name="Admin",
         last_name="User",
         email=_unique_email(),
+        email_verified=True,
     )
     db_session.add(person)
     db_session.commit()
@@ -642,6 +644,7 @@ def school_owner(db_session):
         first_name="School",
         last_name="Owner",
         email=_unique_email(),
+        email_verified=True,
     )
     db_session.add(p)
     db_session.commit()
@@ -676,6 +679,7 @@ def parent_person(db_session):
         first_name="Parent",
         last_name="User",
         email=_unique_email(),
+        email_verified=True,
     )
     db_session.add(p)
     db_session.commit()

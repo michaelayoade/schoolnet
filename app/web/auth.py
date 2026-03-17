@@ -116,6 +116,18 @@ def login_submit(
         if credential and credential.username:
             login_id = credential.username
 
+        # Check email verification before proceeding with login
+        if credential and not person.email_verified:
+            from app.services.auth_flow import verify_password
+
+            if verify_password(password, credential.password_hash):
+                return _login_error(
+                    request,
+                    db,
+                    "Please verify your email address before logging in. Check your inbox for a verification link.",
+                    next_url,
+                )
+
     from app.services.auth_flow import AuthFlow, AuthFlowServiceError
 
     try:

@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,10 @@ class Ward(Base):
     date_of_birth: Mapped[date | None] = mapped_column(Date)
     gender: Mapped[str | None] = mapped_column(String(20))
     passport_url: Mapped[str | None] = mapped_column(String(512))
+    religion: Mapped[str | None] = mapped_column(String(100))
+    has_special_needs: Mapped[bool] = mapped_column(Boolean, default=False)
+    special_needs_details: Mapped[str | None] = mapped_column(Text)
+    current_school: Mapped[str | None] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[datetime] = mapped_column(

@@ -44,11 +44,14 @@ class RegistrationService:
         self.db.flush()
         return person
 
-    def _create_credential(self, person_id: UUID, password: str) -> UserCredential:
+    def _create_credential(
+        self, person_id: UUID, password: str, username: str | None = None
+    ) -> UserCredential:
         cred = UserCredential(
             person_id=person_id,
             provider=AuthProvider.local,
             password_hash=hash_password(password),
+            username=username,
         )
         self.db.add(cred)
         self.db.flush()
@@ -76,7 +79,7 @@ class RegistrationService:
             raise ValueError("An account with this email already exists")
         self._validate_password(password)
         person = self._create_person(first_name, last_name, email, phone)
-        self._create_credential(person.id, password)
+        self._create_credential(person.id, password, username=email)
         self._assign_role(person.id, "parent")
 
         logger.info("Registered parent: %s", person.id)
@@ -100,7 +103,7 @@ class RegistrationService:
             raise ValueError("An account with this email already exists")
         self._validate_password(password)
         person = self._create_person(first_name, last_name, email, phone)
-        self._create_credential(person.id, password)
+        self._create_credential(person.id, password, username=email)
         self._assign_role(person.id, "school_admin")
 
         payload = SchoolCreate(

@@ -187,8 +187,8 @@ def fill_application_submit(
         )
 
     try:
-        ward_first_name, ward_last_name, dob, ward_gender = svc.resolve_ward_profile(
-            form_data, person_uuid
+        ward_first_name, ward_last_name, dob, ward_gender, resolved_ward_id = (
+            svc.resolve_ward_profile(form_data, person_uuid)
         )
         form_responses = svc.collect_form_responses(form_data)
         document_urls = svc.collect_document_upload_urls(
@@ -202,6 +202,7 @@ def fill_application_submit(
             ward_gender=str(ward_gender),
             form_responses=form_responses if form_responses else None,
             document_urls=document_urls if document_urls else None,
+            ward_id=resolved_ward_id,
         )
         db.commit()
     except ValueError as e:

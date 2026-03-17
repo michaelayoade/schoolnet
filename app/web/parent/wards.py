@@ -54,6 +54,10 @@ def create_ward_submit(
     last_name: str = Form(...),
     date_of_birth: str = Form(""),
     gender: str = Form(""),
+    religion: str = Form(""),
+    current_school: str = Form(""),
+    has_special_needs: str = Form(""),
+    special_needs_details: str = Form(""),
     passport: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
@@ -100,6 +104,12 @@ def create_ward_submit(
         date_of_birth=dob,
         gender=gender if gender else None,
         passport_url=passport_url,
+        religion=religion if religion else None,
+        has_special_needs=has_special_needs == "true",
+        special_needs_details=special_needs_details.strip()
+        if special_needs_details
+        else None,
+        current_school=current_school.strip() if current_school else None,
     )
     db.commit()
 
@@ -140,6 +150,10 @@ def edit_ward_submit(
     last_name: str = Form(...),
     date_of_birth: str = Form(""),
     gender: str = Form(""),
+    religion: str = Form(""),
+    current_school: str = Form(""),
+    has_special_needs: str = Form(""),
+    special_needs_details: str = Form(""),
     passport: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     auth: dict = Depends(require_parent_auth),
@@ -193,6 +207,12 @@ def edit_ward_submit(
         date_of_birth=dob,
         gender=gender if gender else None,
         passport_url=passport_url,
+        religion=religion if religion else None,
+        has_special_needs=has_special_needs == "true",
+        special_needs_details=special_needs_details.strip()
+        if special_needs_details
+        else None,
+        current_school=current_school.strip() if current_school else None,
     )
     db.commit()
 

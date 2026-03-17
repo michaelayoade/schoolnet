@@ -40,6 +40,19 @@
                         {{ school.gender | replace('_', ' ') | title }}
                     </span>
                 </div>
+                {% if school.religious_affiliation or school.curriculum_type or school.special_needs_support %}
+                <div class="flex flex-wrap gap-2 mt-2">
+                    {% if school.religious_affiliation %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">{{ school.religious_affiliation | title }}</span>
+                    {% endif %}
+                    {% if school.curriculum_type %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400">{{ school.curriculum_type | title }} Curriculum</span>
+                    {% endif %}
+                    {% if school.special_needs_support %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Special Needs Support</span>
+                    {% endif %}
+                </div>
+                {% endif %}
                 {% if school.city or school.state %}
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
                     <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -214,6 +227,15 @@
         <!-- Sidebar -->
         <div class="space-y-6">
             {% from "components/_ad_slot.html" import ad_slot %}
+            <!-- Shortlist Button -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                <a href="/parent/shortlist/add/{{ school.id }}"
+                   class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                    Add to Shortlist
+                </a>
+            </div>
+
             {% if profile_ads %}
             <div class="space-y-4">
                 {{ ad_slot(profile_ads, 'sidebar') }}
@@ -262,8 +284,40 @@
                         <dd class="text-primary-600 dark:text-primary-400 font-medium"><a href="{{ school.website }}" target="_blank" rel="noopener">Visit website</a></dd>
                     </div>
                     {% endif %}
+                    {% if school.special_needs_support and school.special_needs_details %}
+                    <div>
+                        <dt class="text-slate-500 dark:text-slate-400">Special Needs Support</dt>
+                        <dd class="text-slate-900 dark:text-white font-medium">{{ school.special_needs_details }}</dd>
+                    </div>
+                    {% endif %}
                 </dl>
             </div>
+
+            {% if school.admissions_contact_name or school.admissions_contact_phone or school.admissions_contact_email %}
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white font-display mb-4">Admissions Contact</h2>
+                <dl class="space-y-3 text-sm">
+                    {% if school.admissions_contact_name %}
+                    <div>
+                        <dt class="text-slate-500 dark:text-slate-400">Name</dt>
+                        <dd class="text-slate-900 dark:text-white font-medium">{{ school.admissions_contact_name }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if school.admissions_contact_phone %}
+                    <div>
+                        <dt class="text-slate-500 dark:text-slate-400">Phone</dt>
+                        <dd class="text-slate-900 dark:text-white font-medium">{{ school.admissions_contact_phone }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if school.admissions_contact_email %}
+                    <div>
+                        <dt class="text-slate-500 dark:text-slate-400">Email</dt>
+                        <dd class="text-slate-900 dark:text-white font-medium">{{ school.admissions_contact_email }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            {% endif %}
         </div>
     </div>
 

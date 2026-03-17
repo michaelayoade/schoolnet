@@ -1,0 +1,184 @@
+{% extends "parent/base.html" %}
+{% block title %}Admissions Calendar - Parent Portal{% endblock %}
+{% block parent_content %}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white font-display">Admissions Calendar</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Track deadlines, exams, and interviews</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <form method="POST" hx-post="/parent/calendar/check-conflicts"
+              hx-target="#conflict-results" hx-swap="innerHTML"
+              style="display:inline">
+            {{ request.state.csrf_form | safe }}
+            <button type="submit"
+                    class="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
+                    hx-indicator="this"
+                    onclick="this.disabled=true; this.closest('form').requestSubmit(); setTimeout(() => this.disabled=false, 3000)">
+                <svg class="w-4 h-4 htmx-indicator:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <svg class="w-4 h-4 animate-spin hidden htmx-indicator:inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                <span class="htmx-indicator:hidden">Check Conflicts</span>
+                <span class="hidden htmx-indicator:inline">Checking...</span>
+            </button>
+        </form>
+        <a href="/parent/calendar/add"
+           class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add Event
+        </a>
+    </div>
+</div>
+
+<!-- Filters + Month nav -->
+<div class="flex flex-wrap items-center gap-3 mb-6">
+    <!-- Ward pills -->
+    <div class="flex items-center gap-2">
+        <a href="?month={{ display_month }}&year={{ display_year }}"
+           class="px-3 py-1.5 rounded-full text-xs font-medium transition {{ 'bg-primary-600 text-white' if not selected_ward_id else 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-primary-300' }}">
+            All
+        </a>
+        {% for ward in wards %}
+        <a href="?month={{ display_month }}&year={{ display_year }}&ward_id={{ ward.id }}"
+           class="px-3 py-1.5 rounded-full text-xs font-medium transition {{ 'bg-primary-600 text-white' if selected_ward_id == ward.id|string else 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-primary-300' }}">
+            {{ ward.first_name }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Month navigation -->
+    {% set prev_month = display_month - 1 if display_month > 1 else 12 %}
+    {% set prev_year = display_year if display_month > 1 else display_year - 1 %}
+    {% set next_month = display_month + 1 if display_month < 12 else 1 %}
+    {% set next_year = display_year if display_month < 12 else display_year + 1 %}
+    <div class="flex items-center gap-1 ml-auto bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-1">
+        <a href="?month={{ prev_month }}&year={{ prev_year }}&ward_id={{ selected_ward_id }}"
+           class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            <svg class="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </a>
+        <span class="text-sm font-semibold text-slate-900 dark:text-white px-3 min-w-[140px] text-center">
+            {% set month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] %}
+            {{ month_names[display_month] }} {{ display_year }}
+        </span>
+        <a href="?month={{ next_month }}&year={{ next_year }}&ward_id={{ selected_ward_id }}"
+           class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            <svg class="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+    </div>
+</div>
+
+<!-- Conflict Results -->
+<div id="conflict-results"></div>
+
+<!-- Event type legend -->
+{% if events %}
+<div class="flex flex-wrap gap-3 mb-4">
+    {% set type_legend = {
+        'application_deadline': ('Deadline', 'bg-red-500'),
+        'exam': ('Exam', 'bg-orange-500'),
+        'interview': ('Interview', 'bg-blue-500'),
+        'orientation': ('Orientation', 'bg-green-500'),
+        'follow_up': ('Follow-up', 'bg-purple-500'),
+        'custom': ('Custom', 'bg-slate-400')
+    } %}
+    {% for key, val in type_legend.items() %}
+    <span class="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+        <span class="w-2 h-2 rounded-full {{ val[1] }}"></span>{{ val[0] }}
+    </span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Event List -->
+{% if events %}
+{% set type_colors = {
+    'application_deadline': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'exam': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    'interview': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    'orientation': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    'follow_up': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    'custom': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+} %}
+{% set type_accent = {
+    'application_deadline': 'border-l-red-500',
+    'exam': 'border-l-orange-500',
+    'interview': 'border-l-blue-500',
+    'orientation': 'border-l-green-500',
+    'follow_up': 'border-l-purple-500',
+    'custom': 'border-l-slate-400'
+} %}
+<div class="space-y-3">
+    {% for ev in events %}
+    {% set ev_type = ev.event_type.value if ev.event_type.value is defined else ev.event_type %}
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 border-l-4 {{ type_accent.get(ev_type, 'border-l-slate-400') }} overflow-hidden {{ 'ring-2 ring-red-200 dark:ring-red-900/50' if ev.has_conflict else '' }}">
+        <div class="flex items-center justify-between p-4">
+            <div class="flex items-start gap-4 min-w-0">
+                <!-- Date block -->
+                <div class="text-center min-w-[3.5rem] py-1 px-2 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex-shrink-0">
+                    <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{{ ev.event_date.strftime('%b') }}</p>
+                    <p class="text-xl font-bold text-slate-900 dark:text-white leading-none mt-0.5">{{ ev.event_date.day }}</p>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-white truncate">{{ ev.title }}</h3>
+                        {% if ev.has_conflict %}
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            Conflict
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ type_colors.get(ev_type, type_colors['custom']) }}">
+                            {{ ev_type | replace('_', ' ') | title }}
+                        </span>
+                        {% if ev.event_time %}
+                        <span class="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {{ ev.event_time }}
+                        </span>
+                        {% endif %}
+                        {% if ev.venue %}
+                        <span class="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                            {{ ev.venue }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if ev.conflict_notes %}
+                    <p class="text-xs text-red-600 dark:text-red-400 mt-1.5">{{ ev.conflict_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-1 flex-shrink-0 ml-3">
+                <a href="/parent/calendar/{{ ev.id }}/edit"
+                   class="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                   title="Edit">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </a>
+                <form method="POST" action="/parent/calendar/{{ ev.id }}/delete">
+                    {{ request.state.csrf_form | safe }}
+                    <button type="submit" onclick="return confirm('Delete this event?')"
+                            class="p-2 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                            title="Delete">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 mb-4">
+        <svg class="w-8 h-8 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    </div>
+    <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-1">No events this month</h3>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5 max-w-sm mx-auto">Add deadlines, exam dates, and interviews to stay on top of the admissions process.</p>
+    <a href="/parent/calendar/add" class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition shadow-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Add Event
+    </a>
+</div>
+{% endif %}
+{% endblock %}
